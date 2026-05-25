@@ -1,0 +1,207 @@
+from datetime import datetime
+from typing import Optional, List, Literal
+from pydantic import BaseModel, EmailStr, Field, ConfigDict
+
+
+class TeacherCreate(BaseModel):
+    """Fields required to create a new teacher account and profile."""
+
+    email: EmailStr = Field(..., description="Unique email address of the teacher")
+    password: str = Field(..., min_length=8, max_length=100, description="Secure account password")
+    employee_id: str = Field(..., min_length=3, max_length=30, description="Unique employee identifier e.g. EMP2024001")
+    first_name: str = Field(..., min_length=1, max_length=100, description="Teacher first name")
+    last_name: str = Field(..., min_length=1, max_length=100, description="Teacher last name")
+    department_id: str = Field(..., description="UUID of the teacher's department")
+    designation_id: str = Field(..., description="UUID of the teacher's designation")
+    phone: Optional[str] = Field(None, max_length=20, description="Contact phone number")
+    qualification: Optional[str] = Field(None, max_length=100, description="Academic qualification e.g. Ph.D, M.Tech")
+    specialization: Optional[str] = Field(None, max_length=100, description="Area of specialization e.g. Machine Learning")
+    experience_years: Optional[int] = Field(None, ge=0, description="Years of professional experience")
+    joining_date: Optional[datetime] = Field(None, description="Date of joining the institution")
+
+
+class TeacherUpdate(BaseModel):
+    """Payload for updating a teacher record."""
+    employee_id: Optional[str] = Field(None, min_length=3, max_length=30)
+    first_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    last_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    department_id: Optional[str] = Field(None)
+    designation_id: Optional[str] = Field(None)
+    phone: Optional[str] = Field(None, max_length=20)
+    qualification: Optional[str] = Field(None, max_length=100)
+    specialization: Optional[str] = Field(None, max_length=100)
+    experience_years: Optional[int] = Field(None, ge=0)
+    joining_date: Optional[datetime] = Field(None)
+
+
+class TeacherResponse(BaseModel):
+    """Public-facing representation of a teacher record."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str = Field(..., description="Unique UUID of the teacher record")
+    user_id: str = Field(..., description="Mapped User UUID")
+    email: str = Field(..., description="Email address associated with the user profile")
+    employee_id: str = Field(..., description="Unique employee ID")
+    first_name: str = Field(..., description="Teacher first name")
+    last_name: str = Field(..., description="Teacher last name")
+    department_id: str = Field(..., description="Raw department UUID")
+    designation_id: str = Field(..., description="Raw designation UUID")
+    department: str = Field(..., description="Resolved department name")
+    designation: str = Field(..., description="Resolved designation name")
+    phone: Optional[str] = Field(None, description="Contact phone number")
+    qualification: Optional[str] = Field(None, description="Academic qualification")
+    specialization: Optional[str] = Field(None, description="Area of specialization")
+    experience_years: Optional[int] = Field(None, description="Years of professional experience")
+    joining_date: Optional[datetime] = Field(None, description="Joining date")
+
+
+class SessionStart(BaseModel):
+    """Payload to open a new attendance session for a class."""
+
+    academic_class_id: str = Field(..., description="Target Class UUID for this session")
+    duration_minutes: int = Field(10, ge=1, le=180, description="Session validity window in minutes")
+
+
+class SessionResponse(BaseModel):
+    """Response shape for a newly opened or queried attendance session."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: str = Field(..., description="Unique UUID of the active session")
+    academic_class_id: str = Field(..., alias="academicClassId", description="Associated Class UUID")
+    start_time: datetime = Field(..., alias="startTime", description="Timestamp when the session opened")
+    end_time: datetime = Field(..., alias="endTime", description="Timestamp when the session will close")
+    is_active: bool = Field(..., alias="isActive", description="Current state of the session")
+
+
+class GeofenceUpsert(BaseModel):
+    """Payload to create or update a geofence for a class."""
+
+    latitude: float = Field(..., description="GPS Latitude coordinate")
+    longitude: float = Field(..., description="GPS Longitude coordinate")
+    radius_meters: float = Field(..., gt=0.0, description="Geofence boundary radius in meters")
+
+
+class GeofenceResponse(BaseModel):
+    """Full geofence record returned to the client."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: str = Field(..., description="Unique UUID of the Geofence record")
+    academic_class_id: str = Field(..., alias="academicClassId", description="Class ID")
+    latitude: float = Field(..., description="Latitude coordinate")
+    longitude: float = Field(..., description="Longitude coordinate")
+    radius_meters: float = Field(..., alias="radiusMeters", description="Radius in meters")
+    created_at: datetime = Field(..., alias="createdAt", description="Timestamp created")
+    updated_at: datetime = Field(..., alias="updatedAt", description="Timestamp updated")
+
+
+class AcademicClassWithGeofenceResponse(BaseModel):
+    """A teacher's class with its geofence configuration and resolved subject name."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: str = Field(..., description="Unique UUID of the Academic Class")
+    name: str = Field(..., description="Class name")
+    # subject is resolved from the FK relation subject.name, not a plain string
+    subject: str = Field(..., description="Resolved subject name")
+    teacher_id: str = Field(..., alias="teacherId", description="Teacher ID")
+    geofence: Optional[GeofenceResponse] = Field(None, description="Class geofence configuration")
+
+
+class StudentRosterItem(BaseModel):
+    """One student's attendance status in a session roster."""
+
+    student_id: str = Field(..., description="Student UUID")
+    enrollment_number: str = Field(..., description="Student enrollment number")
+    full_name: str = Field(..., description="Student full name (first + last)")
+    email: str = Field(..., description="Student email address")
+    status: str = Field(..., description="Attendance status (Present, Flagged, Absent)")
+    final_score: float = Field(..., description="Final calculated AI attendance score")
+    marked_at: Optional[datetime] = Field(None, description="Timestamp attendance was registered")
+
+
+class SessionAttendanceResponse(BaseModel):
+    """Full roster for a given attendance session."""
+
+    session_id: str = Field(..., description="Session UUID")
+    class_name: str = Field(..., description="Class name")
+    roster: List[StudentRosterItem] = Field(..., description="Enrolled roster list details")
+
+
+class SessionTrendItem(BaseModel):
+    """Attendance percentage data for a single session, used in trend charts."""
+
+    session_id: str = Field(..., description="Session UUID")
+    session_name: str = Field(..., description="Display name of session")
+    attendance_percentage: float = Field(..., description="Attendance percentage for session")
+
+
+class ClassStatsResponse(BaseModel):
+    """Aggregated statistics for a teacher's class."""
+
+    class_id: str = Field(..., description="Class UUID")
+    total_sessions: int = Field(..., description="Total sessions held for class")
+    total_students: int = Field(..., description="Total student count enrolled in class")
+    overall_attendance_percentage: float = Field(..., description="Overall class attendance percentage")
+    history: List[SessionTrendItem] = Field(default_factory=list, description="Chronological list of sessions with stats")
+
+
+class AttendanceManualOverride(BaseModel):
+    """Payload for a teacher to manually override a single student's attendance status."""
+
+    student_id: str = Field(..., description="Student UUID to override")
+    status: str = Field(..., description="Target status (Present or Absent)")
+
+
+class SessionWithClassResponse(BaseModel):
+    """A session record with its resolved class name and subject."""
+
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: str = Field(..., description="Unique UUID of the session")
+    academic_class_id: str = Field(..., alias="academicClassId", description="Associated Class UUID")
+    class_name: str = Field(..., description="Class Name")
+    # subject is resolved from the FK relation (session.academicClass.subject.name)
+    subject: str = Field(..., description="Resolved subject name")
+    start_time: datetime = Field(..., alias="startTime", description="Timestamp when session opened")
+    end_time: datetime = Field(..., alias="endTime", description="Timestamp when session closed")
+    is_active: bool = Field(..., alias="isActive", description="Current state of session")
+
+
+class BulkAttendanceRecord(BaseModel):
+    """A single record in a bulk attendance marking request."""
+
+    student_id: str = Field(..., description="Student UUID")
+    status: Literal["Present", "Absent"] = Field(..., description="Attendance status to set")
+
+
+class BulkMarkRequest(BaseModel):
+    """Payload for marking attendance for multiple students at once."""
+
+    records: List[BulkAttendanceRecord] = Field(..., min_length=1, description="List of student attendance records")
+
+
+class AbsentStudentItem(BaseModel):
+    """A student who has not yet been marked for a session."""
+
+    student_id: str = Field(..., description="Student UUID")
+    enrollment_number: str = Field(..., description="Student enrollment number")
+    full_name: str = Field(..., description="Student full name")
+    email: str = Field(..., description="Student email address")
+
+
+class AttendanceExportRow(BaseModel):
+    """A single row in the exported CSV attendance report."""
+
+    enrollment_number: str = Field(..., description="Student enrollment number")
+    first_name: str = Field(..., description="Student first name")
+    last_name: str = Field(..., description="Student last name")
+    email: str = Field(..., description="Student email")
+    session_date: str = Field(..., description="Session date in ISO format")
+    class_name: str = Field(..., description="Class name")
+    subject: str = Field(..., description="Resolved subject name")
+    status: str = Field(..., description="Attendance status")
+    final_ai_score: float = Field(..., description="Final AI score (0.0–1.0)")
+    remarks: Optional[str] = Field(None, description="Optional remarks or notes")

@@ -1,0 +1,426 @@
+import os
+import uuid
+import shutil
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from app.api.dependencies import get_current_student
+from app.core.config import settings
+from app.schemas.attendance import AttendanceMarkResponse
+from app.schemas.student import StudentAttendanceHistoryResponse, StudentClassResponse
+from app.schemas.dispute import DisputeCreate, DisputeResponse
+from app.schemas.leave import LeaveRequestCreate, LeaveRequestResponse, LeaveRequestListResponse
+from app.services.attendance_service import AttendanceService, AttendanceSubmission
+from app.services.student_service import StudentService
+from app.repositories.leave_repo import LeaveRepository
+from app.repositories.attendance_repo import AttendanceRepository
+from prisma.models import Student
+
+router = APIRouter(prefix="/student", tags=["Student Features"])
+
+
+def _save_uploaded_image(upload_file: UploadFile, folder: str) -> str:
+
+
+    target_dir = os.path.join(settings.UPLOAD_DIR, folder)
+    os.makedirs(target_dir, exist_ok=True)
+    
+    file_extension = os.path.splitext(upload_file.filename or "")[1] or ".jpg"
+    unique_filename = f"{uuid.uuid4()}{file_extension}"
+    target_path = os.path.join(target_dir, unique_filename)
+    
+    with open(target_path, "wb") as buffer:
+        shutil.copyfileobj(upload_file.file, buffer)
+        
+    return target_path
+
+
+@router.post("/attendance/mark", response_model=AttendanceMarkResponse)
+async def mark_attendance(
+    session_id: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
+    image: UploadFile = File(...),
+    student: Student = Depends(get_current_student),
+    attendance_service: AttendanceService = Depends(),
+) -> AttendanceMarkResponse:
+
+
+
+    if image.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported media type. Upload must be a valid JPEG or PNG image."
+        )
+
+
+    if image.size is not None and image.size > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Payload too large. Uploaded image cannot exceed 5MB."
+        )
+
+
+    image_path = _save_uploaded_image(image, "attendance")
+    
+
+    submission = AttendanceSubmission(
+        student_id=student.id,
+        session_id=session_id,
+        latitude=latitude,
+        longitude=longitude,
+        image_path=image_path,
+    )
+    
+    try:
+        attendance = await attendance_service.mark_attendance(submission)
+        return AttendanceMarkResponse.model_validate(attendance)
+    except ValueError as err:
+
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err)
+        )
+
+
+@router.post("/register-face", status_code=status.HTTP_200_OK)
+async def register_face(
+    image: UploadFile = File(...),
+    student: Student = Depends(get_current_student),
+    attendance_service: AttendanceService = Depends(),
+) -> dict:
+
+
+
+    if image.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Unsupported media type. Upload must be a valid JPEG or PNG image."
+        )
+
+
+    if image.size is not None and image.size > 5 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Payload too large. Uploaded image cannot exceed 5MB."
+        )
+
+    image_path = _save_uploaded_image(image, "registration")
+    
+    try:
+        success = await attendance_service.register_face(student.id, image_path)
+
+        if not success:
+            raise ValueError("Could not extract a valid face from the image.")
+            
+        return {"status": "success", "message": "Face embedding registered successfully."}
+        
+    except ValueError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err)
+        )
+    finally:
+
+        if os.path.exists(image_path):
+            os.remove(image_path)
+
+
+@router.get("/my-attendance", response_model=StudentAttendanceHistoryResponse)
+async def get_my_attendance(
+    student: Student = Depends(get_current_student),
+    student_service: StudentService = Depends(),
+) -> StudentAttendanceHistoryResponse:
+
+
+    return await student_service.get_student_attendance_history(student.userId)
+
+@router.get("/classes", response_model=list[StudentClassResponse])
+async def get_my_classes(
+    student: Student = Depends(get_current_student),
+    student_service: StudentService = Depends(),
+) -> list[StudentClassResponse]:
+    return await student_service.get_student_classes(student.userId)
+
+
+@router.post("/fcm-token", status_code=status.HTTP_200_OK)
+async def register_fcm_token(
+    payload: dict,
+    student: Student = Depends(get_current_student),
+) -> dict:
+    """Registers or refreshes the student's FCM push notification token."""
+    token = payload.get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="FCM token is required."
+        )
+    from app.db.client import db
+    await db.student.update(
+        where={"id": student.id},
+        data={"fcmToken": token}
+    )
+    return {"status": "success", "message": "FCM token registered."}
+
+
+@router.post("/attendance/{attendance_id}/note", status_code=status.HTTP_200_OK)
+async def submit_flagged_note(
+    attendance_id: str,
+    payload: dict,
+    student: Student = Depends(get_current_student),
+) -> dict:
+    """Allows a student to attach a note to a flagged attendance record."""
+    note = payload.get("note", "").strip()
+    if not note:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Note cannot be empty."
+        )
+    if len(note) > 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Note cannot exceed 500 characters."
+        )
+    from app.db.client import db
+    record = await db.attendance.find_unique(where={"id": attendance_id})
+    if not record or record.studentId != student.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendance record not found."
+        )
+    if record.status != "Flagged":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Notes can only be added to flagged records."
+        )
+    await db.attendance.update(
+        where={"id": attendance_id},
+        data={"studentNote": note}
+    )
+    return {"status": "success", "message": "Note submitted successfully."}
+
+
+@router.post("/attendance/{attendance_id}/dispute", status_code=status.HTTP_201_CREATED)
+async def submit_dispute(
+    attendance_id: str,
+    reason: str = Form(...),
+    proof_image: UploadFile = File(None),
+    student: Student = Depends(get_current_student),
+    attendance_repo: AttendanceRepository = Depends(),
+) -> dict:
+    """Submit a dispute for a flagged or absent attendance record."""
+    from app.db.client import db
+    from datetime import datetime, timezone
+    
+    # Validate attendance record
+    record = await attendance_repo.get_by_id(attendance_id)
+    if not record or record.studentId != student.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Attendance record not found."
+        )
+    
+    if record.disputeStatus != "NONE":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Dispute already {record.disputeStatus.lower()}."
+        )
+    
+    # Save proof image if provided
+    proof_url = None
+    if proof_image:
+        if proof_image.content_type not in ["image/jpeg", "image/png", "image/jpg"]:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Proof image must be JPEG or PNG."
+            )
+        proof_url = _save_uploaded_image(proof_image, "disputes")
+    
+    # Update attendance record with dispute
+    await db.attendance.update(
+        where={"id": attendance_id},
+        data={
+            "disputeStatus": "PENDING",
+            "disputeReason": reason,
+            "proofImageUrl": proof_url,
+            "disputedAt": datetime.now(timezone.utc)
+        }
+    )
+    
+    return {
+        "status": "success",
+        "message": "Dispute submitted successfully. Your teacher will review it soon."
+    }
+
+
+@router.get("/leaves", response_model=LeaveRequestListResponse)
+async def get_my_leaves(
+    student: Student = Depends(get_current_student),
+    leave_repo: LeaveRepository = Depends(),
+) -> LeaveRequestListResponse:
+    """Get all leave requests for the current student."""
+    leaves = await leave_repo.get_by_student_id(student.id)
+    
+    leave_responses = []
+    for leave in leaves:
+        student_name = f"{leave.student.firstName or ''} {leave.student.lastName or ''}".strip()
+        leave_responses.append(LeaveRequestResponse(
+            id=leave.id,
+            student_id=leave.studentId,
+            student_name=student_name or "Unknown",
+            enrollment_number=leave.student.enrollmentNumber,
+            start_date=leave.startDate,
+            end_date=leave.endDate,
+            reason=leave.reason,
+            document_url=leave.documentUrl,
+            status=leave.status,
+            approved_by=leave.approvedBy,
+            approver_note=leave.approverNote,
+            created_at=leave.createdAt,
+            updated_at=leave.updatedAt
+        ))
+    
+    total = len(leave_responses)
+    pending = sum(1 for l in leaves if l.status == "PENDING")
+    approved = sum(1 for l in leaves if l.status == "APPROVED")
+    rejected = sum(1 for l in leaves if l.status == "REJECTED")
+    
+    return LeaveRequestListResponse(
+        leaves=leave_responses,
+        total=total,
+        pending=pending,
+        approved=approved,
+        rejected=rejected
+    )
+
+
+@router.post("/leaves", response_model=LeaveRequestResponse, status_code=status.HTTP_201_CREATED)
+async def create_leave_request(
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    reason: str = Form(...),
+    document: UploadFile = File(None),
+    student: Student = Depends(get_current_student),
+    leave_repo: LeaveRepository = Depends(),
+) -> LeaveRequestResponse:
+    """Create a new leave request with form data and optional medical certificate upload."""
+    from datetime import datetime, timezone, date
+    import os
+    
+    try:
+        s_date = date.fromisoformat(start_date)
+        e_date = date.fromisoformat(end_date)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid date format. Use YYYY-MM-DD."
+        )
+        
+    if e_date < s_date:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="End date must be after or equal to start date."
+        )
+        
+    if len(reason) < 10 or len(reason) > 500:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Reason must be between 10 and 500 characters."
+        )
+
+    # Save document if provided
+    document_url = None
+    if document and document.filename:
+        try:
+            upload_dir = "static/leaves"
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            file_ext = os.path.splitext(document.filename)[1]
+            filename = f"leave_{student.id}_{int(datetime.now().timestamp())}{file_ext}"
+            file_path = os.path.join(upload_dir, filename)
+            
+            with open(file_path, "wb") as f:
+                content = await document.read()
+                f.write(content)
+                
+            document_url = f"/static/leaves/{filename}"
+        except Exception as e:
+            logger.error(f"Failed to save leave document: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Could not save leave document."
+            )
+
+    start_datetime = datetime.combine(s_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_datetime = datetime.combine(e_date, datetime.max.time()).replace(tzinfo=timezone.utc)
+    
+    leave = await leave_repo.create({
+        "studentId": student.id,
+        "startDate": start_datetime,
+        "endDate": end_datetime,
+        "reason": reason,
+        "documentUrl": document_url,
+        "status": "PENDING"
+    })
+    
+    student_name = f"{student.firstName or ''} {student.lastName or ''}".strip()
+    
+    return LeaveRequestResponse(
+        id=leave.id,
+        student_id=leave.studentId,
+        student_name=student_name or "Unknown",
+        enrollment_number=student.enrollmentNumber,
+        start_date=leave.startDate,
+        end_date=leave.endDate,
+        reason=leave.reason,
+        document_url=leave.documentUrl,
+        status=leave.status,
+        approved_by=leave.approvedBy,
+        approver_note=leave.approverNote,
+        created_at=leave.createdAt,
+        updated_at=leave.updatedAt
+    )
+
+
+@router.get("/smart-pass", response_model=dict)
+async def get_smart_pass(
+    student: Student = Depends(get_current_student),
+) -> dict:
+    """
+    Generate a time-limited Smart Pass QR code token (30-second expiry).
+    Used for quick campus access verification.
+    """
+    from app.core.security import create_access_token
+    from datetime import timedelta
+    
+    # Create short-lived JWT (30 seconds)
+    qr_token = create_access_token(
+        subject=student.userId,
+        role="STUDENT",
+        expires_delta=timedelta(seconds=30),
+        extra_data={
+            "student_id": student.id,
+            "enrollment_number": student.enrollmentNumber,
+            "type": "smart_pass"
+        }
+    )
+    
+    from datetime import datetime, timezone
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+    
+    return {
+        "qr_token": qr_token,
+        "expires_at": expires_at.isoformat(),
+        "student_name": f"{student.firstName or ''} {student.lastName or ''}".strip(),
+        "enrollment_number": student.enrollmentNumber
+    }
+
+
+@router.get("/stats", response_model=dict)
+async def get_my_stats(
+    student: Student = Depends(get_current_student),
+) -> dict:
+    """Get comprehensive gamification and analytics stats for the student."""
+    from app.services.gamification_service import GamificationService
+    gamification = GamificationService()
+    return await gamification.get_student_stats(student.id)

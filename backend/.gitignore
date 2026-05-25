@@ -1,0 +1,66 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.flakes8
+.installed.cfg
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Firebase & Secrets
+firebase-credentials.json
+google-services.json
+
+# Prisma
+prisma/client/
+*.db
+*.sqlite3
+
+# Logs
+logs/
+*.log
+
+# Project specific
+static/
+uploads/
+!static/.gitkeep
+!uploads/.gitkeep
+
+# AI/ML
+*.h5
+*.pb
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.onnx
+
+# Pytest
+.pytest_cache/
+.coverage
+htmlcov/

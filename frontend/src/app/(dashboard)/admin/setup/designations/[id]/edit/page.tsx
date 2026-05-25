@@ -1,0 +1,118 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import toast from "react-hot-toast";
+import api from "@/lib/api";
+import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
+import GlassPageHeader from "@/components/ui/GlassPageHeader";
+import GlassCard from "@/components/ui/GlassCard";
+import GlassInput from "@/components/ui/GlassInput";
+import GlassTextarea from "@/components/ui/GlassTextarea";
+import GlassButton from "@/components/ui/GlassButton";
+import GlassLoader from "@/components/ui/GlassLoader";
+import type { DesignationResponse } from "@/types";
+
+export default function EditDesignationPage(): React.ReactElement {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [desig, setDesig] = useState<DesignationResponse | null>(null);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [description, setDescription] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    async function fetch(): Promise<void> {
+      try {
+        const { data } = await api.get<DesignationResponse>(`/admin/designations/${id}`);
+        setDesig(data);
+        setName(data.name);
+        setCode(data.code);
+        setDescription(data.description || "");
+      } catch {
+        toast.error("Failed to load designation");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetch();
+  }, [id]);
+
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+    if (!name.trim()) errs.name = "Designation name is required";
+    if (!code.trim()) errs.code = "Designation code is required";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  async function handleSubmit(e: React.FormEvent): Promise<void> {
+    e.preventDefault();
+    if (!validate()) return;
+    setSaving(true);
+    try {
+      await api.put(`/admin/designations/${id}`, {
+        name,
+        code,
+        description: description || undefined,
+      });
+      toast.success("Designation updated successfully");
+      router.push("/admin/setup/designations");
+    } catch (err: unknown) {
+      const errMsg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Update failed";
+      toast.error(errMsg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return <GlassLoader text="Loading designation info..." />;
+  if (!desig) return <div className="text-center py-20 text-slate-500">Designation not found</div>;
+
+  return (
+    <div className="animate-fade-in-up">
+      <GlassBreadcrumb
+        items={[
+          { label: "Admin", href: "/admin/dashboard" },
+          { label: "Setup" },
+          { label: "Designations", href: "/admin/setup/designations" },
+          { label: desig.name },
+          { label: "Edit" },
+        ]}
+      />
+      <GlassPageHeader title="Edit Designation" />
+      <GlassCard className="max-w-xl">
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <GlassInput
+            label="Designation Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            error={errors.name}
+          />
+          <GlassInput
+            label="Designation Code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            error={errors.code}
+          />
+          <GlassTextarea
+            label="Description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+          <div className="flex justify-end gap-3 pt-4">
+            <GlassButton variant="ghost" type="button" onClick={() => router.back()}>
+              Cancel
+            </GlassButton>
+            <GlassButton variant="primary" type="submit" loading={saving}>
+              Save Changes
+            </GlassButton>
+          </div>
+        </form>
+      </GlassCard>
+    </div>
+  );
+}

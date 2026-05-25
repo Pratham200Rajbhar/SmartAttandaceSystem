@@ -1,0 +1,114 @@
+// Attendance provider — manages the 3-step verification pipeline.
+// Uses autoDispose to clean up stale GPS/image data when the user
+// navigates away from the verification screen mid-flow.
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
+
+enum VerificationStep { gps, camera, preview, submitting, done }
+
+class AttendanceVerificationState {
+  final VerificationStep step;
+  final double? latitude;
+  final double? longitude;
+  final String? imagePath;
+  final AttendanceSubmitResult? result;
+  final String? errorMessage;
+  final bool isError;
+
+  const AttendanceVerificationState({
+    this.step = VerificationStep.gps,
+    this.latitude,
+    this.longitude,
+    this.imagePath,
+    this.result,
+    this.errorMessage,
+    this.isError = false,
+  });
+
+  AttendanceVerificationState copyWith({
+    VerificationStep? step,
+    double? latitude,
+    double? longitude,
+    String? imagePath,
+    AttendanceSubmitResult? result,
+    String? errorMessage,
+    bool? isError,
+  }) {
+    return AttendanceVerificationState(
+      step: step ?? this.step,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      imagePath: imagePath ?? this.imagePath,
+      result: result ?? this.result,
+      errorMessage: errorMessage,
+      isError: isError ?? this.isError,
+    );
+  }
+}
+
+class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
+  final AttendanceRepository _repo;
+
+  AttendanceNotifier(this._repo) : super(const AttendanceVerificationState());
+
+  /// Records the GPS coordinates and advances to camera step.
+  void setGpsLocation(double lat, double lng) {
+    state = state.copyWith(
+        latitude: lat, longitude: lng, step: VerificationStep.camera);
+  }
+
+  /// Records the captured image path and advances to preview step.
+  void setImagePath(String path) {
+    state = state.copyWith(imagePath: path, step: VerificationStep.preview);
+  }
+
+  /// Advances from preview to submitting step.
+  void confirmSubmit() {
+    state = state.copyWith(step: VerificationStep.submitting);
+  }
+
+  /// Submits the attendance data to the backend or queues offline.
+  Future<void> submit(String sessionId) async {
+    if (state.latitude == null ||
+        state.longitude == null ||
+        state.imagePath == null) {
+      state = state.copyWith(
+        errorMessage: 'Missing GPS or image data',
+        isError: true,
+      );
+      return;
+    }
+
+    try {
+      final result = await _repo.submitAttendance(
+        sessionId: sessionId,
+        latitude: state.latitude!,
+        longitude: state.longitude!,
+        imagePath: state.imagePath!,
+      );
+      state = state.copyWith(result: result, step: VerificationStep.done);
+    } catch (e, stackTrace) {
+      debugPrint('AttendanceNotifier.submit error: $e\n$stackTrace');
+      state = state.copyWith(
+        errorMessage: e.toString(),
+        isError: true,
+        step: VerificationStep.done,
+      );
+    }
+  }
+
+  /// Resets state for a new verification attempt.
+  void reset() {
+    state = const AttendanceVerificationState();
+  }
+}
+
+/// autoDispose ensures stale GPS/image data is cleaned up. ref.keepAlive()
+/// prevents premature disposal during the verify→result route transition.
+/// State is explicitly reset via reset() when the user returns to dashboard.
+final attendanceVerificationProvider = StateNotifierProvider.autoDispose<
+    AttendanceNotifier, AttendanceVerificationState>((ref) {
+  ref.keepAlive();
+  return AttendanceNotifier(ref.read(attendanceRepositoryProvider));
+});

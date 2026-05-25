@@ -1,0 +1,825 @@
+// History screen — Calendar view + List view toggle with filters.
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/extensions.dart';
+import 'package:smart_attendance_app/domain/models/attendance.dart';
+import 'package:smart_attendance_app/features/history/providers/history_provider.dart';
+import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
+import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
+import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
+
+enum _HistoryTab { calendar, list }
+enum _ListFilter { all, present, absent, flagged }
+
+class HistoryScreen extends ConsumerStatefulWidget {
+  const HistoryScreen({super.key});
+  @override
+  ConsumerState<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends ConsumerState<HistoryScreen> {
+  _HistoryTab _tab = _HistoryTab.calendar;
+  _ListFilter _filter = _ListFilter.all;
+  String? _subjectFilter;
+  DateTime _focusedMonth = DateTime.now();
+  late DateTime _selectedDate;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedDate = DateTime(now.year, now.month, now.day);
+    ref.read(historyProvider.notifier).fetch();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hState = ref.watch(historyProvider);
+    final pct = hState.data?.overallAttendancePercentage ?? 0;
+
+    return AnimatedBackground(
+      child: SafeArea(
+        child: RefreshIndicator(
+          color: SasColors.accentEmerald,
+          backgroundColor: SasColors.bgSecondary,
+          onRefresh: () => ref.read(historyProvider.notifier).fetch(),
+          child: ListView(
+            padding: const EdgeInsets.all(20),
+            children: [
+              // Overall percentage banner
+              GlassCard(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 52, height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _pctColor(pct).withValues(alpha: 0.15),
+                      ),
+                      child: Center(
+                        child: Text('${pct.toStringAsFixed(0)}%',
+                            style: TextStyle(
+                                color: _pctColor(pct),
+                                fontWeight: FontWeight.w800,
+                                fontSize: 16)),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Overall Attendance',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 15)),
+                        Text('Across all enrolled courses',
+                            style: TextStyle(
+                                color: SasColors.textMuted, fontSize: 13)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Tab toggle
+              Container(
+                decoration: BoxDecoration(
+                  color: SasColors.glassBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: SasColors.glassBorder),
+                ),
+                child: Row(
+                  children: [
+                    _TabButton(
+                      label: 'Calendar',
+                      icon: Icons.calendar_month_rounded,
+                      selected: _tab == _HistoryTab.calendar,
+                      onTap: () => setState(() => _tab = _HistoryTab.calendar),
+                    ),
+                    _TabButton(
+                      label: 'List',
+                      icon: Icons.list_rounded,
+                      selected: _tab == _HistoryTab.list,
+                      onTap: () => setState(() => _tab = _HistoryTab.list),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              if (hState.errorMessage != null && hState.data == null)
+                GlassCard(
+                  borderColor: SasColors.danger.withValues(alpha: 0.3),
+                  child: Column(children: [
+                    const SizedBox(height: 12),
+                    const Icon(Icons.cloud_off_rounded, size: 40, color: SasColors.danger),
+                    const SizedBox(height: 12),
+                    Text(hState.errorMessage!, textAlign: TextAlign.center,
+                        style: const TextStyle(color: SasColors.textSecondary, fontSize: 14)),
+                    const SizedBox(height: 16),
+                    GlassButton(label: 'Retry', icon: Icons.refresh_rounded,
+                        onPressed: () => ref.read(historyProvider.notifier).fetch()),
+                    const SizedBox(height: 12),
+                  ]),
+                )
+              else if (hState.isLoading && hState.data == null)
+                _ShimmerCalendar()
+              else if (_tab == _HistoryTab.calendar)
+                _buildCalendarView(hState)
+              else
+                _buildListView(hState),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCalendarView(HistoryState hState) {
+    final grouped = hState.groupedByDate;
+    // Month stats
+    final monthItems = (hState.data?.history ?? []).where((h) =>
+        h.markedAt.year == _focusedMonth.year &&
+        h.markedAt.month == _focusedMonth.month).toList();
+    final mPresent = monthItems.where((h) => h.status == 'Present' || h.status == 'Approved').length;
+    final mAbsent = monthItems.where((h) => h.status == 'Absent').length;
+    final mFlagged = monthItems.where((h) => h.status == 'Flagged').length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Per-subject breakdown
+        if (hState.data != null && hState.data!.history.isNotEmpty)
+          _PerSubjectBreakdown(history: hState.data!.history),
+        const SizedBox(height: 16),
+        GlassCard(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _buildCalendarHeader(),
+              const SizedBox(height: 12),
+              _buildDayHeaders(),
+              const SizedBox(height: 8),
+              _buildCalendarGrid(grouped),
+              const SizedBox(height: 12),
+              // Legend
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _LegendDot(color: SasColors.success, label: 'Present'),
+                  const SizedBox(width: 12),
+                  _LegendDot(color: SasColors.warning, label: 'Flagged'),
+                  const SizedBox(width: 12),
+                  _LegendDot(color: SasColors.danger, label: 'Absent'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              // Month stats
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: SasColors.glassBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _MonthStat(label: 'Present', value: '$mPresent', color: SasColors.success),
+                    _MonthStat(label: 'Absent', value: '$mAbsent', color: SasColors.danger),
+                    _MonthStat(label: 'Flagged', value: '$mFlagged', color: SasColors.warning),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(_selectedDate.formattedDate,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14,
+                color: SasColors.textSecondary)),
+        const SizedBox(height: 8),
+        ..._buildDayItems(grouped[_selectedDate] ?? []),
+      ],
+    );
+  }
+
+  Widget _buildListView(HistoryState hState) {
+    final all = hState.data?.history ?? [];
+    // Collect unique subjects
+    final subjects = all.map((h) => h.subject).toSet().toList()..sort();
+
+    var filtered = all.where((h) {
+      if (_filter == _ListFilter.present) return h.status == 'Present' || h.status == 'Approved';
+      if (_filter == _ListFilter.absent) return h.status == 'Absent';
+      if (_filter == _ListFilter.flagged) return h.status == 'Flagged';
+      return true;
+    }).toList();
+
+    if (_subjectFilter != null) {
+      filtered = filtered.where((h) => h.subject == _subjectFilter).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((h) =>
+          h.subject.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          h.className.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    }
+    filtered.sort((a, b) => b.markedAt.compareTo(a.markedAt));
+
+    final total = all.length;
+    final present = all.where((h) => h.status == 'Present' || h.status == 'Approved').length;
+    final absent = all.where((h) => h.status == 'Absent').length;
+    final flagged = all.where((h) => h.status == 'Flagged').length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Summary stats
+        Row(
+          children: [
+            Expanded(child: _StatChip(label: 'Total', value: '$total', color: SasColors.info)),
+            const SizedBox(width: 6),
+            Expanded(child: _StatChip(label: 'Present', value: '$present', color: SasColors.success)),
+            const SizedBox(width: 6),
+            Expanded(child: _StatChip(label: 'Absent', value: '$absent', color: SasColors.danger)),
+            const SizedBox(width: 6),
+            Expanded(child: _StatChip(label: 'Flagged', value: '$flagged', color: SasColors.warning)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        // Search bar
+        TextField(
+          controller: _searchController,
+          onChanged: (v) => setState(() => _searchQuery = v),
+          style: const TextStyle(color: SasColors.textPrimary, fontSize: 14),
+          decoration: InputDecoration(
+            hintText: 'Search by subject or class…',
+            hintStyle: const TextStyle(color: SasColors.textMuted, fontSize: 13),
+            prefixIcon: const Icon(Icons.search_rounded, color: SasColors.textMuted, size: 20),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear_rounded, color: SasColors.textMuted, size: 18),
+                    onPressed: () { _searchController.clear(); setState(() => _searchQuery = ''); })
+                : null,
+          ),
+        ),
+        const SizedBox(height: 10),
+        // Filter chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ..._ListFilter.values.map((f) => Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: _FilterChip(
+                  label: f.name[0].toUpperCase() + f.name.substring(1),
+                  selected: _filter == f,
+                  onTap: () => setState(() => _filter = f),
+                ),
+              )),
+              if (subjects.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                const Text('|', style: TextStyle(color: SasColors.glassBorder)),
+                const SizedBox(width: 4),
+                ...subjects.map((s) => Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: _FilterChip(
+                    label: s.length > 12 ? '${s.substring(0, 12)}…' : s,
+                    selected: _subjectFilter == s,
+                    onTap: () => setState(() => _subjectFilter = _subjectFilter == s ? null : s),
+                    color: SasColors.accentTeal,
+                  ),
+                )),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (filtered.isEmpty)
+          GlassCard(
+            child: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text('No records match your filters.',
+                    style: TextStyle(color: SasColors.textMuted, fontSize: 13)),
+              ),
+            ),
+          )
+        else
+          ...filtered.map((item) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _ListItemCard(item: item),
+          )),
+      ],
+    );
+  }
+
+  Widget _buildCalendarHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon: const Icon(Icons.chevron_left_rounded, color: SasColors.textSecondary),
+          onPressed: () => setState(() {
+            _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
+          }),
+        ),
+        Text(DateFormat.yMMMM().format(_focusedMonth),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+        IconButton(
+          icon: const Icon(Icons.chevron_right_rounded, color: SasColors.textSecondary),
+          onPressed: () => setState(() {
+            _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
+          }),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDayHeaders() {
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return Row(
+      children: days.map((d) => Expanded(
+        child: Center(child: Text(d,
+            style: const TextStyle(color: SasColors.textMuted, fontSize: 11,
+                fontWeight: FontWeight.w600))),
+      )).toList(),
+    );
+  }
+
+  Widget _buildCalendarGrid(Map<DateTime, List<AttendanceHistoryItem>> grouped) {
+    final firstDay = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final startWeekday = firstDay.weekday;
+    final cells = <Widget>[];
+    for (int i = 1; i < startWeekday; i++) { cells.add(const SizedBox()); }
+    for (int day = 1; day <= daysInMonth; day++) {
+      final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
+      final items = grouped[date];
+      final isSelected = date.isSameDay(_selectedDate);
+      final isToday = date.isSameDay(DateTime.now());
+      Color? dotColor;
+      if (items != null && items.isNotEmpty) {
+        final statuses = items.map((i) => i.status).toSet();
+        if (statuses.contains('Flagged')) {
+          dotColor = SasColors.warning;
+        } else if (statuses.every((s) => s == 'Present' || s == 'Approved')) {
+          dotColor = SasColors.success;
+        } else {
+          dotColor = SasColors.danger;
+        }
+      }
+      cells.add(GestureDetector(
+        onTap: () => setState(() => _selectedDate = date),
+        child: Container(
+          margin: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: isSelected ? SasColors.accentEmerald.withValues(alpha: 0.15)
+                : isToday ? SasColors.glassBgHover : null,
+            border: isSelected ? Border.all(color: SasColors.accentEmerald.withValues(alpha: 0.5))
+                : isToday ? Border.all(color: SasColors.glassBorderHover) : null,
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text('$day', style: TextStyle(
+                fontSize: 13,
+                fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? SasColors.accentEmerald : SasColors.textPrimary,
+              )),
+              if (dotColor != null)
+                Container(
+                  width: 8, height: 8,
+                  margin: const EdgeInsets.only(top: 2),
+                  decoration: BoxDecoration(shape: BoxShape.circle, color: dotColor),
+                ),
+            ],
+          ),
+        ),
+      ));
+    }
+    return GridView.count(
+      crossAxisCount: 7, shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.0, children: cells,
+    );
+  }
+
+  List<Widget> _buildDayItems(List<AttendanceHistoryItem> items) {
+    if (items.isEmpty) {
+      return [GlassCard(child: const Center(child: Padding(
+        padding: EdgeInsets.all(12),
+        child: Text('No attendance records for this day.',
+            style: TextStyle(color: SasColors.textMuted, fontSize: 13)),
+      )))];
+    }
+    return items.map((item) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _HistoryItemCard(item: item),
+    )).toList();
+  }
+
+  Color _pctColor(double pct) {
+    if (pct >= 75) return SasColors.success;
+    if (pct >= 50) return SasColors.warning;
+    return SasColors.danger;
+  }
+}
+
+// ─── Reusable sub-widgets ────────────────────────────────────────────────────
+
+class _TabButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+  const _TabButton({required this.label, required this.icon, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? SasColors.accentEmerald.withValues(alpha: 0.12) : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: selected ? SasColors.accentEmerald : SasColors.textMuted),
+              const SizedBox(width: 6),
+              Text(label, style: TextStyle(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: selected ? SasColors.accentEmerald : SasColors.textMuted,
+              )),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color? color;
+  const _FilterChip({required this.label, required this.selected, required this.onTap, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? SasColors.accentEmerald;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? c.withValues(alpha: 0.15) : SasColors.glassBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: selected ? c.withValues(alpha: 0.4) : SasColors.glassBorder),
+        ),
+        child: Text(label, style: TextStyle(
+          fontSize: 12, fontWeight: FontWeight.w600,
+          color: selected ? c : SasColors.textMuted,
+        )),
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _StatChip({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16)),
+          Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+  const _MonthStat({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
+        Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
+      ],
+    );
+  }
+}
+
+class _LegendDot extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _LegendDot({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
+      ],
+    );
+  }
+}
+
+class _ListItemCard extends StatelessWidget {
+  final AttendanceHistoryItem item;
+  const _ListItemCard({required this.item});
+
+  Color _statusColor(String s) => s == 'Present' || s == 'Approved'
+      ? SasColors.success : s == 'Flagged' ? SasColors.warning : SasColors.danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor(item.status);
+    return GlassCard(
+      padding: const EdgeInsets.all(14),
+      onTap: item.status == 'Flagged'
+          ? () => context.push('/flagged/${item.attendanceId}', extra: item)
+          : null,
+      child: Row(
+        children: [
+          Container(width: 8, height: 8,
+              decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.subject, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Text(item.className, style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
+                Text(DateFormat('MMM d · h:mm a').format(item.markedAt),
+                    style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
+              ],
+            ),
+          ),
+          if (item.finalAiScore != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              margin: const EdgeInsets.only(right: 6),
+              decoration: BoxDecoration(
+                color: SasColors.glassBg, borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text('${(item.finalAiScore! * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(color: SasColors.textMuted, fontSize: 10,
+                      fontWeight: FontWeight.w600)),
+            ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+            ),
+            child: Text(item.status, style: TextStyle(color: color, fontSize: 11,
+                fontWeight: FontWeight.w700)),
+          ),
+          if (item.status == 'Flagged') ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, color: SasColors.textMuted, size: 16),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryItemCard extends StatefulWidget {
+  final AttendanceHistoryItem item;
+  const _HistoryItemCard({required this.item});
+  @override
+  State<_HistoryItemCard> createState() => _HistoryItemCardState();
+}
+
+class _HistoryItemCardState extends State<_HistoryItemCard> {
+  bool _expanded = false;
+
+  Color _statusColor(String s) => s == 'Present' || s == 'Approved'
+      ? SasColors.success : s == 'Flagged' ? SasColors.warning : SasColors.danger;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
+    final hasAiScores = item.finalAiScore != null;
+    return GlassCard(
+      padding: const EdgeInsets.all(14),
+      onTap: item.status == 'Flagged'
+          ? () => context.push('/flagged/${item.attendanceId}', extra: item)
+          : (hasAiScores ? () => setState(() => _expanded = !_expanded) : null),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(width: 8, height: 8,
+                  decoration: BoxDecoration(shape: BoxShape.circle,
+                      color: _statusColor(item.status))),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.className, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                    Text(item.subject, style: const TextStyle(color: SasColors.textMuted, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _statusColor(item.status).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: _statusColor(item.status).withValues(alpha: 0.3)),
+                    ),
+                    child: Text(item.status, style: TextStyle(color: _statusColor(item.status),
+                        fontSize: 11, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(DateFormat.jm().format(item.markedAt),
+                      style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
+                ],
+              ),
+              if (hasAiScores && item.status != 'Flagged') ...[
+                const SizedBox(width: 8),
+                Icon(_expanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
+                    size: 18, color: SasColors.textMuted),
+              ],
+              if (item.status == 'Flagged') ...[
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: SasColors.textMuted),
+              ],
+            ],
+          ),
+          if (_expanded && hasAiScores) ...[
+            const SizedBox(height: 12),
+            const Divider(color: SasColors.glassBorder, height: 1),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _ScoreChip(label: 'Face', score: item.faceScore ?? 0),
+                _ScoreChip(label: 'Liveness', score: item.livenessScore ?? 0),
+                _ScoreChip(label: 'Background', score: item.backgroundScore ?? 0),
+                _ScoreChip(label: 'Final', score: item.finalAiScore ?? 0),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ScoreChip extends StatelessWidget {
+  final String label;
+  final double score;
+  const _ScoreChip({required this.label, required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = score >= 0.7 ? SasColors.success : (score >= 0.4 ? SasColors.warning : SasColors.danger);
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text('${(score * 100).toStringAsFixed(0)}%',
+            style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 13)),
+      ],
+    );
+  }
+}
+
+class _PerSubjectBreakdown extends StatelessWidget {
+  final List<AttendanceHistoryItem> history;
+  const _PerSubjectBreakdown({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    final subjectStats = <String, _SubjectStat>{};
+    for (final item in history) {
+      final stat = subjectStats.putIfAbsent(item.classId,
+          () => _SubjectStat(name: item.subject, className: item.className));
+      stat.total++;
+      if (item.status == 'Present' || item.status == 'Approved') stat.present++;
+    }
+    if (subjectStats.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Per-Subject Breakdown',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13,
+                color: SasColors.textSecondary)),
+        const SizedBox(height: 8),
+        ...subjectStats.values.map((stat) {
+          final pct = stat.total > 0 ? (stat.present / stat.total * 100) : 0.0;
+          final color = pct >= 75 ? SasColors.success : (pct >= 50 ? SasColors.warning : SasColors.danger);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(stat.name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text(stat.className, style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  Text('${stat.present}/${stat.total}',
+                      style: const TextStyle(color: SasColors.textMuted, fontSize: 12,
+                          fontWeight: FontWeight.w500)),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withValues(alpha: 0.3)),
+                    ),
+                    child: Text('${pct.toStringAsFixed(0)}%',
+                        style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+class _SubjectStat {
+  final String name;
+  final String className;
+  int total = 0;
+  int present = 0;
+  _SubjectStat({required this.name, required this.className});
+}
+
+class _ShimmerCalendar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: SasColors.glassBg,
+      highlightColor: SasColors.glassBgHover,
+      child: Column(
+        children: [
+          Container(height: 300, decoration: BoxDecoration(
+              color: SasColors.glassBg, borderRadius: BorderRadius.circular(20))),
+          const SizedBox(height: 16),
+          ...List.generate(2, (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Container(height: 60, decoration: BoxDecoration(
+                color: SasColors.glassBg, borderRadius: BorderRadius.circular(20))),
+          )),
+        ],
+      ),
+    );
+  }
+}

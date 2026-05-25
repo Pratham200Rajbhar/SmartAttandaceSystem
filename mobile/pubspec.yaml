@@ -1,0 +1,75 @@
+name: smart_attendance_app
+description: Student companion app for the Smart Attendance System with AI-powered verification.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Networking
+  dio: ^5.7.0
+  http_parser: ^4.1.0
+  http: ^1.2.1
+  web_socket_channel: ^3.0.1
+
+
+  # Camera
+  camera: ^0.11.0+2
+  google_mlkit_face_detection: ^0.12.0
+
+  # Location
+  geolocator: ^13.0.2
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_secure_storage: ^9.2.4
+
+  # Device Info (hardware UUID for device binding)
+  device_info_plus: ^11.2.0
+
+  # Connectivity
+  connectivity_plus: ^6.1.1
+
+  # UI/Design
+  google_fonts: ^6.2.1
+  shimmer: ^3.0.0
+  fl_chart: ^0.69.0
+  image: ^4.2.0
+  shared_preferences: ^2.3.3
+  qr_flutter: ^4.1.0
+  image_picker: ^1.1.2
+
+  # Background jobs
+  workmanager: ^0.9.0+3
+  
+  # Firebase / Push
+  firebase_core: ^3.1.0
+  firebase_messaging: ^15.0.1
+  flutter_local_notifications: ^17.0.0
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # Date/Time formatting
+  intl: ^0.19.0
+
+  # Path utilities
+  path_provider: ^2.1.5
+  path: ^1.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true

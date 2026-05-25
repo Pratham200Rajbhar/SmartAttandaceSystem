@@ -1,0 +1,54 @@
+// GENERATED CODE - Hand-written TypeAdapter matching offline_payload.dart annotations.
+// Replaces build_runner generation to avoid dev-dependency overhead.
+
+part of 'offline_payload.dart';
+
+class OfflineAttendancePayloadAdapter
+    extends TypeAdapter<OfflineAttendancePayload> {
+  @override
+  final int typeId = 0;
+
+  @override
+  OfflineAttendancePayload read(BinaryReader reader) {
+    final numOfFields = reader.readByte();
+    final fields = <int, dynamic>{
+      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
+    };
+    return OfflineAttendancePayload(
+      sessionId: fields[0] as String,
+      latitude: fields[1] as double,
+      longitude: fields[2] as double,
+      imagePath: fields[3] as String,
+      capturedAt: fields[4] as DateTime,
+      className: fields[5] as String?,
+    );
+  }
+
+  @override
+  void write(BinaryWriter writer, OfflineAttendancePayload obj) {
+    writer
+      ..writeByte(6)
+      ..writeByte(0)
+      ..write(obj.sessionId)
+      ..writeByte(1)
+      ..write(obj.latitude)
+      ..writeByte(2)
+      ..write(obj.longitude)
+      ..writeByte(3)
+      ..write(obj.imagePath)
+      ..writeByte(4)
+      ..write(obj.capturedAt)
+      ..writeByte(5)
+      ..write(obj.className);
+  }
+
+  @override
+  int get hashCode => typeId.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is OfflineAttendancePayloadAdapter &&
+          runtimeType == other.runtimeType &&
+          typeId == other.typeId;
+}
