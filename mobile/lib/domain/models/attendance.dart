@@ -1,7 +1,4 @@
-// Attendance data models.
-// Mirrors the backend's AttendanceMarkResponse and StudentAttendanceHistoryResponse.
 
-// Result of a single attendance mark attempt from POST /student/attendance/mark.
 class AttendanceResult {
   final String id;
   final String studentId;
@@ -48,7 +45,6 @@ class AttendanceResult {
       );
 }
 
-/// Single record in attendance history from GET /student/my-attendance.
 class AttendanceHistoryItem {
   final String attendanceId;
   final String classId;
@@ -95,7 +91,6 @@ class AttendanceHistoryItem {
       );
 }
 
-/// Aggregated attendance history from GET /student/my-attendance.
 class AttendanceHistoryResponse {
   final String studentId;
   final double overallAttendancePercentage;
@@ -119,7 +114,6 @@ class AttendanceHistoryResponse {
       );
 }
 
-/// A class the student is enrolled in, potentially with an active session.
 class StudentClass {
   final String classId;
   final String className;

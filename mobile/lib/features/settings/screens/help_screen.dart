@@ -1,4 +1,4 @@
-// Help & FAQ screen — expandable FAQ sections.
+
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';

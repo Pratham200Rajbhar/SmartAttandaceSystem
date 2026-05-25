@@ -1,5 +1,3 @@
-// Glass button widget — primary/secondary/danger/ghost variants.
-// Matches the web dashboard's `.glass-btn-*` CSS classes.
 
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -97,9 +95,9 @@ class GlassButton extends StatelessWidget {
     switch (variant) {
       case GlassButtonVariant.primary:
         return _ButtonColors(
-          background: const Color(0x1AFFFFFF), // 10% white
+          background: const Color(0x1AFFFFFF), 
           foreground: Colors.white,
-          border: const Color(0x33FFFFFF), // 20% white
+          border: const Color(0x33FFFFFF), 
         );
       case GlassButtonVariant.secondary:
         return _ButtonColors(

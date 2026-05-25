@@ -1,10 +1,13 @@
 import os
+
 import argparse
+
 import logging
+
 from typing import Optional
 
-# Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
 logger = logging.getLogger("model_uploader")
 
 LIVENESS_README_TEMPLATE = """---
@@ -139,141 +142,219 @@ prediction = model.predict(input_tensor)
 ```
 """
 
-
 def check_huggingface_hub() -> None:
-    """Verifies if the huggingface_hub package is installed."""
+
     try:
-        import huggingface_hub  # noqa: F401
+
+        import huggingface_hub
+
     except ImportError as err:
+
         logger.error(
+
             "The 'huggingface_hub' package is required but not installed.\n"
+
             "Please install it using: pip install huggingface_hub"
+
         )
+
         raise SystemExit(1) from err
 
-
 def parse_arguments() -> argparse.Namespace:
-    """Parses command-line arguments for the upload script."""
+
     parser = argparse.ArgumentParser(
+
         description="Upload Smart Attendance models to Hugging Face."
+
     )
+
     parser.add_argument(
+
         "--token",
+
         type=str,
+
         help="Hugging Face Write Token (alternatively set HF_TOKEN env var)",
+
     )
+
     parser.add_argument(
+
         "--private",
+
         action="store_true",
+
         help="Make the uploaded repositories private",
+
     )
+
     parser.add_argument(
+
         "--prefix",
+
         type=str,
+
         default="smart-attendance",
+
         help="Prefix for model repository names",
+
     )
+
     return parser.parse_args()
 
-
 def retrieve_token(arg_token: Optional[str]) -> str:
-    """Retrieves the Hugging Face API token from args, environment, or .env."""
+
     if arg_token:
+
         return arg_token
 
     token = os.environ.get("HF_TOKEN")
+
     if token:
+
         return token
 
     try:
+
         from dotenv import load_dotenv
+
         load_dotenv()
+
         token = os.environ.get("HF_TOKEN")
+
         if token:
+
             return token
+
     except ImportError:
+
         logger.warning(".env parsing skipped as 'python-dotenv' is not installed.")
 
     logger.error("Hugging Face API token not found. Please set HF_TOKEN env variable or pass --token.")
+
     raise SystemExit(1)
 
-
 def fetch_username(token: str) -> str:
-    """Retrieves the Hugging Face username using the provided API token."""
-    from huggingface_hub import HfApi
-    try:
-        api = HfApi(token=token)
-        user_info = api.whoami()
-        username = user_info.get("name")
-        if not username:
-            logger.error("Failed to retrieve username from Hugging Face whoami response.")
-            raise SystemExit(1)
-        return str(username)
-    except Exception as err:
-        logger.error("Authentication with Hugging Face failed: %s", err)
-        raise SystemExit(1) from err
 
+    from huggingface_hub import HfApi
+
+    try:
+
+        api = HfApi(token=token)
+
+        user_info = api.whoami()
+
+        username = user_info.get("name")
+
+        if not username:
+
+            logger.error("Failed to retrieve username from Hugging Face whoami response.")
+
+            raise SystemExit(1)
+
+        return str(username)
+
+    except Exception as err:
+
+        logger.error("Authentication with Hugging Face failed: %s", err)
+
+        raise SystemExit(1) from err
 
 def ensure_repo(token: str, repo_id: str, private: bool) -> None:
-    """Ensures that the repository exists on Hugging Face."""
-    from huggingface_hub import HfApi
-    try:
-        api = HfApi(token=token)
-        api.create_repo(repo_id=repo_id, repo_type="model", private=private, exist_ok=True)
-        logger.info("Repository verified/created: %s", repo_id)
-    except Exception as err:
-        logger.error("Failed to verify/create repository %s: %s", repo_id, err)
-        raise SystemExit(1) from err
 
+    from huggingface_hub import HfApi
+
+    try:
+
+        api = HfApi(token=token)
+
+        api.create_repo(repo_id=repo_id, repo_type="model", private=private, exist_ok=True)
+
+        logger.info("Repository verified/created: %s", repo_id)
+
+    except Exception as err:
+
+        logger.error("Failed to verify/create repository %s: %s", repo_id, err)
+
+        raise SystemExit(1) from err
 
 def upload_model_artifacts(
+
     token: str,
+
     repo_id: str,
+
     local_file: str,
+
     target_name: str,
+
     readme_content: str
+
 ) -> None:
-    """Uploads the model card and model file to the repository."""
+
     from huggingface_hub import HfApi
+
     api = HfApi(token=token)
+
     try:
+
         api.upload_file(
+
             path_or_fileobj=readme_content.encode("utf-8"),
+
             path_in_repo="README.md",
+
             repo_id=repo_id,
+
         )
+
         api.upload_file(
+
             path_or_fileobj=local_file,
+
             path_in_repo=target_name,
+
             repo_id=repo_id,
+
         )
+
         logger.info("Upload complete for %s. View at https://huggingface.co/%s", target_name, repo_id)
+
     except Exception as err:
+
         logger.error("Failed to upload assets to %s: %s", repo_id, err)
+
         raise SystemExit(1) from err
 
-
 def main() -> None:
-    """Main execution flow for uploading models to Hugging Face."""
+
     check_huggingface_hub()
+
     args = parse_arguments()
+
     token = retrieve_token(args.token)
+
     username = fetch_username(token)
 
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-    # Upload Liveness Model
     liveness_repo = f"{username}/{args.prefix}-liveness-detection"
+
     liveness_local = os.path.join(base_dir, "models/liveness_detection/liveness_mobilenet_v1.h5")
+
     ensure_repo(token, liveness_repo, args.private)
+
     upload_model_artifacts(token, liveness_repo, liveness_local, "liveness_mobilenet_v2.h5", LIVENESS_README_TEMPLATE)
 
-    # Upload Background Model
     bg_repo = f"{username}/{args.prefix}-background-validation"
+
     bg_local = os.path.join(base_dir, "models/background_validation/background_mobilenet_v1.h5")
+
     ensure_repo(token, bg_repo, args.private)
+
     upload_model_artifacts(token, bg_repo, bg_local, "background_mobilenet_v1.h5", BACKGROUND_README_TEMPLATE)
 
-
 if __name__ == "__main__":
+
     main()
+

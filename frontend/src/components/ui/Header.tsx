@@ -12,7 +12,6 @@ interface HeaderProps {
   onMenuToggle: () => void;
 }
 
-
 export default function Header({ onMenuToggle }: HeaderProps): React.ReactElement {
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -50,7 +49,7 @@ export default function Header({ onMenuToggle }: HeaderProps): React.ReactElemen
 
       <div className="hidden md:block" />
 
-      {/* Profile & Actions Area */}
+      {}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
           <GlassBadge variant={roleBadge} className="shadow-[0_4px_12px_rgba(0,0,0,0.5)] py-0.5 px-2.5 font-bold tracking-wider text-[10px]">

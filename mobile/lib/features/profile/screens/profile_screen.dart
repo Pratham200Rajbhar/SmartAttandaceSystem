@@ -1,5 +1,4 @@
-// Profile screen — hub for profile, settings sub-screens, and sign out.
-// Replaces the old flat settings screen with a proper sectioned layout.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,7 +23,7 @@ class ProfileScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            // Profile header card
+            
             GlassCard(
               child: Column(
                 children: [
@@ -115,7 +114,6 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // Attendance & Goals section
             _SectionHeader(title: 'Attendance'),
             const SizedBox(height: 8),
             _MenuItem(
@@ -134,7 +132,6 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // Notifications section
             _SectionHeader(title: 'Notifications'),
             const SizedBox(height: 8),
             _MenuItem(
@@ -153,7 +150,6 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // Security section
             _SectionHeader(title: 'Security'),
             const SizedBox(height: 8),
             _MenuItem(
@@ -165,7 +161,6 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // App section
             _SectionHeader(title: 'App'),
             const SizedBox(height: 8),
             _MenuItem(
@@ -212,7 +207,6 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
-            // Sign out
             GlassButton(
               label: 'Sign Out',
               variant: GlassButtonVariant.danger,

@@ -14,7 +14,6 @@ import GlassConfirmDialog from "@/components/ui/GlassConfirmDialog";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { DepartmentResponse } from "@/types";
 
-
 export default function DepartmentsPage(): React.ReactElement {
   const router = useRouter();
   const [departments, setDepartments] = useState<DepartmentResponse[]>([]);

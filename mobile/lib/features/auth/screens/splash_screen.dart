@@ -1,4 +1,4 @@
-// Splash screen — animated logo + silent JWT check.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -30,7 +30,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
     _fadeController.forward();
 
-    // Check auth state after the animation starts
     Future.delayed(const Duration(milliseconds: 500), () {
       ref.read(authProvider.notifier).checkInitialAuth();
     });
@@ -52,7 +51,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Emerald shield icon
+                
                 Container(
                   width: 80,
                   height: 80,

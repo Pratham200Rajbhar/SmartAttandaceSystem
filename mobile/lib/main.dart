@@ -1,5 +1,4 @@
-// Application entry point.
-// Initializes Hive, starts offline sync, registers FCM, and bootstraps the router.
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,8 +15,6 @@ import 'package:workmanager/workmanager.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-/// Top-level background message handler for FCM.
-/// Must be a top-level function (not a class method).
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
@@ -31,7 +28,6 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   );
 }
 
-/// Infers notification severity from FCM data payload.
 String _inferSeverity(Map<String, dynamic> data) {
   final type = data['type'] as String?;
   if (type == 'low_attendance' || type == 'anomaly') return 'danger';
@@ -50,7 +46,6 @@ void callbackDispatcher() {
       final notificationService = NotificationService();
       await notificationService.initialize();
 
-      // Minimal container for sync without full Riverpod scope
       final container = ProviderContainer(
         overrides: [
           hiveServiceProvider.overrideWithValue(hiveService),
@@ -69,11 +64,10 @@ void callbackDispatcher() {
 }
 
 Future<void> main() async {
-  // Catch unhandled async errors to prevent silent crashes
+  
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 
-    // Global Flutter framework error handler
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
       AppLogger.error(
@@ -81,7 +75,7 @@ Future<void> main() async {
         context: {'stack': details.stack?.toString()},
       );
       if (kReleaseMode) {
-        // In release mode, log to a service instead of crashing
+        
         Zone.current.handleUncaughtError(
           details.exception,
           details.stack ?? StackTrace.current,
@@ -89,12 +83,10 @@ Future<void> main() async {
       }
     };
 
-    // Lock to portrait for consistent camera/GPS UX
     await SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
     ]);
 
-    // Transparent status bar for glass aesthetic
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -102,19 +94,17 @@ Future<void> main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ));
 
-    // Initialize Hive before runApp
     final hiveService = HiveService();
     await hiveService.initialize();
 
     final notificationService = NotificationService();
     await notificationService.initialize();
 
-    // Initialize Firebase (wrapped in try-catch in case google-services.json is missing)
     try {
       await Firebase.initializeApp();
-      // Register background handler before any foreground setup
+      
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-      // Request permission
+      
       await FirebaseMessaging.instance.requestPermission();
     } catch (e) {
       debugPrint("Firebase init failed: $e");
@@ -142,7 +132,7 @@ Future<void> main() async {
       ),
     );
   }, (error, stackTrace) {
-    // Catch-all for unhandled async errors — prevents silent drops
+    
     debugPrint('Unhandled error: $error');
     debugPrint('Stack trace: $stackTrace');
     AppLogger.error(
@@ -163,28 +153,25 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
   @override
   void initState() {
     super.initState();
-    // Start background offline sync listener
+    
     ref.read(offlineSyncServiceProvider).startListening();
-    // Set up FCM foreground handler and token registration
+    
     _initializeFcm();
   }
 
-  /// Registers the FCM token with the backend and sets up the foreground
-  /// message handler to write incoming push messages into the local store.
   Future<void> _initializeFcm() async {
     try {
-      // Get and register the FCM token
+      
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
         try {
           await ref.read(studentApiProvider).registerFcmToken(token);
         } catch (e) {
-          // Endpoint may not exist yet — log and continue
+          
           debugPrint('FCM token registration failed (endpoint may not exist): $e');
         }
       }
 
-      // Listen for token refresh
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         try {
           await ref.read(studentApiProvider).registerFcmToken(newToken);
@@ -193,7 +180,6 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
         }
       });
 
-      // Foreground message handler — writes to Hive notification store
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
         final notifService = ref.read(notificationServiceProvider);
         await notifService.addNotification(
@@ -202,7 +188,7 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
           severity: _inferSeverity(message.data),
           source: 'push',
         );
-        // Trigger notifications provider reload for live badge update
+        
         await ref.read(notificationsProvider.notifier).load();
       });
     } catch (e) {

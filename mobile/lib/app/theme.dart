@@ -1,10 +1,7 @@
-// Dark glassmorphism theme matching the web dashboard's pitch-black aesthetic.
-// Uses Plus Jakarta Sans / Outfit fonts and emerald accent system.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Core color palette — mirrors CSS variables from globals.css.
 class SasColors {
   SasColors._();
 
@@ -21,10 +18,10 @@ class SasColors {
   static const Color accentPink = Color(0xFFF43F5E);
   static const Color accentAmber = Color(0xFFF59E0B);
 
-  static const Color glassBg = Color(0x09FFFFFF); // ~3.5% white
-  static const Color glassBgHover = Color(0x12FFFFFF); // ~7% white
-  static const Color glassBorder = Color(0x17FFFFFF); // ~9% white
-  static const Color glassBorderHover = Color(0x33FFFFFF); // ~20% white
+  static const Color glassBg = Color(0x09FFFFFF); 
+  static const Color glassBgHover = Color(0x12FFFFFF); 
+  static const Color glassBorder = Color(0x17FFFFFF); 
+  static const Color glassBorderHover = Color(0x33FFFFFF); 
 
   static const Color success = Color(0xFF34D399);
   static const Color warning = Color(0xFFFB923C);
@@ -32,7 +29,6 @@ class SasColors {
   static const Color info = Color(0xFF38BDF8);
 }
 
-/// Builds the app-wide ThemeData with glassmorphic design tokens.
 ThemeData buildSasTheme() {
   final baseText = GoogleFonts.plusJakartaSansTextTheme(
     ThemeData.dark().textTheme,

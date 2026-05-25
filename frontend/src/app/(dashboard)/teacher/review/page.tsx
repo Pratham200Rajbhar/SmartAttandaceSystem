@@ -11,7 +11,6 @@ import GlassLoader from "@/components/ui/GlassLoader";
 import GlassEmptyState from "@/components/ui/GlassEmptyState";
 import type { FlaggedAttendanceResponse } from "@/types";
 
-
 import GlassSearch from "@/components/ui/GlassSearch";
 import GlassSelect from "@/components/ui/GlassSelect";
 

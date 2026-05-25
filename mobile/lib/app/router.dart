@@ -1,5 +1,4 @@
-// GoRouter configuration with auth-aware redirect guards.
-// Tabs: Home | Attendance | Analytics | Profile
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -26,7 +25,6 @@ import 'package:smart_attendance_app/features/settings/screens/sync_status_scree
 import 'package:smart_attendance_app/features/smart_pass/screens/smart_pass_screen.dart';
 import 'package:smart_attendance_app/features/leave/screens/leave_requests_screen.dart';
 import 'package:smart_attendance_app/features/leave/screens/leave_history_screen.dart';
-import 'package:smart_attendance_app/features/disputes/screens/dispute_submission_screen.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_bottom_nav.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_app_bar.dart';
 
@@ -81,7 +79,6 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
       GoRoute(path: '/register-face', builder: (_, __) => const FaceRegistrationScreen()),
 
-      // Shell route — 4 tabs: Home, Attendance, Analytics, Profile
       ShellRoute(
         builder: (context, state, child) => _ShellScaffold(child: child),
         routes: [
@@ -104,7 +101,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Standalone routes (no bottom nav)
       GoRoute(
         path: '/verify/:sessionId',
         builder: (context, state) =>
@@ -112,13 +108,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: '/result', builder: (_, __) => const ResultScreen()),
 
-      // Notifications (accessible from profile)
       GoRoute(
         path: '/notifications',
         builder: (_, __) => const _NotificationsPage(),
       ),
 
-      // Flagged detail — receives AttendanceHistoryItem as extra
       GoRoute(
         path: '/flagged/:attendanceId',
         builder: (context, state) {
@@ -127,39 +121,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Subject detail
       GoRoute(
         path: '/subject/:classId',
         builder: (context, state) =>
             SubjectDetailScreen(classId: state.pathParameters['classId']!),
       ),
 
-      // Settings sub-screens
       GoRoute(path: '/settings/goals', builder: (_, __) => const GoalsScreen()),
       GoRoute(path: '/settings/notifications', builder: (_, __) => const NotificationPrefsScreen()),
       GoRoute(path: '/settings/device', builder: (_, __) => const DeviceScreen()),
       GoRoute(path: '/settings/help', builder: (_, __) => const HelpScreen()),
       GoRoute(path: '/settings/sync', builder: (_, __) => const SyncStatusScreen()),
       
-      // Smart Pass
       GoRoute(path: '/smart-pass', builder: (_, __) => const SmartPassScreen()),
       
-      // Leave Management
       GoRoute(path: '/leave/request', builder: (_, __) => const LeaveRequestsScreen()),
       GoRoute(path: '/leave/history', builder: (_, __) => const LeaveHistoryScreen()),
-      
-      // Dispute Management
-      GoRoute(
-        path: '/dispute/:attendanceId',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>;
-          return DisputeSubmissionScreen(
-            attendanceId: state.pathParameters['attendanceId']!,
-            className: extra['className'] as String,
-            subject: extra['subject'] as String,
-          );
-        },
-      ),
     ],
   );
 });

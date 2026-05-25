@@ -11,7 +11,6 @@ import GlassInput from "@/components/ui/GlassInput";
 import GlassTextarea from "@/components/ui/GlassTextarea";
 import GlassButton from "@/components/ui/GlassButton";
 
-
 export default function CreateDepartmentPage(): React.ReactElement {
   const router = useRouter();
   const [name, setName] = useState("");

@@ -1,4 +1,4 @@
-// Streak counter widget - displays current attendance streak with flame icon
+
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 

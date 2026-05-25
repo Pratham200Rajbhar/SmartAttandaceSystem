@@ -20,7 +20,7 @@ export default function ManualAttendancePage(): React.ReactElement {
   const [absentStudents, setAbsentStudents] = useState<AbsentStudentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  // Map<student_id, status> — default all to Absent
+  
   const [statusMap, setStatusMap] = useState<Map<string, AttendanceStatus>>(new Map());
 
   const fetchAbsentStudents = useCallback(async (): Promise<void> => {
@@ -29,7 +29,7 @@ export default function ManualAttendancePage(): React.ReactElement {
         `/teacher/sessions/${id}/absent-students`
       );
       setAbsentStudents(data);
-      // Initialise all students as Absent
+      
       const initMap = new Map<string, AttendanceStatus>();
       data.forEach((s) => initMap.set(s.student_id, "Absent"));
       setStatusMap(initMap);
@@ -89,7 +89,7 @@ export default function ManualAttendancePage(): React.ReactElement {
       />
 
       {absentStudents.length === 0 ? (
-        /* ── Empty state ── */
+        
         <GlassCard className="flex flex-col items-center py-16 gap-4 text-center">
           <CheckCircle2 size={52} className="text-slate-300" />
           <h2 className="text-xl font-semibold text-slate-200">All students marked</h2>
@@ -105,7 +105,7 @@ export default function ManualAttendancePage(): React.ReactElement {
         </GlassCard>
       ) : (
         <>
-          {/* ── Checklist table ── */}
+          {}
           <GlassCard padding="sm" className="mb-6 overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -167,7 +167,7 @@ export default function ManualAttendancePage(): React.ReactElement {
             </table>
           </GlassCard>
 
-          {/* ── Summary + submit ── */}
+          {}
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-400">
               {Array.from(statusMap.values()).filter((s) => s === "Present").length} of{" "}

@@ -1,5 +1,4 @@
-// Animated floating gradient orb background.
-// Matches the web dashboard's `.animated-bg` CSS with violet + ocean blue orbs.
+
 library;
 
 import 'package:flutter/material.dart';
@@ -38,10 +37,9 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
 
     return Stack(
       children: [
-        // Pitch black base
+        
         Container(color: const Color(0xFF000000)),
 
-        // Centered emerald glow
         Positioned.fill(
           child: Container(
             decoration: const BoxDecoration(
@@ -57,7 +55,6 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
           ),
         ),
 
-        // Animated violet orb (top-left)
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
@@ -82,7 +79,6 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
           },
         ),
 
-        // Animated ocean blue orb (bottom-right)
         AnimatedBuilder(
           animation: _controller,
           builder: (context, child) {
@@ -107,7 +103,6 @@ class _AnimatedBackgroundState extends State<AnimatedBackground>
           },
         ),
 
-        // Foreground content
         Positioned.fill(child: widget.child),
       ],
     );

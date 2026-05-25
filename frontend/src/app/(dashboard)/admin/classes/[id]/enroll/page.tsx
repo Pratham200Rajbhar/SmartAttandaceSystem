@@ -49,16 +49,13 @@ export default function EnrollStudentsPage(): React.ReactElement {
 
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
-      // 1. Check Department Filter
+      
       if (selectedDepartment && s.department_name !== selectedDepartment) return false;
       
-      // 2. Check Semester Filter
       if (selectedSemester && String(s.semester) !== selectedSemester) return false;
       
-      // 3. Check Batch Filter
       if (selectedBatch && s.batch !== selectedBatch) return false;
       
-      // 4. Check Search Query
       if (searchQuery.trim()) {
         const lowerQ = searchQuery.toLowerCase();
         const nameMatch = `${s.first_name || ""} ${s.last_name || ""}`.toLowerCase().includes(lowerQ);
@@ -103,10 +100,10 @@ export default function EnrollStudentsPage(): React.ReactElement {
 
   const toggleSelectAll = () => {
     if (selectedIds.size === filteredStudents.length && filteredStudents.length > 0) {
-      // Deselect all
+      
       setSelectedIds(new Set());
     } else {
-      // Select all visible
+      
       const newSet = new Set(selectedIds);
       filteredStudents.forEach(s => newSet.add(s.id));
       setSelectedIds(newSet);
@@ -172,7 +169,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
       <GlassCard className="!p-0 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-white/10 to-transparent"></div>
         
-        {/* Toolbar & Filters */}
+        {}
         <div className="p-4 border-b border-white/5 bg-white/[0.01] flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="w-full sm:w-96 relative">
@@ -205,7 +202,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
             </div>
           </div>
           
-          {/* Advanced Filters */}
+          {}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="w-full sm:w-1/3">
               <GlassSelect
@@ -243,7 +240,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
           </div>
         </div>
 
-        {/* Student List */}
+        {}
         <div className="max-h-[600px] overflow-y-auto p-4 space-y-2 custom-scrollbar">
           {filteredStudents.length === 0 ? (
             <div className="text-center py-12 text-slate-500">

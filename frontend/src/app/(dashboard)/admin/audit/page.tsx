@@ -10,7 +10,6 @@ import GlassBadge from "@/components/ui/GlassBadge";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { AuditLogResponse } from "@/types";
 
-
 export default function AuditPage(): React.ReactElement {
   const [logs, setLogs] = useState<AuditLogResponse[]>([]);
   const [filtered, setFiltered] = useState<AuditLogResponse[]>([]);

@@ -1,4 +1,4 @@
-// Goals & Targets screen — set attendance target percentage.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/theme.dart';

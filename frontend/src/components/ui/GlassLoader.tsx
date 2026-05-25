@@ -7,7 +7,6 @@ interface GlassLoaderProps {
   text?: string;
 }
 
-
 export default function GlassLoader({ text = "Loading..." }: GlassLoaderProps): React.ReactElement {
   return (
     <div className="flex flex-col items-center justify-center py-24 gap-4 animate-fade-in-up">
@@ -16,7 +15,6 @@ export default function GlassLoader({ text = "Loading..." }: GlassLoaderProps): 
     </div>
   );
 }
-
 
 export function GlassSkeleton({ className = "" }: { className?: string }): React.ReactElement {
   return <div className={`animate-shimmer rounded-xl ${className}`} />;

@@ -18,7 +18,6 @@ interface GlassTableProps<T> {
   onRowClick?: (row: T) => void;
 }
 
-
 export default function GlassTable<T extends Record<string, unknown>>({
   columns,
   data,

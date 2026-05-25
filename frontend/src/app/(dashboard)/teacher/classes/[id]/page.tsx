@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
+import { useMapEvents, useMap } from "react-leaflet";
 import toast from "react-hot-toast";
 import { Save, Download, Navigation } from "lucide-react";
 import api from "@/lib/api";
@@ -15,27 +16,17 @@ import GlassButton from "@/components/ui/GlassButton";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { AcademicClassWithGeofence, AttendanceExportRow } from "@/types";
 
-
 const MapContainer = dynamic(() => import("react-leaflet").then((m) => m.MapContainer), { ssr: false });
 const TileLayer = dynamic(() => import("react-leaflet").then((m) => m.TileLayer), { ssr: false });
 const Marker = dynamic(() => import("react-leaflet").then((m) => m.Marker), { ssr: false });
 const Circle = dynamic(() => import("react-leaflet").then((m) => m.Circle), { ssr: false });
 
-
-
 function MapClickHandler({ onLocationSelect }: { onLocationSelect: (lat: number, lng: number) => void }): null {
-  // Next.js executes this file on the server during build/SSR.
-  // Importing 'react-leaflet' at the top level crashes the server because Leaflet references the browser 'window' object immediately on load.
-  // By using require() inside this client-only rendered component, we avoid loading Leaflet on the server.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useMapEvents: useEvents } = require("react-leaflet");
-  useEvents({ click: (e: { latlng: { lat: number; lng: number } }) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
+  useMapEvents({ click: (e: { latlng: { lat: number; lng: number } }) => onLocationSelect(e.latlng.lat, e.latlng.lng) });
   return null;
 }
 
 function MapUpdater({ lat, lng }: { lat: number; lng: number }): null {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useMap } = require("react-leaflet");
   const map = useMap();
   useEffect(() => {
     map.flyTo([lat, lng], map.getZoom());
@@ -43,13 +34,8 @@ function MapUpdater({ lat, lng }: { lat: number; lng: number }): null {
   return null;
 }
 
-
-/**
- * Trigger a CSV file download from a JSON array using Papa.unparse.
- * Creates a temporary anchor element and revokes the URL after click.
- */
 async function downloadCsv(rows: AttendanceExportRow[], fileName: string): Promise<void> {
-  // Dynamically import papaparse to avoid SSR issues
+  
   const Papa = (await import("papaparse")).default;
   const csv = Papa.unparse(rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -63,7 +49,6 @@ async function downloadCsv(rows: AttendanceExportRow[], fileName: string): Promi
   URL.revokeObjectURL(url);
 }
 
-
 export default function ClassDetailPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const [cls, setCls] = useState<AcademicClassWithGeofence | null>(null);
@@ -74,7 +59,6 @@ export default function ClassDetailPage(): React.ReactElement {
   const [saving, setSaving] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  // CSV export state
   const [exporting, setExporting] = useState(false);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -93,7 +77,7 @@ export default function ClassDetailPage(): React.ReactElement {
           }
         }
       } catch {
-        // error handled by empty state
+        
       } finally {
         setLoading(false);
       }
@@ -102,7 +86,7 @@ export default function ClassDetailPage(): React.ReactElement {
 
     import("leaflet/dist/leaflet.css");
     import("leaflet").then((L) => {
-      // Cast the prototype to a custom interface to avoid the 'any' type lint rule.
+      
       interface DefaultIconPrototype {
         _getIconUrl?: unknown;
       }
@@ -195,14 +179,14 @@ export default function ClassDetailPage(): React.ReactElement {
       <GlassBreadcrumb
         items={[{ label: "My Classes", href: "/teacher/classes" }, { label: cls.name }]}
       />
-      {/* subject is now resolved from FK relation */}
+      {}
       <GlassPageHeader
         title={cls.name}
         description={`${cls.subject} — Configure geofence and export attendance`}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* ── Map ── */}
+        {}
         <div className="lg:col-span-2">
           <GlassCard padding="sm" className="overflow-hidden">
             <div className="relative" style={{ height: 450, borderRadius: 12, overflow: "hidden" }}>
@@ -252,9 +236,9 @@ export default function ClassDetailPage(): React.ReactElement {
           </GlassCard>
         </div>
 
-        {/* ── Sidebar panels ── */}
+        {}
         <div className="space-y-6">
-          {/* Geofence settings */}
+          {}
           <GlassCard>
             <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
               Geofence Settings
@@ -297,7 +281,7 @@ export default function ClassDetailPage(): React.ReactElement {
             </p>
           </GlassCard>
 
-          {/* ── CSV Export ── */}
+          {}
           <GlassCard>
             <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
               Export Attendance

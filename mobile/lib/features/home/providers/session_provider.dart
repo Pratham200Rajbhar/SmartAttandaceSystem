@@ -1,6 +1,4 @@
-// Session provider — manages active class sessions for the home dashboard.
-// Implements exponential backoff polling: starts at 15s, doubles to 60s max
-// when no active sessions are found, resets to 15s when a session appears.
+
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -9,7 +7,6 @@ import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 
-/// A class session card model for the home dashboard.
 class ClassSession {
   final String classId;
   final String className;
@@ -34,7 +31,7 @@ class SessionState {
   final List<ClassSession> sessions;
   final bool isLoading;
   final String? errorMessage;
-  /// Set of session IDs where the student already has a record.
+  
   final Set<String> markedSessionIds;
 
   const SessionState({
@@ -52,7 +49,6 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
   SessionNotifier(this._api) : super(const SessionState());
 
-  /// Starts periodic polling for session data with exponential backoff.
   void startPolling() {
     fetchSessions();
     _schedulePoll();
@@ -66,7 +62,6 @@ class SessionNotifier extends StateNotifier<SessionState> {
     });
   }
 
-  /// Fetches enrolled classes and their active session status.
   Future<void> fetchSessions() async {
     state = SessionState(
       sessions: state.sessions,
@@ -90,7 +85,6 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
       final hasActive = classSessions.any((s) => s.isActive);
 
-      // Exponential backoff: reset on active session, grow when idle
       if (hasActive) {
         _currentInterval = kSessionPollMinInterval;
       } else {
@@ -122,7 +116,6 @@ class SessionNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  /// Marks a session as already submitted by the student.
   void markSessionSubmitted(String sessionId) {
     state = SessionState(
       sessions: state.sessions,

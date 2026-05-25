@@ -1,4 +1,4 @@
-// Preferences provider — manages notification and attendance goal settings.
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/local/preferences_service.dart';
 

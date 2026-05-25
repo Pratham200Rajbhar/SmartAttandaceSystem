@@ -1,4 +1,4 @@
-// Smart Pass provider - manages QR code generation and auto-refresh
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -35,7 +35,6 @@ class SmartPassNotifier extends StateNotifier<SmartPassState> {
 
   SmartPassNotifier(this._api) : super(const SmartPassState());
 
-  /// Generate a new Smart Pass QR code
   Future<void> generatePass() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -51,7 +50,6 @@ class SmartPassNotifier extends StateNotifier<SmartPassState> {
     }
   }
 
-  /// Start auto-refresh timer (every 25 seconds to stay ahead of 30s expiry)
   void startAutoRefresh() {
     _refreshTimer?.cancel();
     _refreshTimer = Timer.periodic(const Duration(seconds: 25), (timer) {
@@ -61,7 +59,6 @@ class SmartPassNotifier extends StateNotifier<SmartPassState> {
     });
   }
 
-  /// Stop auto-refresh timer
   void stopAutoRefresh() {
     _refreshTimer?.cancel();
   }

@@ -1,4 +1,4 @@
-// Secure login screen with glassmorphic form and device binding.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -55,7 +55,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Logo
+                      
                       Container(
                         width: 64,
                         height: 64,
@@ -93,7 +93,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 32),
 
-                      // Login form card
                       GlassCard(
                         padding: const EdgeInsets.all(24),
                         child: Form(
@@ -110,7 +109,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 validator: (v) {
                                   if (v == null || v.isEmpty) return 'Email is required';
                                   if (!v.contains('@')) return 'Enter a valid email';
-                                  // Enforce university domain if configured
+                                  
                                   if (kUniversityEmailDomain.isNotEmpty &&
                                       !v.endsWith('@$kUniversityEmailDomain')) {
                                     return 'Use your university email (@$kUniversityEmailDomain)';
@@ -144,7 +143,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 },
                               ),
 
-                              // Error message
                               if (authState.errorMessage != null) ...[
                                 const SizedBox(height: 16),
                                 Container(

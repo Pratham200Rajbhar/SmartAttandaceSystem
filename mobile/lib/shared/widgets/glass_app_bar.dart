@@ -1,4 +1,4 @@
-// Frosted glass AppBar — transparent with backdrop blur.
+
 library;
 
 import 'dart:ui';

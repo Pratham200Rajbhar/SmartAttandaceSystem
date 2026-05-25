@@ -1,6 +1,4 @@
-// Offline sync service — background worker that drains the Hive queue
-// when connectivity is restored.
-// Distinguishes 4xx (skip) from 5xx/network (retry) errors.
+
 library;
 
 import 'dart:async';
@@ -46,7 +44,6 @@ class OfflineSyncService {
         _notificationsNotifier = notificationsNotifier,
         _dio = dio;
 
-  /// Starts listening for connectivity changes and triggers sync.
   void startListening() {
     _connectivitySub = Connectivity()
         .onConnectivityChanged
@@ -58,18 +55,12 @@ class OfflineSyncService {
     });
   }
 
-  /// Iterates through all queued payloads and uploads them sequentially.
-  /// - Skips expired payloads (older than kOfflinePayloadMaxAge)
-  /// - Skips 4xx errors (client errors — session expired, validation failed)
-  /// - Stops on 5xx/network errors (retry on next connectivity change)
-  /// - Deletes synced image files from disk after successful upload
   Future<int> syncQueue() async {
     if (_isSyncing) return 0;
 
     final queue = _hive.getQueue();
     if (queue.isEmpty) return 0;
 
-    // Verify true internet reachability by pinging /health
     try {
       final response = await _dio.get<Map<String, dynamic>>('/health');
       if (response.statusCode != 200 || response.data?['status'] != 'healthy') {
@@ -86,7 +77,7 @@ class OfflineSyncService {
     int syncedCount = 0;
     try {
       for (final payload in queue) {
-        // Check payload age — discard if older than threshold
+        
         final age = DateTime.now().difference(payload.capturedAt);
         if (age > kOfflinePayloadMaxAge) {
           await _removePayload(payload);
@@ -107,7 +98,7 @@ class OfflineSyncService {
             longitude: payload.longitude,
             imagePath: payload.imagePath,
           );
-          // Remove from queue and clean up image file on successful sync
+          
           await _removePayload(payload);
           await _deleteImageFile(payload.imagePath);
           await _notificationService.addNotification(
@@ -122,7 +113,7 @@ class OfflineSyncService {
           final isClientError = statusCode >= 400 && statusCode < 500;
 
           if (isClientError) {
-            // 4xx: skip this item permanently — session expired or validation failed
+            
             await _removePayload(payload);
             await _deleteImageFile(payload.imagePath);
             await _notificationService.addNotification(
@@ -134,7 +125,6 @@ class OfflineSyncService {
             continue;
           }
 
-          // 5xx or network error: stop and retry on next connectivity change
           debugPrint('OfflineSyncService sync failed (5xx/network): $e');
           await _notificationService.addNotification(
             title: 'Sync Failed',
@@ -156,7 +146,7 @@ class OfflineSyncService {
       }
     } finally {
       _isSyncing = false;
-      // Refresh the notifications UI after sync completes
+      
       if (syncedCount > 0) {
         await _notificationsNotifier.load();
       }
@@ -164,7 +154,6 @@ class OfflineSyncService {
     return syncedCount;
   }
 
-  /// Safely removes a payload from the Hive queue using its key.
   Future<void> _removePayload(dynamic payload) async {
     final key = payload.key;
     if (key != null && key is int) {
@@ -172,7 +161,6 @@ class OfflineSyncService {
     }
   }
 
-  /// Deletes the cached image file from disk after sync to prevent accumulation.
   Future<void> _deleteImageFile(String imagePath) async {
     try {
       final file = File(imagePath);
@@ -184,7 +172,6 @@ class OfflineSyncService {
     }
   }
 
-  /// Cleans up the connectivity listener.
   void dispose() {
     _connectivitySub?.cancel();
   }

@@ -1,4 +1,4 @@
-// Settings screen — profile, app info, device reset, logout.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -26,7 +26,6 @@ class SettingsScreen extends ConsumerWidget {
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
             const SizedBox(height: 20),
 
-            // Profile card
             GlassCard(
               child: Column(
                 children: [
@@ -80,7 +79,6 @@ class SettingsScreen extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
-            // Offline sync status
             _menuItem(
               Icons.cloud_sync_rounded,
               'Offline Queue',
@@ -111,7 +109,6 @@ class SettingsScreen extends ConsumerWidget {
 
             const SizedBox(height: 8),
 
-            // Device reset
             _menuItem(Icons.devices_rounded, 'Request Device Reset',
                 'Contact admin to unbind your device', () {
               _showDeviceResetDialog(context, ref);
@@ -124,7 +121,6 @@ class SettingsScreen extends ConsumerWidget {
 
             const SizedBox(height: 24),
 
-            // Logout
             GlassButton(
               label: 'Sign Out',
               variant: GlassButtonVariant.danger,
@@ -138,7 +134,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  /// Shows a confirmation dialog before logging out.
   void _confirmLogout(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -173,7 +168,6 @@ class SettingsScreen extends ConsumerWidget {
     );
   }
 
-  /// Shows an dialog to request a device reset from the backend.
   void _showDeviceResetDialog(BuildContext context, WidgetRef ref) {
     showDialog(
       context: context,
@@ -199,7 +193,7 @@ class SettingsScreen extends ConsumerWidget {
             onPressed: () async {
               Navigator.of(ctx).pop();
               try {
-                // Call the auth API instead of just showing info
+                
                 await ref.read(authApiProvider).requestDeviceReset();
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

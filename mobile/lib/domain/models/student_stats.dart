@@ -1,4 +1,4 @@
-// Student statistics domain model
+
 class StudentStats {
   final int currentStreak;
   final int highestStreak;

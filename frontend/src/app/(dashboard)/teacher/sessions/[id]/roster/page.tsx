@@ -14,7 +14,6 @@ import GlassStatCard from "@/components/ui/GlassStatCard";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { SessionAttendanceResponse, StudentRosterItem, BulkMarkRequest } from "@/types";
 
-
 export default function SessionRosterPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -30,7 +29,7 @@ export default function SessionRosterPage(): React.ReactElement {
       );
       setRoster(data);
     } catch {
-      // Silent fail on poll — only show error on first load
+      
     } finally {
       setLoading(false);
     }
@@ -60,7 +59,7 @@ export default function SessionRosterPage(): React.ReactElement {
 
   async function handleMarkAllPresent(): Promise<void> {
     if (!roster) return;
-    // Only mark students who have no record yet (absent and no marked_at timestamp)
+    
     const targets = roster.roster.filter(
       (r) => r.status === "Absent" && r.marked_at === null
     );

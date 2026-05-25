@@ -1,6 +1,4 @@
-// Home dashboard — greeting card, offline sync badge, and class session cards.
-// Fixes: timer leak (stopPolling in dispose), lifecycle observer (pause/resume),
-// shimmer loading, countdown timer, duplicate submission guard, low-attendance banner.
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,7 +17,6 @@ import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 import 'package:smart_attendance_app/shared/widgets/at_risk_banner.dart';
 import 'package:smart_attendance_app/shared/widgets/streak_counter.dart';
 
-/// Reactive pending count provider that re-evaluates on each watch.
 final pendingCountProvider = Provider<int>((ref) {
   return ref.watch(attendanceRepositoryProvider).pendingOfflineCount;
 });
@@ -36,7 +33,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     ref.read(sessionProvider.notifier).startPolling();
-    // Pre-fetch history for low-attendance banner
+    
     ref.read(historyProvider.notifier).fetch();
   }
 
@@ -76,7 +73,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Greeting card
+              
               GlassCard(
                 child: Row(
                   children: [
@@ -135,14 +132,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
               const SizedBox(height: 12),
 
-              // At-risk banner (critical attendance warning)
               AtRiskBanner(
                 attendancePercentage: overallPct,
                 onTap: () => context.go('/analytics'),
               ),
               if (overallPct < 75) const SizedBox(height: 8),
 
-              // Low-attendance warning banner (legacy - kept for compatibility)
               if (overallPct >= 60 && overallPct < 75 && historyState.data != null) ...[
                 GlassCard(
                   borderColor: SasColors.warning.withValues(alpha: 0.5),
@@ -184,7 +179,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const SizedBox(height: 8),
               ],
 
-              // Offline pending sync badge
               if (pendingCount > 0) ...[
                 GlassCard(
                   borderColor: SasColors.info.withValues(alpha: 0.4),
@@ -236,7 +230,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const SizedBox(height: 8),
               ],
 
-              // Quick stats row
               if (historyState.data != null) ...[
                 const SizedBox(height: 8),
                 _QuickStatsRow(
@@ -246,19 +239,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
               ],
 
-              // Streak counter (if user has a streak)
               if (historyState.data != null && _calculateStreak(historyState.data!.history) > 0) ...[
                 const SizedBox(height: 8),
                 StreakCounter(
                   currentStreak: _calculateStreak(historyState.data!.history),
-                  highestStreak: _calculateStreak(historyState.data!.history), // TODO: Get from backend
+                  highestStreak: _calculateStreak(historyState.data!.history), 
                   isCompact: true,
                 ),
               ],
 
               const SizedBox(height: 8),
 
-              // Section header
               Row(
                 children: [
                   const Icon(Icons.schedule_rounded,
@@ -283,7 +274,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
 
               const SizedBox(height: 12),
 
-              // Error banner
               if (sessionState.errorMessage != null &&
                   sessionState.sessions.isEmpty) ...[
                 _ErrorBanner(
@@ -310,7 +300,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
-  /// Calculate current streak from history
   int _calculateStreak(List<AttendanceHistoryItem> history) {
     if (history.isEmpty) return 0;
     final sorted = [...history]..sort((a, b) => b.markedAt.compareTo(a.markedAt));
@@ -382,10 +371,8 @@ class _ClassCardState extends State<_ClassCard> {
     super.dispose();
   }
 
-  /// Whether the attendance window has closed.
   bool get _isWindowClosed => _remaining != null && _remaining == Duration.zero;
 
-  /// Whether the mark button should be shown (active, not marked, window open).
   bool get _canMark =>
       widget.session.isActive &&
       widget.session.sessionId != null &&
@@ -464,7 +451,7 @@ class _ClassCardState extends State<_ClassCard> {
                 ],
               ],
             ),
-            // Countdown timer
+            
             if (widget.session.isActive && _remaining != null && !_isWindowClosed) ...[
               const SizedBox(height: 8),
               Row(
@@ -555,7 +542,6 @@ class _ErrorBanner extends StatelessWidget {
   }
 }
 
-/// Shimmer-based loading skeleton for class cards.
 class _ShimmerLoadingPlaceholder extends StatelessWidget {
   const _ShimmerLoadingPlaceholder();
   @override
@@ -607,7 +593,6 @@ class _EmptyState extends StatelessWidget {
   }
 }
 
-/// Quick stats row — today's attendance %, this week's classes, current streak.
 class _QuickStatsRow extends StatelessWidget {
   final double overallPct;
   final List<AttendanceHistoryItem> history;
@@ -621,7 +606,7 @@ class _QuickStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // This week's attended classes
+    
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1));
     final weekItems = history.where((h) =>
@@ -630,7 +615,6 @@ class _QuickStatsRow extends StatelessWidget {
         .where((h) => h.status == 'Present' || h.status == 'Approved')
         .length;
 
-    // Current streak (consecutive present sessions)
     final sorted = [...history]..sort((a, b) => b.markedAt.compareTo(a.markedAt));
     int streak = 0;
     for (final item in sorted) {

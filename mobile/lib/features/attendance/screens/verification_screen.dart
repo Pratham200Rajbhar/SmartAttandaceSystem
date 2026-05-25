@@ -1,11 +1,9 @@
-// Verification screen — GPS lock → Camera → Photo Review → Submit.
-// Adds: photo review step with retake, lighting quality indicator, first-use tips.
+
 import 'dart:async';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
@@ -94,13 +92,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   double? _brightnessScore;
   double? _blurScore;
 
-  // Liveness Detection properties
-  late final FaceDetector _faceDetector;
-  bool _livenessVerified = false;
-  bool _blinkStarted = false;
-  double? _initialHeadEulerAngleY;
-  bool _isDetecting = false;
-
   static const _aiStepLabels = [
     'Checking face identity...',
     'Verifying liveness...',
@@ -112,13 +103,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _faceDetector = FaceDetector(
-      options: FaceDetectorOptions(
-        enableClassification: true,
-        enableTracking: true,
-        performanceMode: FaceDetectorMode.fast,
-      ),
-    );
     _acquireGps();
     _checkFirstUse();
   }
@@ -127,108 +111,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _camera?.dispose();
-    _faceDetector.close();
     _aiStepTimer?.cancel();
     super.dispose();
-  }
-
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-    if (_camera == null) return null;
-    final camera = _camera!.description;
-    
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final bytes = allBytes.done().buffer.asUint8List();
-
-    final imageSize = Size(image.width.toDouble(), image.height.toDouble());
-    final imageRotation = _rotationIntToImageRotation(camera.sensorOrientation);
-    final inputImageFormat = InputImageFormatValue.fromRawValue(image.format.raw) 
-        ?? InputImageFormat.nv21;
-
-    return InputImage.fromBytes(
-      bytes: bytes,
-      metadata: InputImageMetadata(
-        size: imageSize,
-        rotation: imageRotation,
-        format: inputImageFormat,
-        bytesPerRow: image.planes[0].bytesPerRow,
-      ),
-    );
-  }
-
-  InputImageRotation _rotationIntToImageRotation(int rotation) {
-    switch (rotation) {
-      case 90:
-        return InputImageRotation.rotation90deg;
-      case 180:
-        return InputImageRotation.rotation180deg;
-      case 270:
-        return InputImageRotation.rotation270deg;
-      default:
-        return InputImageRotation.rotation0deg;
-    }
-  }
-
-  Future<void> _processCameraImage(CameraImage image) async {
-    if (_livenessVerified || _isDetecting || _camera == null) return;
-    _isDetecting = true;
-    try {
-      final inputImage = _inputImageFromCameraImage(image);
-      if (inputImage == null) return;
-      
-      final faces = await _faceDetector.processImage(inputImage);
-      if (faces.isEmpty) return;
-      
-      final face = faces.first;
-      
-      // Blink detection
-      final leftOpen = face.leftEyeOpenProbability;
-      final rightOpen = face.rightEyeOpenProbability;
-      
-      if (leftOpen != null && rightOpen != null) {
-        if (!_blinkStarted) {
-          if (leftOpen < 0.3 && rightOpen < 0.3) {
-            _blinkStarted = true;
-            debugPrint("Liveness: Blink started (eyes closed)");
-          }
-        } else {
-          if (leftOpen > 0.8 && rightOpen > 0.8) {
-            _livenessVerified = true;
-            HapticFeedback.mediumImpact();
-            debugPrint("Liveness: Blink verified!");
-            if (mounted) setState(() {});
-            if (_camera != null && _camera!.value.isStreamingImages) {
-              await _camera!.stopImageStream();
-            }
-          }
-        }
-      }
-      
-      // Head rotation detection
-      final headY = face.headEulerAngleY;
-      if (headY != null && !_livenessVerified) {
-        if (_initialHeadEulerAngleY == null) {
-          _initialHeadEulerAngleY = headY;
-        } else {
-          final diff = (headY - _initialHeadEulerAngleY!).abs();
-          if (diff > 15.0) {
-            _livenessVerified = true;
-            HapticFeedback.mediumImpact();
-            debugPrint("Liveness: Head rotation verified ($diff degrees)!");
-            if (mounted) setState(() {});
-            if (_camera != null && _camera!.value.isStreamingImages) {
-              await _camera!.stopImageStream();
-            }
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint("Error processing face: $e");
-    } finally {
-      _isDetecting = false;
-    }
   }
 
   Future<void> _checkFirstUse() async {
@@ -305,9 +189,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
       await _camera!.initialize();
       if (mounted) {
         setState(() => _cameraReady = true);
-        if (!_livenessVerified) {
-          await _camera!.startImageStream(_processCameraImage);
-        }
       }
     } catch (e, st) {
       debugPrint('_initCamera error: $e\n$st');
@@ -318,9 +199,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   Future<void> _capturePhoto() async {
     if (_camera == null || !_camera!.value.isInitialized) return;
     try {
-      if (_camera!.value.isStreamingImages) {
-        await _camera!.stopImageStream();
-      }
       final file = await _camera!.takePicture();
       HapticFeedback.mediumImpact();
       ref.read(attendanceVerificationProvider.notifier).setImagePath(file.path);
@@ -359,12 +237,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
 
   void _retakePhoto() {
     ref.read(attendanceVerificationProvider.notifier).reset();
-    setState(() {
-      _livenessVerified = false;
-      _blinkStarted = false;
-      _initialHeadEulerAngleY = null;
-    });
-    // Re-acquire GPS and camera
     _acquireGps();
   }
 
@@ -403,7 +275,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                 _StepIndicator(current: vState.step),
                 const SizedBox(height: 24),
 
-                // GPS step
                 if (vState.step == VerificationStep.gps) ...[
                   const Spacer(),
                   GlassCard(
@@ -429,9 +300,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                   const Spacer(),
                 ],
 
-                // Camera step
                 if (vState.step == VerificationStep.camera) ...[
-                  // First-use tips overlay
+                  
                   if (_showTips)
                     GlassCard(
                       borderColor: SasColors.accentEmerald.withValues(alpha: 0.4),
@@ -494,20 +364,20 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                                       fit: StackFit.expand,
                                       children: [
                                         CameraPreview(_camera!),
-                                        // Oval face guide
+                                        
                                         Center(
                                           child: Container(
                                             width: 220, height: 280,
                                             decoration: BoxDecoration(
                                               borderRadius: BorderRadius.circular(110),
                                               border: Border.all(
-                                                color: (_livenessVerified ? SasColors.success : SasColors.accentEmerald).withValues(alpha: 0.5),
+                                                color: SasColors.accentEmerald.withValues(alpha: 0.5),
                                                 width: 2,
                                               ),
                                             ),
                                           ),
                                         ),
-                                        // Liveness status / instructions banner
+                                        
                                         Positioned(
                                           bottom: 20,
                                           left: 16,
@@ -519,33 +389,23 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                                                 color: SasColors.bgSurface.withValues(alpha: 0.8),
                                                 borderRadius: BorderRadius.circular(20),
                                                 border: Border.all(
-                                                  color: _livenessVerified 
-                                                    ? SasColors.success.withValues(alpha: 0.5) 
-                                                    : SasColors.glassBorder,
+                                                  color: SasColors.glassBorder,
                                                   width: 1,
                                                 ),
                                               ),
-                                              child: Row(
+                                              child: const Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
                                                   Icon(
-                                                    _livenessVerified 
-                                                      ? Icons.check_circle_rounded 
-                                                      : Icons.face_retouching_natural_rounded,
-                                                    color: _livenessVerified 
-                                                      ? SasColors.success 
-                                                      : SasColors.accentEmerald,
+                                                    Icons.face_retouching_natural_rounded,
+                                                    color: SasColors.accentEmerald,
                                                     size: 20,
                                                   ),
-                                                  const SizedBox(width: 8),
+                                                  SizedBox(width: 8),
                                                   Text(
-                                                    _livenessVerified
-                                                      ? 'Liveness Verified'
-                                                      : 'Please blink to verify liveness',
+                                                    'Position face inside frame',
                                                     style: TextStyle(
-                                                      color: _livenessVerified 
-                                                        ? SasColors.success 
-                                                        : SasColors.textPrimary,
+                                                      color: SasColors.textPrimary,
                                                       fontSize: 14,
                                                       fontWeight: FontWeight.w600,
                                                     ),
@@ -577,13 +437,12 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                         child: GlassButton(
                           label: 'Capture',
                           icon: Icons.camera_alt_rounded,
-                          onPressed: (_cameraReady && _livenessVerified) ? _capturePhoto : null,
+                          onPressed: _cameraReady ? _capturePhoto : null,
                         ),
                       ),
                     ]),
                 ],
 
-                // Preview step — review photo before submitting
                 if (vState.step == VerificationStep.preview) ...[
                   Expanded(
                     child: GlassCard(
@@ -595,7 +454,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                           children: [
                             if (vState.imagePath != null)
                               Image.file(File(vState.imagePath!), fit: BoxFit.cover),
-                            // Oval overlay on preview
+                            
                             Center(
                               child: Container(
                                 width: 220, height: 280,
@@ -608,7 +467,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                                 ),
                               ),
                             ),
-                            // Preview label
+                            
                             Positioned(
                               top: 16, left: 0, right: 0,
                               child: Center(
@@ -686,7 +545,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                   ]),
                 ],
 
-                // Submitting step
                 if (vState.step == VerificationStep.submitting) ...[
                   const Spacer(),
                   GlassCard(
@@ -740,7 +598,7 @@ class _StepIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const steps = ['GPS', 'Camera', 'Review', 'Submit'];
-    // Map VerificationStep to index
+    
     final currentIdx = switch (current) {
       VerificationStep.gps => 0,
       VerificationStep.camera => 1,
@@ -783,7 +641,7 @@ class _StepIndicator extends StatelessWidget {
 
 class _QualityBar extends StatelessWidget {
   final String label;
-  final double value; // 0 to 1
+  final double value; 
   final double goodThreshold;
   
   const _QualityBar({required this.label, required this.value, required this.goodThreshold});

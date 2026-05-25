@@ -10,7 +10,6 @@ import GlassInput from "@/components/ui/GlassInput";
 import GlassButton from "@/components/ui/GlassButton";
 import type { TokenResponse, UserProfile } from "@/types";
 
-
 export default function LoginPage(): React.ReactElement {
   const router = useRouter();
   const { login } = useAuthStore();
@@ -58,11 +57,11 @@ export default function LoginPage(): React.ReactElement {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Decorative ambient light blob behind the card */}
+      {}
       <div className="absolute w-[350px] h-[350px] rounded-full bg-white/5 filter blur-[80px] -z-10 pointer-events-none" />
 
       <div className="w-full max-w-md animate-fade-in-up relative z-10">
-        {/* Brand Logo & Title */}
+        {}
         <div className="text-center mb-8">
           <div className="inline-flex p-4 rounded-2xl bg-gradient-to-tr from-white/10/20 to-purple-500/10 border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] mb-5">
             <Shield size={36} className="text-slate-300 animate-pulse" />
@@ -75,7 +74,7 @@ export default function LoginPage(): React.ReactElement {
           </p>
         </div>
 
-        {/* Login form Glass Panel */}
+        {}
         <form onSubmit={handleSubmit} className="glass-panel-static p-8 space-y-6 shadow-2xl">
           <div className="space-y-1">
             <h2 className="text-lg font-bold text-slate-200 tracking-wide font-[Outfit]">Welcome Back</h2>
@@ -119,7 +118,7 @@ export default function LoginPage(): React.ReactElement {
           </div>
         </form>
 
-        {/* Footer info text */}
+        {}
         <p className="text-center text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-8">
           Enterprise Security Verification Suite
         </p>

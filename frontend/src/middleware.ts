@@ -1,22 +1,14 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-
-
-
-
-
-
 export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
-  
   const publicPaths = ["/login", "/api", "/_next", "/favicon.ico"];
   if (publicPaths.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  
   if (pathname === "/") {
     return NextResponse.redirect(new URL("/login", request.url));
   }

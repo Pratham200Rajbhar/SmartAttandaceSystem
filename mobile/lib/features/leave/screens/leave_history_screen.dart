@@ -1,4 +1,4 @@
-// Leave History Screen - Timeline view with status badges
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -43,11 +43,10 @@ class LeaveHistoryScreen extends ConsumerWidget {
   }
 
   Widget _buildHistoryList(List<LeaveRequest> leaves) {
-    // Sort by created date (newest first)
+    
     final sorted = [...leaves]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Calculate stats
     final pending = leaves.where((l) => l.status == 'PENDING').length;
     final approved = leaves.where((l) => l.status == 'APPROVED').length;
     final rejected = leaves.where((l) => l.status == 'REJECTED').length;
@@ -55,7 +54,7 @@ class LeaveHistoryScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        // Stats Card
+        
         GlassCard(
           child: Row(
             children: [
@@ -110,7 +109,6 @@ class LeaveHistoryScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 8),
 
-        // Timeline
         ...sorted.map((leave) => _LeaveTimelineItem(leave: leave)),
       ],
     );
@@ -272,7 +270,7 @@ class _LeaveTimelineItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Timeline indicator
+          
           Column(
             children: [
               Container(
@@ -297,7 +295,6 @@ class _LeaveTimelineItem extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // Content card
           Expanded(
             child: GlassCard(
               borderColor: statusColor.withValues(alpha: 0.3),

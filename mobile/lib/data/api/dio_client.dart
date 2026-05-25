@@ -1,5 +1,3 @@
-// Singleton Dio HTTP client with JWT interceptor and error handling.
-// All API calls flow through this single instance.
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,7 +7,6 @@ import 'package:smart_attendance_app/core/events.dart';
 import 'package:smart_attendance_app/data/local/secure_storage.dart';
 import 'package:smart_attendance_app/utils/logger.dart';
 
-/// Riverpod provider for the configured Dio instance.
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: kApiBaseUrl,
@@ -20,7 +17,6 @@ final dioProvider = Provider<Dio>((ref) {
 
   final storage = ref.read(secureStorageProvider);
 
-  // Attach JWT token to every outbound request.
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
       final token = await storage.getToken();
@@ -50,7 +46,6 @@ final dioProvider = Provider<Dio>((ref) {
   return dio;
 });
 
-/// Maps Dio errors to typed AppExceptions for structured error handling.
 AppException mapDioError(DioException error) {
   switch (error.type) {
     case DioExceptionType.connectionTimeout:
@@ -79,7 +74,6 @@ AppException mapDioError(DioException error) {
   }
 }
 
-/// Extracts the `detail` field from FastAPI error responses.
 String _extractDetail(dynamic data) {
   if (data is Map<String, dynamic>) {
     return data['detail']?.toString() ?? 'Something went wrong';

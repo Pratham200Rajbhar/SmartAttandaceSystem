@@ -15,7 +15,6 @@ import GlassBadge from "@/components/ui/GlassBadge";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { AcademicClassWithGeofence, SessionResponse, SessionWithClassResponse } from "@/types";
 
-
 export default function SessionsPage(): React.ReactElement {
   const router = useRouter();
   const [classes, setClasses] = useState<AcademicClassWithGeofence[]>([]);
@@ -33,7 +32,7 @@ export default function SessionsPage(): React.ReactElement {
         api.get<SessionWithClassResponse[]>("/teacher/sessions/all"),
       ]);
       setClasses(classesRes.data);
-      // Split into active and past
+      
       setActiveSessions(
         allSessionsRes.data
           .filter((s) => s.isActive)
@@ -86,7 +85,7 @@ export default function SessionsPage(): React.ReactElement {
       await api.post(`/teacher/sessions/${sessionId}/stop`);
       setActiveSessions((prev) => prev.filter((s) => s.id !== sessionId));
       toast.success("Session stopped");
-      // Refetch past sessions list
+      
       await fetchData();
     } catch {
       toast.error("Failed to stop session");
@@ -101,7 +100,7 @@ export default function SessionsPage(): React.ReactElement {
       <GlassPageHeader title="Session Control" description="Start, manage, and review attendance sessions" />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* ── Start Session ── */}
+        {}
         <GlassCard>
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2.5 rounded-xl bg-white/5">
@@ -136,7 +135,7 @@ export default function SessionsPage(): React.ReactElement {
           </div>
         </GlassCard>
 
-        {/* ── Active Sessions ── */}
+        {}
         <GlassCard>
           <h3 className="text-lg font-semibold text-slate-200 mb-4">Active Sessions</h3>
           {activeSessions.length === 0 ? (
@@ -188,7 +187,7 @@ export default function SessionsPage(): React.ReactElement {
         </GlassCard>
       </div>
 
-      {/* ── Past Sessions ── */}
+      {}
       <GlassCard>
         <h3 className="text-lg font-semibold text-slate-200 mb-4">Past Sessions</h3>
         {pastSessions.length === 0 ? (

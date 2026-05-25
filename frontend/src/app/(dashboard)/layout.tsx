@@ -7,7 +7,6 @@ import Sidebar from "@/components/ui/Sidebar";
 import Header from "@/components/ui/Header";
 import GlassLoader from "@/components/ui/GlassLoader";
 
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }): React.ReactElement {
   const router = useRouter();
   const pathname = usePathname();
@@ -22,7 +21,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
 
-    
     if (user?.role === "TEACHER" && pathname.startsWith("/admin")) {
       router.replace("/teacher/classes");
       return;
@@ -33,7 +31,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [isHydrated, isAuthenticated, user, pathname, router]);
 
-  
   if (!isHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center">

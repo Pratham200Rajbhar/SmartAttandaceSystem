@@ -1,5 +1,3 @@
-// Glass card widget — frosted translucent container with specular border.
-// Matches the web dashboard's `.glass-panel` CSS exactly.
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -44,7 +42,7 @@ class GlassCard extends StatelessWidget {
                   offset: Offset(0, 16),
                 ),
               ],
-              // Specular highlight gradient overlay
+              
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,

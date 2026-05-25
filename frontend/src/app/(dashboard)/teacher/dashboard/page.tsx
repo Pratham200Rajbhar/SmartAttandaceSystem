@@ -33,7 +33,7 @@ export default function TeacherDashboardPage(): React.ReactElement {
         setSessions(sessRes.data);
         setFlagged(flagRes.data);
       } catch {
-        // Silently handle errors
+        
       } finally {
         setLoading(false);
       }
@@ -57,7 +57,7 @@ export default function TeacherDashboardPage(): React.ReactElement {
     <div className="animate-fade-in-up space-y-8">
       <GlassPageHeader title="Teacher Overview" description="Your classes, active sessions, and review queue at a glance" />
 
-      {/* Stats Card Grid */}
+      {}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <GlassStatCard
           icon={<BookOpen size={22} />}
@@ -86,7 +86,7 @@ export default function TeacherDashboardPage(): React.ReactElement {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions Panel */}
+        {}
         <GlassCard className="!p-0 overflow-hidden relative lg:col-span-2">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500"></div>
           <div className="p-6 border-b border-white/5 bg-white/[0.01] flex items-center justify-between">
@@ -107,7 +107,7 @@ export default function TeacherDashboardPage(): React.ReactElement {
           </div>
         </GlassCard>
 
-        {/* Current Status Panel */}
+        {}
         <GlassCard className="!p-0 overflow-hidden relative">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-cyan-500"></div>
           <div className="p-6 border-b border-white/5 bg-white/[0.01] flex items-center justify-between">
@@ -140,7 +140,7 @@ export default function TeacherDashboardPage(): React.ReactElement {
         </GlassCard>
       </div>
 
-      {/* Recent Sessions Feed */}
+      {}
       <GlassCard className="!p-0 overflow-hidden relative">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-fuchsia-500 to-pink-500"></div>
         <div className="p-6 border-b border-white/5 bg-white/[0.01] flex items-center justify-between">

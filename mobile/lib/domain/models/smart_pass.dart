@@ -1,4 +1,4 @@
-// Smart Pass domain model
+
 class SmartPass {
   final String qrToken;
   final DateTime expiresAt;

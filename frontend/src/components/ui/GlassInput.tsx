@@ -8,7 +8,6 @@ interface GlassInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   icon?: React.ReactNode;
 }
 
-
 export default function GlassInput({
   label,
   error,

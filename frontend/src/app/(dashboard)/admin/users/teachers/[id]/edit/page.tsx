@@ -59,7 +59,6 @@ export default function EditTeacherPage(): React.ReactElement {
       }
     }
 
-     
     void fetchData();
   }, [id]);
 

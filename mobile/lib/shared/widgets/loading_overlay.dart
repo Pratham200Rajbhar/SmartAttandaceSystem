@@ -1,4 +1,4 @@
-// Full-screen loading overlay with glass blur and spinner.
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_app/app/theme.dart';

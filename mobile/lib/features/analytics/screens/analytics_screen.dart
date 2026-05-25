@@ -1,4 +1,4 @@
-// Analytics screen — weekly bar chart, subject heatmap, goals, streak.
+
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -192,7 +192,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   Widget _buildWeeklyChart(AttendanceHistoryResponse data) {
-    // Build last 4 weeks of data
+    
     final now = DateTime.now();
     final weeks = <String>[];
     final presentCounts = <double>[];
@@ -350,19 +350,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               : 0.0;
           final color = _pctColor(pct);
 
-          // Classes needed to reach target
           int canMiss = 0;
           int needToAttend = 0;
           if (pct >= target) {
-            // How many more can be missed while staying above target
-            // present / (total + x) >= target/100 → x <= present/(target/100) - total
+            
             canMiss = ((stat.present / (target / 100)) - stat.total).floor();
             canMiss = canMiss.clamp(0, 999);
           } else {
-            // How many consecutive sessions needed to reach target
-            // (present + x) / (total + x) >= target/100
-            // present + x >= (target/100)(total + x)
-            // x(1 - target/100) >= (target/100)*total - present
+            
             final ratio = target / 100;
             if (ratio < 1.0) {
               needToAttend =
@@ -446,7 +441,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   Widget _buildStreakCard(AttendanceHistoryResponse data) {
-    // Compute per-subject streaks
+    
     final subjectStreaks = <String, int>{};
     final subjectNames = <String, String>{};
     final grouped = <String, List<AttendanceHistoryItem>>{};
@@ -522,7 +517,6 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final subjectStats = _computeSubjectStats(data.history);
     if (subjectStats.isEmpty) return const SizedBox.shrink();
 
-    // Build 4-week heatmap per subject
     final now = DateTime.now();
     final weekLabels = <String>[];
     for (int w = 3; w >= 0; w--) {
@@ -544,7 +538,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           padding: const EdgeInsets.all(14),
           child: Column(
             children: [
-              // Week headers
+              
               Row(
                 children: [
                   const SizedBox(width: 100),

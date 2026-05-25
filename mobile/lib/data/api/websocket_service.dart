@@ -1,5 +1,4 @@
-// WebSocket service for real-time attendance updates.
-// Connects to backend WebSocket endpoint and broadcasts events to Riverpod providers.
+
 library;
 
 import 'dart:async';
@@ -37,7 +36,6 @@ class WebSocketService {
   WebSocketStatus get status => _status;
   Stream<Map<String, dynamic>> get messageStream => _messageController.stream;
 
-  /// Connect to WebSocket endpoint with JWT authentication.
   Future<void> connect() async {
     if (_status == WebSocketStatus.connected || _status == WebSocketStatus.connecting) {
       debugPrint('WebSocket: Already connected or connecting');
@@ -54,7 +52,7 @@ class WebSocketService {
     }
 
     try {
-      // Convert HTTP URL to WebSocket URL
+      
       final wsUrl = kApiBaseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
       final uri = Uri.parse('$wsUrl/ws/connect?token=$token');
       
@@ -79,7 +77,6 @@ class WebSocketService {
     }
   }
 
-  /// Handle incoming WebSocket messages.
   void _onMessage(dynamic message) {
     try {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
@@ -90,14 +87,12 @@ class WebSocketService {
     }
   }
 
-  /// Handle WebSocket errors.
   void _onError(dynamic error) {
     debugPrint('❌ WebSocket error: $error');
     _status = WebSocketStatus.error;
     _scheduleReconnect();
   }
 
-  /// Handle WebSocket connection closure.
   void _onDone() {
     debugPrint('WebSocket: Connection closed');
     _status = WebSocketStatus.disconnected;
@@ -105,7 +100,6 @@ class WebSocketService {
     _scheduleReconnect();
   }
 
-  /// Schedule automatic reconnection with exponential backoff.
   void _scheduleReconnect() {
     if (_reconnectAttempts >= _maxReconnectAttempts) {
       debugPrint('WebSocket: Max reconnect attempts reached, giving up');
@@ -124,7 +118,6 @@ class WebSocketService {
     });
   }
 
-  /// Start periodic ping to keep connection alive.
   void _startPingTimer() {
     _pingTimer?.cancel();
     _pingTimer = Timer.periodic(_pingInterval, (timer) {
@@ -139,7 +132,6 @@ class WebSocketService {
     });
   }
 
-  /// Disconnect from WebSocket.
   void disconnect() {
     debugPrint('WebSocket: Disconnecting...');
     _reconnectTimer?.cancel();
@@ -149,7 +141,6 @@ class WebSocketService {
     _status = WebSocketStatus.disconnected;
   }
 
-  /// Dispose resources.
   void dispose() {
     disconnect();
     _messageController.close();

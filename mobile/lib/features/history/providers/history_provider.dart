@@ -1,4 +1,4 @@
-// History provider — fetches and groups attendance records by date.
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,8 +14,6 @@ class HistoryState {
 
   const HistoryState({this.data, this.isLoading = false, this.errorMessage});
 
-  /// Groups history items by calendar date for the calendar view.
-  /// Computed from state data directly to avoid stale reads.
   Map<DateTime, List<AttendanceHistoryItem>> get groupedByDate {
     final history = data?.history ?? [];
     final map = <DateTime, List<AttendanceHistoryItem>>{};
@@ -33,7 +31,6 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
 
   HistoryNotifier(this._repo) : super(const HistoryState());
 
-  /// Fetches attendance history from backend.
   Future<void> fetch() async {
     state = HistoryState(data: state.data, isLoading: true);
     try {

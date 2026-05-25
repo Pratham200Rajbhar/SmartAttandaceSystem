@@ -18,10 +18,6 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions;
 
-
-
-
-
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({

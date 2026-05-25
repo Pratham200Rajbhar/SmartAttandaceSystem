@@ -7,7 +7,6 @@ export const metadata: Metadata = {
   description: "AI-powered multi-layered smart attendance verification dashboard",
 };
 
-
 export default function RootLayout({ children }: { children: React.ReactNode }): React.ReactElement {
   return (
     <html lang="en">

@@ -1,4 +1,4 @@
-// Leave request domain model
+
 class LeaveRequest {
   final String id;
   final String studentId;
@@ -8,7 +8,7 @@ class LeaveRequest {
   final DateTime endDate;
   final String reason;
   final String? documentUrl;
-  final String status; // PENDING, APPROVED, REJECTED
+  final String status; 
   final String? approvedBy;
   final String? approverNote;
   final DateTime createdAt;

@@ -1,4 +1,4 @@
-// Face registration provider — manages camera and upload state.
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';

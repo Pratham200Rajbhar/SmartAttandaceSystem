@@ -1,4 +1,4 @@
-// Leave request provider - manages leave request state
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
@@ -49,7 +49,6 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
 
   LeaveNotifier(this._api) : super(const LeaveState());
 
-  /// Fetch all leave requests
   Future<void> fetchLeaves() async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
@@ -73,7 +72,6 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
     }
   }
 
-  /// Create a new leave request
   Future<bool> createLeave({
     required DateTime startDate,
     required DateTime endDate,
@@ -89,7 +87,6 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
         documentPath: documentPath,
       );
       
-      // Refresh the list
       await fetchLeaves();
       return true;
     } catch (e) {

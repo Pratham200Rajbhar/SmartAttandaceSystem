@@ -1,6 +1,4 @@
-// Attendance provider — manages the 3-step verification pipeline.
-// Uses autoDispose to clean up stale GPS/image data when the user
-// navigates away from the verification screen mid-flow.
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
@@ -52,23 +50,19 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
 
   AttendanceNotifier(this._repo) : super(const AttendanceVerificationState());
 
-  /// Records the GPS coordinates and advances to camera step.
   void setGpsLocation(double lat, double lng) {
     state = state.copyWith(
         latitude: lat, longitude: lng, step: VerificationStep.camera);
   }
 
-  /// Records the captured image path and advances to preview step.
   void setImagePath(String path) {
     state = state.copyWith(imagePath: path, step: VerificationStep.preview);
   }
 
-  /// Advances from preview to submitting step.
   void confirmSubmit() {
     state = state.copyWith(step: VerificationStep.submitting);
   }
 
-  /// Submits the attendance data to the backend or queues offline.
   Future<void> submit(String sessionId) async {
     if (state.latitude == null ||
         state.longitude == null ||
@@ -98,15 +92,11 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
     }
   }
 
-  /// Resets state for a new verification attempt.
   void reset() {
     state = const AttendanceVerificationState();
   }
 }
 
-/// autoDispose ensures stale GPS/image data is cleaned up. ref.keepAlive()
-/// prevents premature disposal during the verify→result route transition.
-/// State is explicitly reset via reset() when the user returns to dashboard.
 final attendanceVerificationProvider = StateNotifierProvider.autoDispose<
     AttendanceNotifier, AttendanceVerificationState>((ref) {
   ref.keepAlive();

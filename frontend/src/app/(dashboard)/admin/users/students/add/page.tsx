@@ -45,7 +45,7 @@ export default function AddStudentPage(): React.ReactElement {
       const { data } = await api.get<DepartmentResponse[]>("/admin/departments");
       setDepartments(data);
     } catch {
-      // Departments are optional — silently fall back to empty list
+      
     }
   }, []);
 

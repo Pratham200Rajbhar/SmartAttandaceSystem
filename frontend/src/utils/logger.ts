@@ -1,6 +1,3 @@
-/**
- * Utility for centralizing logs and sending them to the backend.
- */
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
@@ -23,7 +20,7 @@ export class AppLogger {
         body: JSON.stringify(payload),
       });
     } catch (e) {
-      // Fallback: If we fail to send log, we just log to console (avoid infinite loop)
+      
       console.warn('Failed to send log to backend:', e);
     }
   }

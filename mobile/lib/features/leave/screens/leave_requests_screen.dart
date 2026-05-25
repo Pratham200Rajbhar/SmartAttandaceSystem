@@ -1,4 +1,4 @@
-// Leave Requests Screen - Beautiful form supporting date pickers and camera/gallery file uploads
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -171,7 +171,7 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Header
+              
               GlassCard(
                 child: Row(
                   children: [
@@ -213,7 +213,6 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
 
               const SizedBox(height: 20),
 
-              // Date Selection
               const Text(
                 'LEAVE PERIOD',
                 style: TextStyle(
@@ -333,7 +332,6 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
 
               const SizedBox(height: 20),
 
-              // Reason Selection
               const Text(
                 'REASON',
                 style: TextStyle(
@@ -384,7 +382,6 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
 
               const SizedBox(height: 20),
 
-              // Document Upload (File Picker)
               const Text(
                 'MEDICAL CERTIFICATE / DOCUMENT (OPTIONAL)',
                 style: TextStyle(
@@ -505,7 +502,6 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
                 const SizedBox(height: 20),
               ],
 
-              // Additional Notes
               const Text(
                 'ADDITIONAL NOTES (OPTIONAL)',
                 style: TextStyle(
@@ -539,7 +535,6 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
 
               const SizedBox(height: 24),
 
-              // Submit Button
               GlassButton(
                 label: 'Submit Request',
                 isExpanded: true,
@@ -550,7 +545,6 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
 
               const SizedBox(height: 12),
 
-              // Info Card
               GlassCard(
                 borderColor: SasColors.info.withValues(alpha: 0.3),
                 child: const Row(

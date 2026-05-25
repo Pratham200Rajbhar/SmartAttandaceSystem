@@ -1,5 +1,3 @@
-// Student feature API client.
-// Handles face registration, attendance marking, and history retrieval.
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,8 +14,6 @@ class StudentApi {
 
   const StudentApi(this._dio);
 
-  /// Uploads a selfie for face embedding registration.
-  /// Backend runs DeepFace and stores the 128-d vector permanently.
   Future<void> registerFace(String imagePath) async {
     final formData = FormData.fromMap({
       'image': await MultipartFile.fromFile(
@@ -28,8 +24,6 @@ class StudentApi {
     await _dio.post<void>('/student/register-face', data: formData);
   }
 
-  /// Submits an attendance verification attempt with GPS + selfie.
-  /// Returns the AI composite scoring result.
   Future<AttendanceResult> markAttendance({
     required String sessionId,
     required double latitude,
@@ -52,14 +46,12 @@ class StudentApi {
     return AttendanceResult.fromJson(response.data!);
   }
 
-  /// Retrieves the student's full attendance history with overall percentage.
   Future<AttendanceHistoryResponse> getMyAttendance() async {
     final response =
         await _dio.get<Map<String, dynamic>>('/student/my-attendance');
     return AttendanceHistoryResponse.fromJson(response.data!);
   }
 
-  /// Retrieves the student's enrolled classes and their active sessions.
   Future<List<StudentClass>> getMyClasses() async {
     final response = await _dio.get<List<dynamic>>('/student/classes');
     return response.data!
@@ -67,7 +59,6 @@ class StudentApi {
         .toList();
   }
 
-  /// Registers the FCM device token with the backend for push notifications.
   Future<void> registerFcmToken(String token) async {
     await _dio.post<void>(
       '/student/fcm-token',
@@ -75,7 +66,6 @@ class StudentApi {
     );
   }
 
-  /// Submits a student note on a flagged attendance record.
   Future<void> submitFlaggedNote(String attendanceId, String note) async {
     await _dio.post<void>(
       '/student/attendance/$attendanceId/note',
@@ -83,7 +73,6 @@ class StudentApi {
     );
   }
 
-  /// Submit a dispute for a flagged or absent attendance record.
   Future<void> submitDispute({
     required String attendanceId,
     required String reason,
@@ -103,13 +92,11 @@ class StudentApi {
     );
   }
 
-  /// Get all leave requests for the current student.
   Future<Map<String, dynamic>> getMyLeaves() async {
     final response = await _dio.get<Map<String, dynamic>>('/student/leaves');
     return response.data!;
   }
 
-  /// Create a new leave request.
   Future<Map<String, dynamic>> createLeaveRequest({
     required DateTime startDate,
     required DateTime endDate,
@@ -133,13 +120,11 @@ class StudentApi {
     return response.data!;
   }
 
-  /// Generate a time-limited Smart Pass QR code token.
   Future<Map<String, dynamic>> getSmartPass() async {
     final response = await _dio.get<Map<String, dynamic>>('/student/smart-pass');
     return response.data!;
   }
 
-  /// Get comprehensive gamification and analytics stats.
   Future<Map<String, dynamic>> getMyStats() async {
     final response = await _dio.get<Map<String, dynamic>>('/student/stats');
     return response.data!;

@@ -1,4 +1,4 @@
-// At-Risk Banner Widget - Shows warning when attendance is critically low
+
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
@@ -15,7 +15,7 @@ class AtRiskBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Only show if attendance is below 75%
+    
     if (attendancePercentage >= 75) {
       return const SizedBox.shrink();
     }

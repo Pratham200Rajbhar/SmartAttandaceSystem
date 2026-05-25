@@ -10,7 +10,6 @@ interface GlassSearchProps {
   debounceMs?: number;
 }
 
-
 export default function GlassSearch({
   placeholder = "Search...",
   value: externalValue,

@@ -14,7 +14,6 @@ import GlassButton from "@/components/ui/GlassButton";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { ClassResponse, SubjectResponse, ClassroomResponse } from "@/types";
 
-
 export default function EditClassPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -41,8 +40,7 @@ export default function EditClassPage(): React.ReactElement {
       if (found) {
         setCls(found);
         setName(found.name);
-        // subject_id needs to be fetched from subjects by name/code match
-        // since ClassResponse only returns display names
+        
         const matchedSubject = subjectsRes.data.find(
           (s) => s.name === found.subject_name && s.code === found.subject_code
         );

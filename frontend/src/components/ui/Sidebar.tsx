@@ -56,23 +56,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
 
   const isSetupActive = pathname.startsWith("/admin/setup");
   const [setupOpen, setSetupOpen] = useState(isSetupActive);
+  const [prevIsSetupActive, setPrevIsSetupActive] = useState(isSetupActive);
   const [flaggedCount, setFlaggedCount] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  if (isSetupActive !== prevIsSetupActive) {
+    setPrevIsSetupActive(isSetupActive);
     if (isSetupActive) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSetupOpen(true);
     }
-  }, [pathname, isSetupActive]);
+  }
 
-  // Poll flagged attendance count every 60 s (teacher-only)
   const fetchFlagged = useRef(async () => {
     try {
       const { data } = await api.get<unknown[]>("/teacher/attendance/flagged");
       setFlaggedCount(Array.isArray(data) ? data.length : 0);
     } catch {
-      // Non-fatal — badge silently stays at last known value
+      
     }
   });
 
@@ -94,7 +94,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
       )}
 
       <aside className={`sidebar ${isOpen ? "open" : ""}`}>
-        {/* Glowing Shield Header */}
+        {}
         <div className="p-5 border-b border-white/5">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-tr from-white/10/20 to-purple-500/10 border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
@@ -107,7 +107,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
           </div>
         </div>
 
-        {/* Navigation List */}
+        {}
         <nav className="flex-1 py-4 overflow-y-auto space-y-1">
           {role === "ADMIN" ? (
             <>
@@ -179,7 +179,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
             </>
           ) : (
             <>
-              {/* Teaching Operations */}
+              {}
               <p className="px-6 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                 Teaching Operations
               </p>
@@ -212,7 +212,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
                 })}
               </div>
 
-              {/* Reports & Archives Group */}
+              {}
               <div className="mt-4 border-t border-white/5 pt-4">
                 <p className="px-6 mb-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   Reports & Archives
@@ -244,7 +244,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
           )}
         </nav>
 
-        {/* Premium User widget at bottom */}
+        {}
         {user && (
           <div className="mx-4 mb-2 p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-3 shadow-inner">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-white/10/20 to-purple-500/10 border border-white/10 flex items-center justify-center font-bold text-slate-300 text-xs shadow-sm">

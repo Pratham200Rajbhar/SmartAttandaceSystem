@@ -93,7 +93,7 @@ export default function StudentDetailPage(): React.ReactElement {
         { label: fullName !== "Not provided" ? fullName : student.email },
       ]} />
       
-      {/* Hero Profile Card */}
+      {}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900/50 backdrop-blur-md shadow-2xl">
         <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 via-purple-600/10 to-transparent opacity-50"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>

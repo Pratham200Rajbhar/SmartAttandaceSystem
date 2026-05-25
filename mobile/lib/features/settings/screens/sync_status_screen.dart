@@ -1,4 +1,4 @@
-// Offline & Sync Status screen — shows pending queue and sync history.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -32,7 +32,7 @@ class _SyncStatusScreenState extends ConsumerState<SyncStatusScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Status summary
+              
               GlassCard(
                 borderColor: queue.isEmpty
                     ? SasColors.success.withValues(alpha: 0.3)

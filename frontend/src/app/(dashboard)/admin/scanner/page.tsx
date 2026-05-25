@@ -12,7 +12,6 @@ import GlassButton from "@/components/ui/GlassButton";
 import GlassEmptyState from "@/components/ui/GlassEmptyState";
 import type { AnomalyResult } from "@/types";
 
-
 export default function ScannerPage(): React.ReactElement {
   const [contamination, setContamination] = useState(0.10);
   const [results, setResults] = useState<AnomalyResult[]>([]);

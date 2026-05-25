@@ -1,4 +1,4 @@
-// Flagged Attempt Detail screen — shows AI scores, explanations, and note-to-teacher.
+
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +49,7 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Header
+              
               GlassCard(
                 borderColor: statusColor.withValues(alpha: 0.3),
                 child: Column(
@@ -105,7 +105,6 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // AI Score breakdown
               if (item.finalAiScore != null) ...[
                 const Text(
                   'AI SCORE BREAKDOWN',
@@ -163,12 +162,10 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Why this happens
               _WhySection(),
 
               const SizedBox(height: 16),
 
-              // Teacher note
               if (item.teacherNote != null) ...[
                 const Text(
                   'TEACHER REVIEW NOTE',
@@ -203,7 +200,6 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Dispute submission (only for still-flagged records)
               if (item.status == 'Flagged') ...[
                 const Text(
                   'SUBMIT A DISPUTE',
@@ -373,7 +369,7 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
         subject: widget.item.subject,
         onSuccess: () {
           if (mounted) {
-            context.pop(); // Go back to history
+            context.pop(); 
           }
         },
       ),
@@ -630,7 +626,7 @@ class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
             proofImagePath: _selectedImage?.path,
           );
       if (mounted) {
-        Navigator.pop(context); // Close bottom sheet
+        Navigator.pop(context); 
         widget.onSuccess();
       }
     } catch (e) {
@@ -667,7 +663,7 @@ class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Pull bar indicator
+              
               Center(
                 child: Container(
                   width: 40,
@@ -709,7 +705,6 @@ class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
               ),
               const SizedBox(height: 20),
               
-              // Reason options
               const Text(
                 'DISPUTE REASON',
                 style: TextStyle(
@@ -761,7 +756,6 @@ class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
               ),
               const SizedBox(height: 20),
               
-              // Proof Upload
               const Text(
                 'PROOF IMAGE (OPTIONAL)',
                 style: TextStyle(
@@ -873,7 +867,6 @@ class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
                 const SizedBox(height: 20),
               ],
               
-              // Dispute details
               const Text(
                 'ADDITIONAL DETAILS *',
                 style: TextStyle(

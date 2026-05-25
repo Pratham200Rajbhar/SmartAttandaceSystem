@@ -1,4 +1,4 @@
-// Face registration screen — camera viewfinder with oval guide overlay.
+
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -78,7 +78,7 @@ class _FaceRegistrationScreenState
     final success =
         await ref.read(registrationProvider.notifier).uploadFace(_capturedPath!);
     if (success && mounted) {
-      // Show success glass dialog
+      
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -163,7 +163,6 @@ class _FaceRegistrationScreenState
                 ),
                 const SizedBox(height: 24),
 
-                // Camera / Preview area
                 Expanded(
                   child: GlassCard(
                     padding: EdgeInsets.zero,
@@ -210,7 +209,7 @@ class _FaceRegistrationScreenState
                                       fit: StackFit.expand,
                                       children: [
                                         CameraPreview(_cameraController!),
-                                        // Oval face guide
+                                        
                                         Center(
                                           child: Container(
                                             width: 220,
@@ -239,7 +238,6 @@ class _FaceRegistrationScreenState
 
                 const SizedBox(height: 16),
 
-                // Error display
                 if (regState.errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -267,7 +265,6 @@ class _FaceRegistrationScreenState
                     ),
                   ),
 
-                // Action buttons
                 if (_capturedPath == null)
                   GlassButton(
                     label: 'Capture Photo',

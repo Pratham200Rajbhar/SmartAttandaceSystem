@@ -11,7 +11,6 @@ interface GlassEmptyStateProps {
   onAction?: () => void;
 }
 
-
 export default function GlassEmptyState({
   title = "No data yet",
   message = "There is nothing to display right now.",

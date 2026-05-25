@@ -65,7 +65,6 @@ export default function EditStudentPage(): React.ReactElement {
       }
     }
     
-     
     void fetchStudentAndDeps();
   }, [id]);
 

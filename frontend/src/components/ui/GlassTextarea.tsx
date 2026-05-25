@@ -7,7 +7,6 @@ interface GlassTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaEl
   error?: string;
 }
 
-
 export default function GlassTextarea({
   label,
   error,

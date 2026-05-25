@@ -13,7 +13,6 @@ interface GlassBreadcrumbProps {
   items: BreadcrumbItem[];
 }
 
-
 export default function GlassBreadcrumb({ items }: GlassBreadcrumbProps): React.ReactElement {
   return (
     <nav aria-label="Breadcrumb" className="mb-6">

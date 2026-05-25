@@ -3,16 +3,11 @@ import { useAuthStore } from "@/store/authStore";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
-
-
-
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
   timeout: 15000,
 });
-
 
 api.interceptors.request.use(
   (config) => {
@@ -24,7 +19,6 @@ api.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
-
 
 api.interceptors.response.use(
   (response) => response,

@@ -1,5 +1,3 @@
-// Auth repository — orchestrates API calls with local secure storage.
-// Single source of truth for authentication state transitions.
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +8,7 @@ import 'package:smart_attendance_app/data/local/hive_service.dart';
 import 'package:smart_attendance_app/data/local/secure_storage.dart';
 import 'package:smart_attendance_app/domain/enums/auth_state.dart';
 import 'package:smart_attendance_app/domain/models/user.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   return AuthRepository(
@@ -32,7 +31,6 @@ class AuthRepository {
         _storage = storage,
         _hive = hive;
 
-  /// Full login flow: authenticate → store JWT → fetch profile → determine next state.
   Future<({UserProfile profile, AuthStatus status})> login(
     String email,
     String password,
@@ -53,7 +51,6 @@ class AuthRepository {
       final profile = await _authApi.getProfile();
       await _hive.cacheProfile(profile);
 
-      // If student has no face embedding, force registration
       final needsRegistration = profile.studentProfile == null || !profile.hasFaceRegistered;
       final status = needsRegistration
           ? AuthStatus.registrationRequired
@@ -65,8 +62,6 @@ class AuthRepository {
     }
   }
 
-  /// Checks stored JWT validity by fetching /me.
-  /// Returns the current auth status without re-authenticating.
   Future<({UserProfile? profile, AuthStatus status})> checkAuthState() async {
     final token = await _storage.getToken();
     if (token == null) {
@@ -88,7 +83,7 @@ class AuthRepository {
         await _storage.clearAll();
         return (profile: null, status: AuthStatus.unauthenticated);
       }
-      // Network error — try cached profile for offline access
+      
       final cached = _hive.getCachedProfile();
       if (cached != null) {
         return (profile: cached, status: AuthStatus.authenticated);
@@ -97,17 +92,15 @@ class AuthRepository {
     }
   }
 
-  /// Server-side logout + local credential wipe.
   Future<void> logout() async {
     try {
       await _authApi.logout();
-    } on DioException {
-      // Proceed with local cleanup even if server call fails
+    } on DioException catch (e) {
+      AppLogger.warn('Logout API call failed', context: {'error': e.toString()});
     }
     await _storage.clearAll();
     await _hive.clearAll();
   }
 
-  /// Returns the cached profile without a network call.
   UserProfile? getCachedProfile() => _hive.getCachedProfile();
 }

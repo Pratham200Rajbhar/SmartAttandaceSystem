@@ -46,14 +46,12 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
     super.dispose();
   }
 
-  /// Called on app start — silently checks JWT validity.
   Future<void> checkInitialAuth() async {
     state = state.copyWith(status: AuthStatus.loading);
     try {
-      // 1. Grab hardware UUID on app launch
+      
       await _deviceService.getDeviceUUID();
 
-      // 2. Check login status
       final result = await _repo.checkAuthState();
       state = AuthStateData(status: result.status, user: result.profile);
     } catch (e, stackTrace) {
@@ -62,7 +60,6 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
     }
   }
 
-  /// Authenticates with email/password.
   Future<void> login(String email, String password) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     try {
@@ -78,18 +75,15 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
     }
   }
 
-  /// Marks face registration as complete — transitions to authenticated.
   void onFaceRegistered() {
     state = state.copyWith(status: AuthStatus.authenticated);
   }
 
-  /// Clears auth state and logs out.
   Future<void> logout() async {
     await _repo.logout();
     state = const AuthStateData(status: AuthStatus.unauthenticated);
   }
 
-  /// Clears auth state and logs out with a custom error message displayed to the user.
   Future<void> logoutWithReason(String reason) async {
     await _repo.logout();
     state = AuthStateData(

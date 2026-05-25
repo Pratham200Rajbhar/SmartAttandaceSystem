@@ -1,6 +1,4 @@
-// Notifications screen — local event log + push notifications with
-// visual differentiation for push-sourced vs local-sync notifications.
-// IsolationForest alerts get distinct warning treatment.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -105,7 +103,7 @@ class NotificationsScreen extends ConsumerWidget {
                   ),
                 )
               else ...[
-                // Alerts section (push notifications)
+                
                 if (pushNotifications.isNotEmpty) ...[
                   const _SectionHeader(
                     icon: Icons.campaign_rounded,
@@ -119,7 +117,7 @@ class NotificationsScreen extends ConsumerWidget {
                       )),
                   const SizedBox(height: 16),
                 ],
-                // Sync events section (local notifications)
+                
                 if (localNotifications.isNotEmpty) ...[
                   const _SectionHeader(
                     icon: Icons.cloud_sync_rounded,
@@ -183,7 +181,7 @@ class _NotificationTile extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Unread indicator
+            
             if (!notification.isRead)
               Container(
                 width: 4,

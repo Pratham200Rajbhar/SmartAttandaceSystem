@@ -1,4 +1,4 @@
-// Local notifications service using Hive.
+
 library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -8,8 +8,8 @@ class LocalNotification {
   final String title;
   final String body;
   final DateTime timestamp;
-  final String severity; // 'info', 'success', 'warning', 'danger'
-  final String source; // 'local' (sync events) or 'push' (FCM)
+  final String severity; 
+  final String source; 
   final bool isRead;
 
   LocalNotification({
@@ -58,14 +58,12 @@ final notificationServiceProvider = Provider<NotificationService>((ref) {
 class NotificationService {
   Box<Map<dynamic, dynamic>>? _box;
 
-  /// Whether the service has been initialized.
   bool get isInitialized => _box != null;
 
   Future<void> initialize() async {
     _box = await Hive.openBox<Map<dynamic, dynamic>>(kHiveBoxNotifications);
   }
 
-  /// Ensures the box is open before operations.
   Future<void> _ensureInitialized() async {
     if (_box == null) await initialize();
   }
@@ -91,7 +89,7 @@ class NotificationService {
     if (_box == null) return [];
     final items =
         _box!.values.map((m) => LocalNotification.fromMap(m)).toList();
-    // Sort descending by timestamp
+    
     items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return items;
   }
@@ -100,7 +98,6 @@ class NotificationService {
     await _box?.clear();
   }
 
-  /// Replaces all notifications with the given list (used for mark-all-read).
   Future<void> replaceAll(List<LocalNotification> notifications) async {
     await _box?.clear();
     for (final n in notifications) {
@@ -122,7 +119,6 @@ class NotificationsNotifier extends StateNotifier<List<LocalNotification>> {
     load();
   }
 
-  /// Reloads notifications from Hive storage.
   Future<void> load() async {
     if (!_service.isInitialized) {
       await _service.initialize();
@@ -130,13 +126,11 @@ class NotificationsNotifier extends StateNotifier<List<LocalNotification>> {
     state = _service.getNotifications();
   }
 
-  /// Clears all notifications from both state and storage.
   Future<void> clear() async {
     await _service.clearAll();
     state = [];
   }
 
-  /// Marks all notifications as read.
   Future<void> markAllRead() async {
     final updated = state.map((n) => n.copyWith(isRead: true)).toList();
     await _service.replaceAll(updated);

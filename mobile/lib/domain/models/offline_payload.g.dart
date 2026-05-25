@@ -1,5 +1,3 @@
-// GENERATED CODE - Hand-written TypeAdapter matching offline_payload.dart annotations.
-// Replaces build_runner generation to avoid dev-dependency overhead.
 
 part of 'offline_payload.dart';
 

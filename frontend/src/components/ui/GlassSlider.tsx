@@ -12,7 +12,6 @@ interface GlassSliderProps {
   unit?: string;
 }
 
-
 export default function GlassSlider({
   label,
   min,

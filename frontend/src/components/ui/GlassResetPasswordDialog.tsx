@@ -33,7 +33,7 @@ export default function GlassResetPasswordDialog({
     setLoading(true);
     try {
       await onConfirm(newPassword);
-      setNewPassword(""); // clear on success
+      setNewPassword(""); 
     } finally {
       setLoading(false);
     }

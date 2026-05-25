@@ -13,7 +13,6 @@ import GlassButton from "@/components/ui/GlassButton";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { DepartmentResponse } from "@/types";
 
-
 export default function EditDepartmentPage(): React.ReactElement {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();

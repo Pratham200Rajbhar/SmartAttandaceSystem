@@ -1,5 +1,4 @@
-// Glass bottom navigation bar with frosted background.
-// Tabs: Home | Attendance | Analytics | Profile
+
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:smart_attendance_app/app/theme.dart';

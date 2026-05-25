@@ -1,5 +1,4 @@
-// Attendance repository — handles online submission and offline queue fallback.
-// Checks connectivity before deciding the submission path.
+
 library;
 
 import 'dart:io';
@@ -21,8 +20,6 @@ final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   );
 });
 
-/// Result of an attendance submission attempt.
-/// Either an online result or an offline queue confirmation.
 sealed class AttendanceSubmitResult {}
 
 class OnlineResult extends AttendanceSubmitResult {
@@ -45,7 +42,6 @@ class AttendanceRepository {
   })  : _studentApi = studentApi,
         _hive = hive;
 
-  /// Submits attendance — online if connected, queues to Hive if offline.
   Future<AttendanceSubmitResult> submitAttendance({
     required String sessionId,
     required double latitude,
@@ -53,7 +49,7 @@ class AttendanceRepository {
     required String imagePath,
     String? className,
   }) async {
-    // 1. First, save the image safely to app docs to prevent cache purges
+    
     final savedImagePath = await _saveImageToAppDocs(imagePath);
 
     final connectivity = await Connectivity().checkConnectivity();
@@ -69,7 +65,7 @@ class AttendanceRepository {
         );
         return OnlineResult(result);
       } on DioException catch (e) {
-        // Fall back to offline queue for network timeouts or 5xx server errors
+        
         final isNetworkError = [
           DioExceptionType.connectionTimeout,
           DioExceptionType.sendTimeout,
@@ -80,12 +76,11 @@ class AttendanceRepository {
         final isServerError = e.response != null && e.response!.statusCode! >= 500;
 
         if (!isNetworkError && !isServerError) {
-          throw mapDioError(e); // Propagate 4xx errors (e.g. Auth/Validation)
+          throw mapDioError(e); 
         }
       }
     }
 
-    // Offline path: queue for later sync
     final payload = OfflineAttendancePayload(
       sessionId: sessionId,
       latitude: latitude,
@@ -111,7 +106,6 @@ class AttendanceRepository {
     }
   }
 
-  /// Uploads a face registration selfie.
   Future<void> registerFace(String imagePath) async {
     try {
       await _studentApi.registerFace(imagePath);
@@ -120,7 +114,6 @@ class AttendanceRepository {
     }
   }
 
-  /// Fetches full attendance history from backend.
   Future<AttendanceHistoryResponse> getHistory() async {
     try {
       return await _studentApi.getMyAttendance();
@@ -129,6 +122,5 @@ class AttendanceRepository {
     }
   }
 
-  /// Returns the count of pending offline submissions.
   int get pendingOfflineCount => _hive.pendingCount;
 }

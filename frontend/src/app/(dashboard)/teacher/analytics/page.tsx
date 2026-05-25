@@ -11,11 +11,9 @@ import GlassLoader from "@/components/ui/GlassLoader";
 import GlassEmptyState from "@/components/ui/GlassEmptyState";
 import type { AcademicClassWithGeofence, ClassStatsResponse } from "@/types";
 
-
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
-
 
 export default function AnalyticsPage(): React.ReactElement {
   const [classes, setClasses] = useState<AcademicClassWithGeofence[]>([]);
@@ -52,7 +50,6 @@ export default function AnalyticsPage(): React.ReactElement {
   if (loading) return <GlassLoader text="Loading analytics..." />;
   if (classes.length === 0) return <><GlassPageHeader title="Analytics" /><GlassEmptyState title="No Classes" message="No classes assigned yet." /></>;
 
-  
   const trendData = stats?.history && stats.history.length > 0
     ? stats.history.map((h) => ({
         session: h.session_name,

@@ -13,7 +13,6 @@ import GlassButton from "@/components/ui/GlassButton";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { TeacherResponse } from "@/types";
 
-
 export default function TeachersPage(): React.ReactElement {
   const router = useRouter();
   const [teachers, setTeachers] = useState<TeacherResponse[]>([]);

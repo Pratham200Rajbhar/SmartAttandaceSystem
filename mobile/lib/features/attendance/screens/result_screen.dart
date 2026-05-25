@@ -1,4 +1,4 @@
-// Result screen — displays outcome with contextual score explanations.
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -83,7 +83,7 @@ class ResultScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(),
-                // Result icon with glow
+                
                 Container(
                   width: 100, height: 100,
                   decoration: BoxDecoration(
@@ -139,7 +139,6 @@ class ResultScreen extends ConsumerWidget {
 
                 const Spacer(),
 
-                // Primary action: view attendance record (for flagged)
                 if (result is OnlineResult && !result.result.isPresent) ...[
                   GlassButton(
                     label: 'View Flagged Record',

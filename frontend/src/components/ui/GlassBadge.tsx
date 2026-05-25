@@ -10,11 +10,9 @@ interface GlassBadgeProps {
   className?: string;
 }
 
-
 export default function GlassBadge({ variant, children, className = "" }: GlassBadgeProps): React.ReactElement {
   return <span className={`badge badge-${variant} ${className}`}>{children}</span>;
 }
-
 
 export function statusToBadgeVariant(status: string): BadgeVariant {
   const map: Record<string, BadgeVariant> = {

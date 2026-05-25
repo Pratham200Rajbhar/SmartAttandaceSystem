@@ -13,7 +13,6 @@ import GlassButton from "@/components/ui/GlassButton";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { ClassResponse } from "@/types";
 
-
 export default function ClassesPage(): React.ReactElement {
   const router = useRouter();
   const [classes, setClasses] = useState<ClassResponse[]>([]);

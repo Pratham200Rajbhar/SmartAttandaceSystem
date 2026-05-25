@@ -1,7 +1,4 @@
-// User and authentication data models.
-// Mirrors the backend's UserProfileResponse and Token schemas.
 
-// JWT token response from POST /auth/login.
 class TokenResponse {
   final String accessToken;
   final String tokenType;
@@ -20,7 +17,6 @@ class TokenResponse {
       );
 }
 
-/// Nested student profile returned in /auth/me response.
 class StudentProfile {
   final String id;
   final String enrollmentNumber;
@@ -53,7 +49,6 @@ class StudentProfile {
       };
 }
 
-/// Full user profile from GET /auth/me.
 class UserProfile {
   final String id;
   final String email;
@@ -69,7 +64,6 @@ class UserProfile {
     this.studentProfile,
   });
 
-  /// Whether the student has completed face registration.
   bool get hasFaceRegistered => studentProfile?.faceRegistered ?? false;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {

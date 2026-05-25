@@ -15,7 +15,6 @@ interface GlassConfirmDialogProps {
   variant?: "danger" | "primary";
 }
 
-
 export default function GlassConfirmDialog({
   isOpen,
   title,

@@ -1,4 +1,4 @@
-// Device & Security screen — bound device info and reset request.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -47,7 +47,7 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Bound device info
+              
               GlassCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,7 +108,6 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
 
               const SizedBox(height: 16),
 
-              // Device reset request
               GlassCard(
                 borderColor: SasColors.warning.withValues(alpha: 0.3),
                 child: Column(

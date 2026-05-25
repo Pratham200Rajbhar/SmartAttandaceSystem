@@ -1,4 +1,4 @@
-// Glass input field — frosted text field matching the web's `.glass-input` CSS.
+
 library;
 
 import 'package:flutter/material.dart';

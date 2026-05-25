@@ -1,4 +1,4 @@
-// Smart Pass screen - displays time-limited QR code for campus access
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,13 +23,12 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
   @override
   void initState() {
     super.initState();
-    // Generate initial pass
+    
     Future.microtask(() {
       ref.read(smartPassProvider.notifier).generatePass();
       ref.read(smartPassProvider.notifier).startAutoRefresh();
     });
     
-    // Start countdown timer
     _startCountdown();
   }
 
@@ -41,7 +40,7 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
         setState(() {
           _secondsRemaining = (_secondsRemaining - 1).clamp(0, 30);
           if (_secondsRemaining == 0) {
-            _secondsRemaining = 30; // Reset for next cycle
+            _secondsRemaining = 30; 
           }
         });
       }
@@ -139,7 +138,7 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
-          // Shimmer background effect (anti-screenshot)
+          
           Stack(
             alignment: Alignment.center,
             children: [
@@ -167,7 +166,7 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   children: [
-                    // QR Code
+                    
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
@@ -191,7 +190,6 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Student Info
                     Text(
                       pass.studentName,
                       style: const TextStyle(
@@ -210,7 +208,6 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
                     ),
                     const SizedBox(height: 24),
                     
-                    // Countdown Timer
                     Container(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 12),
@@ -256,7 +253,6 @@ class _SmartPassScreenState extends ConsumerState<SmartPassScreen> {
           ),
           const SizedBox(height: 24),
           
-          // Info Card
           GlassCard(
             padding: const EdgeInsets.all(20),
             child: Column(

@@ -1,4 +1,4 @@
-// History screen — Calendar view + List view toggle with filters.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -58,7 +58,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Overall percentage banner
+              
               GlassCard(
                 child: Row(
                   children: [
@@ -92,7 +92,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Tab toggle
+              
               Container(
                 decoration: BoxDecoration(
                   color: SasColors.glassBg,
@@ -147,7 +147,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildCalendarView(HistoryState hState) {
     final grouped = hState.groupedByDate;
-    // Month stats
+    
     final monthItems = (hState.data?.history ?? []).where((h) =>
         h.markedAt.year == _focusedMonth.year &&
         h.markedAt.month == _focusedMonth.month).toList();
@@ -158,7 +158,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Per-subject breakdown
+        
         if (hState.data != null && hState.data!.history.isNotEmpty)
           _PerSubjectBreakdown(history: hState.data!.history),
         const SizedBox(height: 16),
@@ -172,7 +172,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               const SizedBox(height: 8),
               _buildCalendarGrid(grouped),
               const SizedBox(height: 12),
-              // Legend
+              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -184,7 +184,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              // Month stats
+              
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -215,7 +215,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   Widget _buildListView(HistoryState hState) {
     final all = hState.data?.history ?? [];
-    // Collect unique subjects
+    
     final subjects = all.map((h) => h.subject).toSet().toList()..sort();
 
     var filtered = all.where((h) {
@@ -243,7 +243,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Summary stats
+        
         Row(
           children: [
             Expanded(child: _StatChip(label: 'Total', value: '$total', color: SasColors.info)),
@@ -256,7 +256,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        // Search bar
+        
         TextField(
           controller: _searchController,
           onChanged: (v) => setState(() => _searchQuery = v),
@@ -273,7 +273,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           ),
         ),
         const SizedBox(height: 10),
-        // Filter chips
+        
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -435,8 +435,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return SasColors.danger;
   }
 }
-
-// ─── Reusable sub-widgets ────────────────────────────────────────────────────
 
 class _TabButton extends StatelessWidget {
   final String label;

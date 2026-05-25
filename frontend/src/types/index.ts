@@ -26,10 +26,6 @@ export interface UserProfile {
   } | null;
 }
 
-// ------------------------------------------------------------------ //
-// Student
-// ------------------------------------------------------------------ //
-
 export interface StudentCreate {
   email: string;
   password: string;
@@ -61,10 +57,6 @@ export interface StudentResponse {
   device_reset_requested?: boolean;
 }
 
-// ------------------------------------------------------------------ //
-// Teacher
-// ------------------------------------------------------------------ //
-
 export interface TeacherCreate {
   email: string;
   password: string;
@@ -89,9 +81,9 @@ export interface TeacherResponse {
   last_name: string;
   department_id: string;
   designation_id: string;
-  /** Resolved display name from Department FK */
+  
   department: string;
-  /** Resolved display name from Designation FK */
+  
   designation: string;
   phone?: string | null;
   qualification?: string | null;
@@ -99,10 +91,6 @@ export interface TeacherResponse {
   experience_years?: number | null;
   joining_date?: string | null;
 }
-
-// ------------------------------------------------------------------ //
-// Academic Class
-// ------------------------------------------------------------------ //
 
 export interface ClassCreate {
   name: string;
@@ -127,9 +115,9 @@ export interface ClassUpdate {
 export interface ClassResponse {
   id: string;
   name: string;
-  /** Resolved subject name from Subject FK */
+  
   subject_name: string;
-  /** Resolved subject code from Subject FK */
+  
   subject_code: string;
   teacherId: string;
   classroom_name?: string | null;
@@ -146,10 +134,6 @@ export interface AssignTeacherRequest {
 export interface EnrollRequest {
   student_ids: string[];
 }
-
-// ------------------------------------------------------------------ //
-// Master data
-// ------------------------------------------------------------------ //
 
 export interface DepartmentCreate {
   name: string;
@@ -231,10 +215,6 @@ export interface DesignationResponse {
   description: string | null;
 }
 
-// ------------------------------------------------------------------ //
-// Audit & Admin stats
-// ------------------------------------------------------------------ //
-
 export interface AuditLogResponse {
   id: string;
   timestamp: string;
@@ -252,10 +232,6 @@ export interface AdminStatsResponse {
   teacherCount: number;
   classCount: number;
 }
-
-// ------------------------------------------------------------------ //
-// Geofence & Classes (teacher view)
-// ------------------------------------------------------------------ //
 
 export interface GeofenceUpsert {
   latitude: number;
@@ -276,15 +252,11 @@ export interface GeofenceResponse {
 export interface AcademicClassWithGeofence {
   id: string;
   name: string;
-  /** Resolved subject name from FK */
+  
   subject: string;
   teacherId: string;
   geofence: GeofenceResponse | null;
 }
-
-// ------------------------------------------------------------------ //
-// Sessions
-// ------------------------------------------------------------------ //
 
 export interface SessionStart {
   academic_class_id: string;
@@ -303,16 +275,12 @@ export interface SessionWithClassResponse {
   id: string;
   academicClassId: string;
   class_name: string;
-  /** Resolved subject name from FK */
+  
   subject: string;
   startTime: string;
   endTime: string;
   isActive: boolean;
 }
-
-// ------------------------------------------------------------------ //
-// Attendance roster
-// ------------------------------------------------------------------ //
 
 export interface StudentRosterItem {
   student_id: string;
@@ -330,10 +298,6 @@ export interface SessionAttendanceResponse {
   roster: StudentRosterItem[];
 }
 
-// ------------------------------------------------------------------ //
-// Bulk marking & manual entry
-// ------------------------------------------------------------------ //
-
 export interface AbsentStudentItem {
   student_id: string;
   enrollment_number: string;
@@ -350,10 +314,6 @@ export interface BulkMarkRequest {
   records: BulkMarkRecord[];
 }
 
-// ------------------------------------------------------------------ //
-// CSV export
-// ------------------------------------------------------------------ //
-
 export interface AttendanceExportRow {
   enrollment_number: string;
   first_name: string;
@@ -366,10 +326,6 @@ export interface AttendanceExportRow {
   final_ai_score: number;
   remarks?: string;
 }
-
-// ------------------------------------------------------------------ //
-// Flagged attendance & review
-// ------------------------------------------------------------------ //
 
 export interface FlaggedAttendanceResponse {
   id: string;
@@ -391,10 +347,6 @@ export interface AttendanceReview {
   remarks: string;
 }
 
-// ------------------------------------------------------------------ //
-// Class stats
-// ------------------------------------------------------------------ //
-
 export interface SessionTrendItem {
   session_id: string;
   session_name: string;
@@ -408,10 +360,6 @@ export interface ClassStatsResponse {
   overall_attendance_percentage: number;
   history?: SessionTrendItem[];
 }
-
-// ------------------------------------------------------------------ //
-// AI / analytics
-// ------------------------------------------------------------------ //
 
 export interface AnomalyResult {
   student_id: string;

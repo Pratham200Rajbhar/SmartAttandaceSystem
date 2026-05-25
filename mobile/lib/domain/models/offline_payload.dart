@@ -1,5 +1,3 @@
-// Offline attendance payload for Hive queue storage.
-// Captures all data needed to replay a mark-attendance call when connectivity returns.
 
 import 'package:hive/hive.dart';
 

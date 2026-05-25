@@ -33,7 +33,6 @@ export default function HistoryPage(): React.ReactElement {
   const [classes, setClasses] = useState<AcademicClass[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter States
   const [selectedClass, setSelectedClass] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -49,7 +48,7 @@ export default function HistoryPage(): React.ReactElement {
         setSessions(sessionsRes.data);
         setClasses(classesRes.data);
       } catch {
-        // Silently ignore — empty state UI handles it
+        
       } finally {
         setLoading(false);
       }
@@ -64,18 +63,15 @@ export default function HistoryPage(): React.ReactElement {
     setDateFilter("");
   }
 
-  // Filter Sessions in Memory
   const filteredSessions = sessions.filter((session) => {
-    // 1. Filter by Class Name/ID
+    
     if (selectedClass !== "all" && session.academicClassId !== selectedClass) {
       return false;
     }
 
-    // 2. Filter by Status
     if (statusFilter === "active" && !session.isActive) return false;
     if (statusFilter === "closed" && session.isActive) return false;
 
-    // 3. Filter by Search Query
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const matchesName = session.class_name.toLowerCase().includes(term);
@@ -84,7 +80,6 @@ export default function HistoryPage(): React.ReactElement {
       if (!matchesName && !matchesSubject && !matchesId) return false;
     }
 
-    // 4. Filter by Specific Date
     if (dateFilter) {
       const sessionDate = new Date(session.startTime).toDateString();
       const filterDate = new Date(dateFilter).toDateString();
@@ -154,7 +149,7 @@ export default function HistoryPage(): React.ReactElement {
         description="Historical archives and final student rosters of all closed classes"
       />
 
-      {/* FILTER PANEL */}
+      {}
       <div className="p-5 mb-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
         <div className="flex items-center gap-2 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">
           <SlidersHorizontal size={14} className="text-slate-300" />
@@ -162,7 +157,7 @@ export default function HistoryPage(): React.ReactElement {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
-          {/* Keyword Search */}
+          {}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-400">Search Logs</label>
             <div className="relative flex items-center">
@@ -177,7 +172,7 @@ export default function HistoryPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* Class Select Dropdown */}
+          {}
           <div className="flex flex-col gap-1.5">
             <GlassSelect
               label="Class Filter"
@@ -190,7 +185,7 @@ export default function HistoryPage(): React.ReactElement {
             />
           </div>
 
-          {/* Status Select Dropdown */}
+          {}
           <div className="flex flex-col gap-1.5">
             <GlassSelect
               label="Session State"
@@ -204,7 +199,7 @@ export default function HistoryPage(): React.ReactElement {
             />
           </div>
 
-          {/* Date Picker */}
+          {}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-400">Filter By Date</label>
             <div className="relative flex items-center">
@@ -219,7 +214,7 @@ export default function HistoryPage(): React.ReactElement {
           </div>
         </div>
 
-        {/* Clear Filters Button (conditional) */}
+        {}
         {(selectedClass !== "all" || statusFilter !== "all" || searchTerm || dateFilter) && (
           <div className="mt-4 flex justify-end">
             <button
@@ -232,7 +227,7 @@ export default function HistoryPage(): React.ReactElement {
         )}
       </div>
 
-      {/* FILTER RESULTS TABLE */}
+      {}
       {filteredSessions.length > 0 ? (
         <GlassTable
           columns={columns}

@@ -12,7 +12,6 @@ interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
   icon?: React.ReactNode;
 }
 
-
 export default function GlassButton({
   variant = "primary",
   size = "md",

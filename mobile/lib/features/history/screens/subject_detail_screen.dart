@@ -1,4 +1,4 @@
-// Subject Detail screen — full attendance list for a single subject.
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,7 +42,6 @@ class SubjectDetailScreen extends ConsumerWidget {
         ? SasColors.success
         : (pct >= 50 ? SasColors.warning : SasColors.danger);
 
-    // Classes needed to reach target
     int canMiss = 0;
     int needToAttend = 0;
     if (pct >= target) {
@@ -62,7 +61,7 @@ class SubjectDetailScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              // Stats header
+              
               GlassCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
