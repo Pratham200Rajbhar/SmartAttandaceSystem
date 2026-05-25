@@ -1,4 +1,3 @@
-from datetime import timedelta
 from typing import Optional
 from app.core.security import hash_password, verify_password, create_access_token
 from app.repositories.user_repo import UserRepository

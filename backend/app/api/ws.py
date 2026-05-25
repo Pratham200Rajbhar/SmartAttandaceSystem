@@ -2,12 +2,10 @@
 WebSocket endpoint for real-time attendance updates.
 Broadcasts session status changes and attendance notifications to connected students.
 """
-import json
 import logging
 from typing import Dict, Set
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
 from app.api.dependencies import get_current_user_from_token
-from prisma.models import User
 
 logger = logging.getLogger("app.websocket")
 
@@ -107,7 +105,7 @@ async def websocket_endpoint(
         logger.error(f"WebSocket error: {e}", exc_info=True)
         try:
             await websocket.close(code=1011, reason="Internal server error")
-        except:
+        except Exception:
             pass
 
 

@@ -1,0 +1,15 @@
+.venv/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.env.local
+firebase-credentials.json
+models/
+uploads/
+static/
+.git/
+.github/
+node_modules/

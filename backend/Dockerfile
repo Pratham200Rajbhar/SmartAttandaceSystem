@@ -1,5 +1,5 @@
 # Stage 1: Build & Runtime Environment
-FROM python:3.12-slim
+FROM python:3.11-slim
 
 # Set environment variables for clean container output
 ENV PYTHONDONTWRITEBYTECODE=1

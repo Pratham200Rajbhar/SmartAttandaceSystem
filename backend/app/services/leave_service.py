@@ -2,8 +2,8 @@
 Leave request service - handles leave approval workflow and auto-excused attendance.
 """
 import logging
-from datetime import datetime, timezone
-from typing import List, Optional
+from datetime import datetime
+from typing import Optional
 from app.repositories.leave_repo import LeaveRepository
 from app.repositories.attendance_repo import AttendanceRepository
 from app.repositories.enrollment_repo import EnrollmentRepository

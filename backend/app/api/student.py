@@ -1,18 +1,20 @@
 import os
 import uuid
 import shutil
+import logging
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from app.api.dependencies import get_current_student
 from app.core.config import settings
 from app.schemas.attendance import AttendanceMarkResponse
 from app.schemas.student import StudentAttendanceHistoryResponse, StudentClassResponse
-from app.schemas.dispute import DisputeCreate, DisputeResponse
-from app.schemas.leave import LeaveRequestCreate, LeaveRequestResponse, LeaveRequestListResponse
+from app.schemas.leave import LeaveRequestResponse, LeaveRequestListResponse
 from app.services.attendance_service import AttendanceService, AttendanceSubmission
 from app.services.student_service import StudentService
 from app.repositories.leave_repo import LeaveRepository
 from app.repositories.attendance_repo import AttendanceRepository
 from prisma.models import Student
+
+logger = logging.getLogger("app.api.student")
 
 router = APIRouter(prefix="/student", tags=["Student Features"])
 
@@ -281,9 +283,9 @@ async def get_my_leaves(
         ))
     
     total = len(leave_responses)
-    pending = sum(1 for l in leaves if l.status == "PENDING")
-    approved = sum(1 for l in leaves if l.status == "APPROVED")
-    rejected = sum(1 for l in leaves if l.status == "REJECTED")
+    pending = sum(1 for req in leaves if req.status == "PENDING")
+    approved = sum(1 for req in leaves if req.status == "APPROVED")
+    rejected = sum(1 for req in leaves if req.status == "REJECTED")
     
     return LeaveRequestListResponse(
         leaves=leave_responses,

@@ -1,7 +1,3 @@
-import importlib.util
-import os
-import tempfile
-import pandas as pd
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.dependencies import RoleChecker
@@ -19,6 +15,7 @@ from app.schemas.master_data import (
     DesignationCreate, DesignationUpdate, DesignationResponse
 )
 from app.services.admin_service import AdminService
+from app.services.absentee_scanner import run_absentee_scan
 
 
 admin_protection = Depends(RoleChecker(allowed_roles=["ADMIN"]))
@@ -238,7 +235,7 @@ async def delete_department(id: str, admin_service: AdminService = Depends()):
         return {"status": "success"}
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
-    except Exception as err:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Subjects CRUD
@@ -274,7 +271,7 @@ async def delete_subject(id: str, admin_service: AdminService = Depends()):
         return {"status": "success"}
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
-    except Exception as err:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Classrooms CRUD
@@ -310,7 +307,7 @@ async def delete_classroom(id: str, admin_service: AdminService = Depends()):
         return {"status": "success"}
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
-    except Exception as err:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 # Designations CRUD
@@ -346,7 +343,7 @@ async def delete_designation(id: str, admin_service: AdminService = Depends()):
         return {"status": "success"}
     except ValueError as err:
         raise HTTPException(status_code=400, detail=str(err))
-    except Exception as err:
+    except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/audit", response_model=List[AuditLogResponse])
@@ -357,8 +354,6 @@ async def get_audit_logs(admin_service: AdminService = Depends()):
 async def get_admin_stats(admin_service: AdminService = Depends()):
     return await admin_service.get_stats()
 
-
-from app.services.absentee_scanner import run_absentee_scan
 
 @router.post("/scan-absentees", status_code=status.HTTP_200_OK)
 async def scan_absentee_anomalies(

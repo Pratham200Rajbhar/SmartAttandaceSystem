@@ -7,8 +7,8 @@ from app.repositories.enrollment_repo import EnrollmentRepository
 from app.core.security import hash_password
 from app.schemas.student import StudentCreate, StudentResponse
 from app.schemas.teacher import TeacherCreate, TeacherResponse
-from app.schemas.admin import ClassCreate, ClassUpdate, ClassResponse
-from prisma.models import AcademicClass, Enrollment, Department, AuditLog, Subject, Classroom, Designation
+from app.schemas.admin import ClassCreate, ClassResponse
+from prisma.models import Department, AuditLog, Subject, Classroom, Designation
 from app.db.client import db
 
 
@@ -119,15 +119,24 @@ class AdminService:
     async def update_student(self, id: str, data: dict) -> StudentResponse:
         """Partially update a student record and return the updated response."""
         update_data = {}
-        if "enrollment_number" in data: update_data["enrollmentNumber"] = data["enrollment_number"]
-        if "first_name" in data: update_data["firstName"] = data["first_name"]
-        if "last_name" in data: update_data["lastName"] = data["last_name"]
-        if "phone" in data: update_data["phone"] = data["phone"]
-        if "gender" in data: update_data["gender"] = data["gender"]
-        if "date_of_birth" in data: update_data["dateOfBirth"] = data["date_of_birth"]
-        if "semester" in data: update_data["semester"] = data["semester"]
-        if "batch" in data: update_data["batch"] = data["batch"]
-        if "department_id" in data: update_data["departmentId"] = data["department_id"]
+        if "enrollment_number" in data:
+            update_data["enrollmentNumber"] = data["enrollment_number"]
+        if "first_name" in data:
+            update_data["firstName"] = data["first_name"]
+        if "last_name" in data:
+            update_data["lastName"] = data["last_name"]
+        if "phone" in data:
+            update_data["phone"] = data["phone"]
+        if "gender" in data:
+            update_data["gender"] = data["gender"]
+        if "date_of_birth" in data:
+            update_data["dateOfBirth"] = data["date_of_birth"]
+        if "semester" in data:
+            update_data["semester"] = data["semester"]
+        if "batch" in data:
+            update_data["batch"] = data["batch"]
+        if "department_id" in data:
+            update_data["departmentId"] = data["department_id"]
 
         student = await db.student.update(
             where={"id": id},
@@ -252,16 +261,26 @@ class AdminService:
         Maps incoming snake_case FK field names to the camelCase prisma field names.
         """
         update_data = {}
-        if "employee_id" in data: update_data["employeeId"] = data["employee_id"]
-        if "first_name" in data: update_data["firstName"] = data["first_name"]
-        if "last_name" in data: update_data["lastName"] = data["last_name"]
-        if "department_id" in data: update_data["departmentId"] = data["department_id"]
-        if "designation_id" in data: update_data["designationId"] = data["designation_id"]
-        if "phone" in data: update_data["phone"] = data["phone"]
-        if "qualification" in data: update_data["qualification"] = data["qualification"]
-        if "specialization" in data: update_data["specialization"] = data["specialization"]
-        if "experience_years" in data: update_data["experienceYears"] = data["experience_years"]
-        if "joining_date" in data: update_data["joiningDate"] = data["joining_date"]
+        if "employee_id" in data:
+            update_data["employeeId"] = data["employee_id"]
+        if "first_name" in data:
+            update_data["firstName"] = data["first_name"]
+        if "last_name" in data:
+            update_data["lastName"] = data["last_name"]
+        if "department_id" in data:
+            update_data["departmentId"] = data["department_id"]
+        if "designation_id" in data:
+            update_data["designationId"] = data["designation_id"]
+        if "phone" in data:
+            update_data["phone"] = data["phone"]
+        if "qualification" in data:
+            update_data["qualification"] = data["qualification"]
+        if "specialization" in data:
+            update_data["specialization"] = data["specialization"]
+        if "experience_years" in data:
+            update_data["experienceYears"] = data["experience_years"]
+        if "joining_date" in data:
+            update_data["joiningDate"] = data["joining_date"]
 
         teacher = await db.teacher.update(
             where={"id": id},

@@ -3,7 +3,6 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import List, Optional
 from app.core.config import settings
 from app.repositories.attendance_repo import AttendanceRepository
 from app.repositories.session_repo import SessionRepository

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import shutil
 import threading
 from typing import List, Optional, Tuple
 
@@ -13,18 +14,55 @@ import numpy as np
 from deepface import DeepFace
 import tensorflow as tf
 from tensorflow.keras.applications.mobilenet import preprocess_input
+from huggingface_hub import hf_hub_download
 
 logger = logging.getLogger("app.ai")
 
 BASE_MODELS_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../../models")
 )
-LIVENESS_MODEL_PATH = os.path.join(
+
+LIVENESS_REPO = "prathamrajbhar/smart-attendance-liveness-detection"
+LIVENESS_FILENAME = "liveness_mobilenet_v2.h5"
+BACKGROUND_REPO = "prathamrajbhar/smart-attendance-background-validation"
+BACKGROUND_FILENAME = "background_mobilenet_v1.h5"
+
+LIVENESS_MODEL_PATH_V2 = os.path.join(
+    BASE_MODELS_DIR, "liveness_detection", "liveness_mobilenet_v2.h5"
+)
+LIVENESS_MODEL_PATH_V1 = os.path.join(
     BASE_MODELS_DIR, "liveness_detection", "liveness_mobilenet_v1.h5"
 )
 BACKGROUND_MODEL_PATH = os.path.join(
     BASE_MODELS_DIR, "background_validation", "background_mobilenet_v1.h5"
 )
+
+def _ensure_model_downloaded(repo_id: str, filename: str, local_path: str) -> str:
+    """Checks for the presence of a model file locally, and automatically downloads it
+    from the specified Hugging Face repository if it is missing.
+    
+    This ensures deployments on clean servers initialize required AI weights seamlessly.
+    """
+    if os.path.exists(local_path):
+        logger.info("Model file found locally at: %s", local_path)
+        return local_path
+
+    logger.info("Model file not found locally. Downloading from Hugging Face: %s/%s", repo_id, filename)
+    os.makedirs(os.path.dirname(local_path), exist_ok=True)
+    
+    token = os.environ.get("HF_TOKEN")
+    try:
+        downloaded_path = hf_hub_download(
+            repo_id=repo_id,
+            filename=filename,
+            token=token
+        )
+        shutil.copy(downloaded_path, local_path)
+        logger.info("Successfully downloaded and cached model to: %s", local_path)
+        return local_path
+    except Exception as e:
+        logger.error("Failed to download model from Hugging Face: %s", e)
+        raise RuntimeError(f"Could not load model {filename} from Hugging Face repository {repo_id}: {e}") from e
 
 def _load_liveness_model(model_path: str) -> tf.keras.Model:
     """Constructs the MobileNetV2 base architecture with a custom Sigmoid classification
@@ -47,8 +85,20 @@ def _load_liveness_model(model_path: str) -> tf.keras.Model:
     return model
 
 
-liveness_model = _load_liveness_model(LIVENESS_MODEL_PATH)
-background_model = tf.keras.models.load_model(BACKGROUND_MODEL_PATH)
+# Determine the correct liveness model path (backward compatible check)
+if os.path.exists(LIVENESS_MODEL_PATH_V2):
+    liveness_model_path = LIVENESS_MODEL_PATH_V2
+elif os.path.exists(LIVENESS_MODEL_PATH_V1):
+    liveness_model_path = LIVENESS_MODEL_PATH_V1
+else:
+    liveness_model_path = LIVENESS_MODEL_PATH_V2
+
+# Ensure models are downloaded and present
+final_liveness_path = _ensure_model_downloaded(LIVENESS_REPO, LIVENESS_FILENAME, liveness_model_path)
+final_background_path = _ensure_model_downloaded(BACKGROUND_REPO, BACKGROUND_FILENAME, BACKGROUND_MODEL_PATH)
+
+liveness_model = _load_liveness_model(final_liveness_path)
+background_model = tf.keras.models.load_model(final_background_path)
 
 liveness_lock = threading.Lock()
 background_lock = threading.Lock()

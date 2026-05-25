@@ -3,10 +3,8 @@ Gamification service - manages student streaks, achievements, and engagement met
 """
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Optional
 from app.repositories.student_repo import StudentRepository
 from app.repositories.attendance_repo import AttendanceRepository
-from prisma.models import Student
 
 logger = logging.getLogger("app.gamification")
 

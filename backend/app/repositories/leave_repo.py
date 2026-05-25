@@ -4,7 +4,6 @@ Repository for leave request database operations.
 import logging
 from datetime import datetime
 from typing import List, Optional
-from prisma import Prisma
 from prisma.models import LeaveRequest
 from app.db.client import db
 

@@ -149,7 +149,7 @@ async def logout(
                 try:
                     redis_client = get_redis()
                     await redis_client.setex(f"denylist:{token}", ttl, "revoked")
-                except Exception as cache_err:
+                except Exception:
 
                     pass
                     
