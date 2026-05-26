@@ -64,7 +64,6 @@ void callbackDispatcher() {
 }
 
 Future<void> main() async {
-  
   await runZonedGuarded(() async {
     WidgetsFlutterBinding.ensureInitialized();
 

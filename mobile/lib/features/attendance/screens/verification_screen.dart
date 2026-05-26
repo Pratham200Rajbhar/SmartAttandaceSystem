@@ -8,11 +8,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_attendance_app/app/theme.dart';
-import 'package:smart_attendance_app/core/constants.dart';
+import 'package:smart_attendance_app/data/local/location_service.dart';
 import 'package:smart_attendance_app/data/local/preferences_service.dart';
 import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 import 'package:smart_attendance_app/features/attendance/providers/attendance_provider.dart';
+import 'package:smart_attendance_app/features/attendance/providers/location_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
@@ -82,7 +83,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     with WidgetsBindingObserver {
   CameraController? _camera;
   bool _cameraReady = false;
-  String? _locationError;
   String? _cameraError;
   int _aiStepIndex = 0;
   Timer? _aiStepTimer;
@@ -103,7 +103,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _acquireGps();
     _checkFirstUse();
   }
 
@@ -136,44 +135,6 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
       _camera = null;
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
-    }
-  }
-
-  Future<void> _acquireGps() async {
-    setState(() => _locationError = null);
-    try {
-      final isServiceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!isServiceEnabled) {
-        setState(() => _locationError = 'Location services are disabled on device');
-        return;
-      }
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied ||
-            permission == LocationPermission.deniedForever) {
-          setState(() => _locationError = 'Location permission denied');
-          return;
-        }
-      }
-      if (permission == LocationPermission.deniedForever) {
-        setState(() => _locationError = 'Location permanently denied. Enable in settings');
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
-      if (pos.accuracy > kMinGpsAccuracyMeters) {
-        setState(() => _locationError =
-            'GPS accuracy too low (${pos.accuracy.toStringAsFixed(0)}m). Move to an open area and retry.');
-        return;
-      }
-      ref.read(attendanceVerificationProvider.notifier)
-          .setGpsLocation(pos.latitude, pos.longitude);
-      _initCamera();
-    } catch (e, st) {
-      debugPrint('_acquireGps error: $e\n$st');
-      setState(() => _locationError = 'Failed to get location');
     }
   }
 
@@ -236,8 +197,12 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   }
 
   void _retakePhoto() {
+    _camera?.dispose();
+    _camera = null;
+    _cameraReady = false;
+    _cameraError = null;
     ref.read(attendanceVerificationProvider.notifier).reset();
-    _acquireGps();
+    ref.invalidate(currentLocationProvider);
   }
 
   void _startAiStepAnimation() {
@@ -255,6 +220,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   @override
   Widget build(BuildContext context) {
     final vState = ref.watch(attendanceVerificationProvider);
+    final locationAsync = ref.watch(currentLocationProvider);
 
     ref.listen<AttendanceVerificationState>(attendanceVerificationProvider,
         (prev, next) {
@@ -263,6 +229,15 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
         _aiStepTimer?.cancel();
         if (mounted) context.go('/result');
       }
+    });
+
+    ref.listen(currentLocationProvider, (prev, next) {
+      next.whenOrNull(data: (position) {
+        if (ref.read(attendanceVerificationProvider).step != VerificationStep.gps) return;
+        ref.read(attendanceVerificationProvider.notifier)
+            .setGpsLocation(position.latitude, position.longitude);
+        _initCamera();
+      });
     });
 
     return Scaffold(
@@ -277,25 +252,61 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
 
                 if (vState.step == VerificationStep.gps) ...[
                   const Spacer(),
-                  GlassCard(
-                    child: Column(children: [
-                      const SizedBox(height: 16),
-                      if (_locationError != null) ...[
-                        const Icon(Icons.location_off_rounded, color: SasColors.danger, size: 48),
-                        const SizedBox(height: 12),
-                        Text(_locationError!, style: const TextStyle(color: SasColors.danger),
-                            textAlign: TextAlign.center),
+                  locationAsync.when(
+                    loading: () => GlassCard(
+                      child: Column(children: [
                         const SizedBox(height: 16),
-                        GlassButton(label: 'Retry', onPressed: _acquireGps, icon: Icons.refresh_rounded),
-                      ] else ...[
                         const SizedBox(width: 48, height: 48,
                             child: CircularProgressIndicator(strokeWidth: 3, color: SasColors.accentEmerald)),
                         const SizedBox(height: 16),
-                        const Text('Verifying location…',
+                        const Text('Acquiring high-accuracy GPS lock…',
                             style: TextStyle(color: SasColors.textSecondary, fontSize: 16)),
-                      ],
-                      const SizedBox(height: 16),
-                    ]),
+                        const SizedBox(height: 16),
+                      ]),
+                    ),
+                    error: (error, _) {
+                      final msg = error is LocationException
+                          ? error.message
+                          : 'Failed to acquire location.';
+                      final needsSettings = msg.contains('Settings');
+                      return GlassCard(
+                        child: Column(children: [
+                          const SizedBox(height: 16),
+                          const Icon(Icons.location_off_rounded, color: SasColors.danger, size: 48),
+                          const SizedBox(height: 12),
+                          Text(msg, style: const TextStyle(color: SasColors.danger),
+                              textAlign: TextAlign.center),
+                          const SizedBox(height: 16),
+                          if (needsSettings)
+                            GlassButton(
+                              label: 'Open Settings',
+                              icon: Icons.settings_rounded,
+                              onPressed: () async {
+                                await Geolocator.openAppSettings();
+                                if (mounted) ref.invalidate(currentLocationProvider);
+                              },
+                            )
+                          else
+                            GlassButton(
+                              label: 'Retry',
+                              icon: Icons.refresh_rounded,
+                              onPressed: () => ref.invalidate(currentLocationProvider),
+                            ),
+                          const SizedBox(height: 16),
+                        ]),
+                      );
+                    },
+                    data: (_) => GlassCard(
+                      child: Column(children: [
+                        const SizedBox(height: 16),
+                        const SizedBox(width: 48, height: 48,
+                            child: CircularProgressIndicator(strokeWidth: 3, color: SasColors.accentEmerald)),
+                        const SizedBox(height: 16),
+                        const Text('Preparing camera…',
+                            style: TextStyle(color: SasColors.textSecondary, fontSize: 16)),
+                        const SizedBox(height: 16),
+                      ]),
+                    ),
                   ),
                   const Spacer(),
                 ],

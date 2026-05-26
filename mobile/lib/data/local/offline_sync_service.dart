@@ -5,16 +5,18 @@ import 'dart:async';
 import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/data/local/hive_service.dart';
 import 'package:smart_attendance_app/data/local/notification_service.dart';
+import 'package:smart_attendance_app/data/local/pending_count_provider.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 final offlineSyncServiceProvider = Provider<OfflineSyncService>((ref) {
   return OfflineSyncService(
+    ref: ref,
     studentApi: ref.read(studentApiProvider),
     hive: ref.read(hiveServiceProvider),
     notificationService: ref.read(notificationServiceProvider),
@@ -24,6 +26,7 @@ final offlineSyncServiceProvider = Provider<OfflineSyncService>((ref) {
 });
 
 class OfflineSyncService {
+  final Ref _ref;
   final StudentApi _studentApi;
   final HiveService _hive;
   final NotificationService _notificationService;
@@ -33,12 +36,14 @@ class OfflineSyncService {
   bool _isSyncing = false;
 
   OfflineSyncService({
+    required Ref ref,
     required StudentApi studentApi,
     required HiveService hive,
     required NotificationService notificationService,
     required NotificationsNotifier notificationsNotifier,
     required Dio dio,
-  })  : _studentApi = studentApi,
+  })  : _ref = ref,
+        _studentApi = studentApi,
         _hive = hive,
         _notificationService = notificationService,
         _notificationsNotifier = notificationsNotifier,
@@ -64,11 +69,11 @@ class OfflineSyncService {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/health');
       if (response.statusCode != 200 || response.data?['status'] != 'healthy') {
-        debugPrint('OfflineSyncService: Backend health check failed or returned unhealthy.');
+        AppLogger.warn('OfflineSyncService: Backend health check failed or returned unhealthy.');
         return 0;
       }
-    } catch (e) {
-      debugPrint('OfflineSyncService: Backend health check ping failed (true offline). Error: $e');
+    } catch (e, stack) {
+      AppLogger.warn('OfflineSyncService: Backend health check ping failed (true offline). Error: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
       return 0;
     }
 
@@ -108,7 +113,7 @@ class OfflineSyncService {
             severity: 'success',
           );
           syncedCount++;
-        } on DioException catch (e) {
+        } on DioException catch (e, stack) {
           final statusCode = e.response?.statusCode ?? 0;
           final isClientError = statusCode >= 400 && statusCode < 500;
 
@@ -125,7 +130,7 @@ class OfflineSyncService {
             continue;
           }
 
-          debugPrint('OfflineSyncService sync failed (5xx/network): $e');
+          AppLogger.error('OfflineSyncService sync failed (5xx/network): $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
           await _notificationService.addNotification(
             title: 'Sync Failed',
             body:
@@ -134,7 +139,7 @@ class OfflineSyncService {
           );
           break;
         } catch (e, stackTrace) {
-          debugPrint('OfflineSyncService sync failed: $e\n$stackTrace');
+          AppLogger.error('OfflineSyncService sync failed: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
           await _notificationService.addNotification(
             title: 'Sync Failed',
             body:
@@ -158,6 +163,7 @@ class OfflineSyncService {
     final key = payload.key;
     if (key != null && key is int) {
       await _hive.removeFromQueue(key);
+      _ref.read(pendingCountProvider.notifier).refresh();
     }
   }
 
@@ -167,8 +173,8 @@ class OfflineSyncService {
       if (await file.exists()) {
         await file.delete();
       }
-    } catch (e) {
-      debugPrint('OfflineSyncService: Failed to delete image file $imagePath: $e');
+    } catch (e, stack) {
+      AppLogger.error('OfflineSyncService: Failed to delete image file $imagePath: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
     }
   }
 

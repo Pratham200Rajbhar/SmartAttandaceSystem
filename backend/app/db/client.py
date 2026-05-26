@@ -1,8 +1,7 @@
-import logging
-
+from app.core.logging_config import get_logger
 from prisma import Prisma
 
-logger = logging.getLogger("app.db")
+logger = get_logger("app.db")
 
 db = Prisma()
 

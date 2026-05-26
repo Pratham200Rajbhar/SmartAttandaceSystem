@@ -10,11 +10,13 @@ import 'package:path/path.dart' as p;
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/data/local/hive_service.dart';
+import 'package:smart_attendance_app/data/local/pending_count_provider.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/domain/models/offline_payload.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   return AttendanceRepository(
+    ref: ref,
     studentApi: ref.read(studentApiProvider),
     hive: ref.read(hiveServiceProvider),
   );
@@ -33,13 +35,16 @@ class OfflineQueued extends AttendanceSubmitResult {
 }
 
 class AttendanceRepository {
+  final Ref _ref;
   final StudentApi _studentApi;
   final HiveService _hive;
 
   const AttendanceRepository({
+    required Ref ref,
     required StudentApi studentApi,
     required HiveService hive,
-  })  : _studentApi = studentApi,
+  })  : _ref = ref,
+        _studentApi = studentApi,
         _hive = hive;
 
   Future<AttendanceSubmitResult> submitAttendance({
@@ -90,6 +95,7 @@ class AttendanceRepository {
       className: className,
     );
     await _hive.addToQueue(payload);
+    _ref.read(pendingCountProvider.notifier).refresh();
     return OfflineQueued(_hive.pendingCount);
   }
 

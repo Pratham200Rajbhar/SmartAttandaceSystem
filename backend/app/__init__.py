@@ -1,8 +1,7 @@
 import sys
+from app.core.logging_config import get_logger
 
-import logging
-
-logger = logging.getLogger("app.keras_patch")
+logger = get_logger("app.keras_patch")
 
 try:
 

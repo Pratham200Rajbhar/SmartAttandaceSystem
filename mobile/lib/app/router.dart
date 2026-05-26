@@ -26,7 +26,6 @@ import 'package:smart_attendance_app/features/smart_pass/screens/smart_pass_scre
 import 'package:smart_attendance_app/features/leave/screens/leave_requests_screen.dart';
 import 'package:smart_attendance_app/features/leave/screens/leave_history_screen.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_bottom_nav.dart';
-import 'package:smart_attendance_app/shared/widgets/glass_app_bar.dart';
 
 final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   final notifier = RouterNotifier();
@@ -110,13 +109,24 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: '/notifications',
-        builder: (_, __) => const _NotificationsPage(),
+        builder: (_, __) => const NotificationsScreen(),
       ),
 
       GoRoute(
         path: '/flagged/:attendanceId',
         builder: (context, state) {
-          final item = state.extra as AttendanceHistoryItem;
+          final item = state.extra;
+          if (item is! AttendanceHistoryItem) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid route data')),
+                );
+                context.go('/attendance');
+              }
+            });
+            return const Scaffold(body: SizedBox.shrink());
+          }
           return FlaggedDetailScreen(item: item);
         },
       ),
@@ -158,18 +168,6 @@ class _ShellScaffold extends StatelessWidget {
         currentIndex: currentIndex,
         onTap: (index) => context.go(_tabPaths[index]),
       ),
-    );
-  }
-}
-
-class _NotificationsPage extends StatelessWidget {
-  const _NotificationsPage();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: const GlassAppBar(title: 'Notifications'),
-      body: const NotificationsScreen(),
     );
   }
 }

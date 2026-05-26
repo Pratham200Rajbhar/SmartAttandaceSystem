@@ -2,9 +2,9 @@
 library;
 import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/local/secure_storage.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 final deviceServiceProvider = Provider<DeviceService>((ref) {
   return DeviceService(ref.read(secureStorageProvider));
@@ -32,7 +32,7 @@ class DeviceService {
         newUUID = 'ios_${iosInfo.identifierForVendor}';
       }
     } catch (e, stackTrace) {
-      debugPrint('DeviceService.getDeviceUUID error: $e\n$stackTrace');
+      AppLogger.error('DeviceService.getDeviceUUID error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
       newUUID = 'fallback_${DateTime.now().millisecondsSinceEpoch}';
     }
 

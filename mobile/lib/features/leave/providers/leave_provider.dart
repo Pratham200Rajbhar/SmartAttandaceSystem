@@ -1,8 +1,8 @@
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/domain/models/leave_request.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 class LeaveState {
   final List<LeaveRequest> leaves;
@@ -63,11 +63,11 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
         approved: response.approved,
         rejected: response.rejected,
       );
-    } catch (e) {
-      debugPrint('Failed to fetch leaves: $e');
+    } catch (e, stack) {
+      AppLogger.error('Failed to fetch leaves: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
       state = LeaveState(
         isLoading: false,
-        errorMessage: 'Failed to load leave requests: $e',
+        errorMessage: 'Something went wrong. Please try again.',
       );
     }
   }
@@ -89,11 +89,11 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
       
       await fetchLeaves();
       return true;
-    } catch (e) {
-      debugPrint('Failed to create leave: $e');
+    } catch (e, stack) {
+      AppLogger.error('Failed to create leave: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'Failed to create leave request: $e',
+        errorMessage: 'Something went wrong. Please try again.',
       );
       return false;
     }

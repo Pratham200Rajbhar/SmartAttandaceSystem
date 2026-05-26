@@ -1,12 +1,9 @@
-import logging
-
+from app.core.logging_config import get_logger
 from typing import Optional
-
 from redis.asyncio import Redis
-
 from app.core.config import settings
 
-logger = logging.getLogger("app.redis")
+logger = get_logger("app.redis")
 
 redis_client: Optional[Redis] = None
 

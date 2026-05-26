@@ -3,6 +3,7 @@ library;
 
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 
 class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
@@ -22,7 +23,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canPop = Navigator.of(context).canPop();
+    final canPop = GoRouter.of(context).canPop();
     return ClipRect(
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -44,7 +45,7 @@ class GlassAppBar extends StatelessWidget implements PreferredSizeWidget {
                       icon: const Icon(Icons.arrow_back_ios_new_rounded,
                           size: 20),
                       color: SasColors.textPrimary,
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      onPressed: () => context.pop(),
                     ),
                   Expanded(
                     child: Text(

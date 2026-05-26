@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
-
 from typing import Optional
-
-import logging
+from app.core.logging_config import get_logger
 
 from app.repositories.session_repo import SessionRepository
 
@@ -12,7 +10,7 @@ from app.schemas.teacher import SessionResponse, SessionStart
 
 from app.db.redis import get_redis
 
-logger = logging.getLogger("app.session")
+logger = get_logger("app.session")
 
 class SessionService:
 

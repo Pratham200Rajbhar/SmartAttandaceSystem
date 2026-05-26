@@ -3,16 +3,37 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/data/local/secure_storage.dart';
+import 'package:smart_attendance_app/domain/enums/auth_state.dart';
+import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 final websocketServiceProvider = Provider<WebSocketService>((ref) {
-  return WebSocketService(
+  final service = WebSocketService(
     secureStorage: ref.read(secureStorageProvider),
   );
+
+  final authState = ref.read(authProvider);
+  if (authState.status == AuthStatus.authenticated) {
+    service.connect();
+  }
+
+  ref.listen(authProvider, (previous, next) {
+    if (next.status == AuthStatus.authenticated) {
+      service.connect();
+    } else if (next.status == AuthStatus.unauthenticated) {
+      service.disconnect();
+    }
+  });
+
+  ref.onDispose(() {
+    service.dispose();
+  });
+
+  return service;
 });
 
 enum WebSocketStatus { disconnected, connecting, connected, error }
@@ -38,7 +59,7 @@ class WebSocketService {
 
   Future<void> connect() async {
     if (_status == WebSocketStatus.connected || _status == WebSocketStatus.connecting) {
-      debugPrint('WebSocket: Already connected or connecting');
+      AppLogger.debug('WebSocket: Already connected or connecting');
       return;
     }
 
@@ -46,7 +67,7 @@ class WebSocketService {
     final token = await _secureStorage.getToken();
     
     if (token == null) {
-      debugPrint('WebSocket: No JWT token found, cannot connect');
+      AppLogger.warn('WebSocket: No JWT token found, cannot connect');
       _status = WebSocketStatus.error;
       return;
     }
@@ -56,7 +77,7 @@ class WebSocketService {
       final wsUrl = kApiBaseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
       final uri = Uri.parse('$wsUrl/ws/connect?token=$token');
       
-      debugPrint('WebSocket: Connecting to $uri');
+      AppLogger.info('WebSocket: Connecting to $uri');
       _channel = WebSocketChannel.connect(uri);
       
       _subscription = _channel!.stream.listen(
@@ -69,9 +90,9 @@ class WebSocketService {
       _status = WebSocketStatus.connected;
       _reconnectAttempts = 0;
       _startPingTimer();
-      debugPrint('✅ WebSocket: Connected successfully');
-    } catch (e) {
-      debugPrint('❌ WebSocket: Connection failed: $e');
+      AppLogger.info('WebSocket: Connected successfully');
+    } catch (e, stack) {
+      AppLogger.error('WebSocket: Connection failed: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
       _status = WebSocketStatus.error;
       _scheduleReconnect();
     }
@@ -80,21 +101,21 @@ class WebSocketService {
   void _onMessage(dynamic message) {
     try {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
-      debugPrint('📨 WebSocket message received: ${data['type']}');
+      AppLogger.info('WebSocket message received: ${data['type']}');
       _messageController.add(data);
-    } catch (e) {
-      debugPrint('WebSocket: Failed to parse message: $e');
+    } catch (e, stack) {
+      AppLogger.error('WebSocket: Failed to parse message: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
     }
   }
 
   void _onError(dynamic error) {
-    debugPrint('❌ WebSocket error: $error');
+    AppLogger.error('WebSocket error: $error');
     _status = WebSocketStatus.error;
     _scheduleReconnect();
   }
 
   void _onDone() {
-    debugPrint('WebSocket: Connection closed');
+    AppLogger.info('WebSocket: Connection closed');
     _status = WebSocketStatus.disconnected;
     _pingTimer?.cancel();
     _scheduleReconnect();
@@ -102,7 +123,7 @@ class WebSocketService {
 
   void _scheduleReconnect() {
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      debugPrint('WebSocket: Max reconnect attempts reached, giving up');
+      AppLogger.warn('WebSocket: Max reconnect attempts reached, giving up');
       return;
     }
 
@@ -110,10 +131,10 @@ class WebSocketService {
     _reconnectAttempts++;
     
     final delay = _reconnectDelay * _reconnectAttempts;
-    debugPrint('WebSocket: Scheduling reconnect in ${delay.inSeconds}s (attempt $_reconnectAttempts)');
+    AppLogger.info('WebSocket: Scheduling reconnect in ${delay.inSeconds}s (attempt $_reconnectAttempts)');
     
     _reconnectTimer = Timer(delay, () {
-      debugPrint('WebSocket: Attempting reconnect...');
+      AppLogger.info('WebSocket: Attempting reconnect...');
       connect();
     });
   }
@@ -124,16 +145,16 @@ class WebSocketService {
       if (_status == WebSocketStatus.connected) {
         try {
           _channel?.sink.add(jsonEncode({'type': 'ping'}));
-          debugPrint('WebSocket: Ping sent');
-        } catch (e) {
-          debugPrint('WebSocket: Ping failed: $e');
+          AppLogger.debug('WebSocket: Ping sent');
+        } catch (e, stack) {
+          AppLogger.error('WebSocket: Ping failed: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
         }
       }
     });
   }
 
   void disconnect() {
-    debugPrint('WebSocket: Disconnecting...');
+    AppLogger.info('WebSocket: Disconnecting...');
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
     _subscription?.cancel();

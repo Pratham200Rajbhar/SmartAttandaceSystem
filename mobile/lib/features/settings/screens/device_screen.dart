@@ -8,6 +8,7 @@ import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_app_bar.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 class DeviceScreen extends ConsumerStatefulWidget {
   const DeviceScreen({super.key});
@@ -64,18 +65,20 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
                               color: SasColors.accentEmerald, size: 22),
                         ),
                         const SizedBox(width: 14),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Bound Device',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 15)),
-                            Text('This device is registered to your account',
-                                style: TextStyle(
-                                    color: SasColors.textMuted,
-                                    fontSize: 12)),
-                          ],
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Bound Device',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15)),
+                              Text('This device is registered to your account',
+                                  style: TextStyle(
+                                      color: SasColors.textMuted,
+                                      fontSize: 12)),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -85,7 +88,9 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
                     _InfoRow(
                       label: 'Device ID',
                       value: _deviceId != null
-                          ? '${_deviceId!.substring(0, 8)}…${_deviceId!.substring(_deviceId!.length - 8)}'
+                          ? (_deviceId!.length > 16
+                              ? '${_deviceId!.substring(0, 8)}…${_deviceId!.substring(_deviceId!.length - 8)}'
+                              : _deviceId!)
                           : 'Loading…',
                     ),
                     const SizedBox(height: 8),
@@ -228,11 +233,12 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
         );
         _noteController.clear();
       }
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error('Failed to send reset request: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to send request: $e'),
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
             backgroundColor: SasColors.danger,
           ),
         );

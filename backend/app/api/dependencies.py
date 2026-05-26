@@ -1,22 +1,14 @@
-import logging
-
+from app.core.logging_config import get_logger
 from typing import Optional, List
-
 from fastapi import Depends, HTTPException, status
-
 from fastapi.security import OAuth2PasswordBearer
-
 from app.core.security import decode_access_token
-
 from app.repositories.user_repo import UserRepository
-
 from app.repositories.student_repo import StudentRepository
-
 from app.repositories.teacher_repo import TeacherRepository
-
 from prisma.models import User, Student, Teacher
 
-logger = logging.getLogger("app.auth")
+logger = get_logger("app.auth")
 
 reusable_oauth2 = OAuth2PasswordBearer(
 

@@ -1,8 +1,6 @@
 import os
-
 import json
-
-import logging
+from app.core.logging_config import get_logger
 
 from dataclasses import dataclass
 
@@ -30,7 +28,7 @@ from prisma.models import Attendance
 
 from app.api.ws import manager
 
-logger = logging.getLogger("app.attendance")
+logger = get_logger("app.attendance")
 
 class CachedSession:
 

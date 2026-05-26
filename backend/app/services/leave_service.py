@@ -1,21 +1,14 @@
 
-import logging
-
+from app.core.logging_config import get_logger
 from datetime import datetime
-
 from typing import Optional
-
 from app.repositories.leave_repo import LeaveRepository
-
 from app.repositories.attendance_repo import AttendanceRepository
-
 from app.repositories.enrollment_repo import EnrollmentRepository
-
 from app.repositories.session_repo import SessionRepository
-
 from prisma.models import LeaveRequest
 
-logger = logging.getLogger("app.leave_service")
+logger = get_logger("app.leave_service")
 
 class LeaveService:
 

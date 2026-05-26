@@ -1,11 +1,13 @@
 
 import 'dart:async';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
+import 'package:smart_attendance_app/domain/enums/auth_state.dart';
+import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 class ClassSession {
   final String classId;
@@ -15,6 +17,8 @@ class ClassSession {
   final String? sessionId;
   final bool isActive;
   final DateTime? sessionEndTime;
+  final double? latitude;
+  final double? longitude;
 
   const ClassSession({
     required this.classId,
@@ -24,6 +28,8 @@ class ClassSession {
     this.sessionId,
     this.isActive = false,
     this.sessionEndTime,
+    this.latitude,
+    this.longitude,
   });
 }
 
@@ -80,6 +86,8 @@ class SessionNotifier extends StateNotifier<SessionState> {
                 sessionId: c.activeSessionId,
                 isActive: c.activeSessionId != null,
                 sessionEndTime: c.sessionEndTime,
+                latitude: c.latitude,
+                longitude: c.longitude,
               ))
           .toList();
 
@@ -99,7 +107,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
         markedSessionIds: state.markedSessionIds,
       );
     } on DioException catch (e, stackTrace) {
-      debugPrint('SessionNotifier.fetchSessions DioException: $e\n$stackTrace');
+      AppLogger.error('SessionNotifier.fetchSessions DioException: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
       final mapped = mapDioError(e);
       state = SessionState(
         sessions: state.sessions,
@@ -107,7 +115,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
         markedSessionIds: state.markedSessionIds,
       );
     } catch (e, stackTrace) {
-      debugPrint('SessionNotifier.fetchSessions unexpected error: $e\n$stackTrace');
+      AppLogger.error('SessionNotifier.fetchSessions unexpected error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
       state = SessionState(
         sessions: state.sessions,
         errorMessage: 'Failed to load sessions',
@@ -137,5 +145,13 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
 final sessionProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
-  return SessionNotifier(ref.read(studentApiProvider));
+  final notifier = SessionNotifier(ref.read(studentApiProvider));
+  
+  ref.listen(authProvider, (previous, next) {
+    if (next.status != AuthStatus.authenticated) {
+      notifier.stopPolling();
+    }
+  });
+
+  return notifier;
 });

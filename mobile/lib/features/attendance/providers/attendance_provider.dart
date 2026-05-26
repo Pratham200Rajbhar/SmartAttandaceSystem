@@ -1,7 +1,8 @@
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_attendance_app/core/exceptions.dart';
 import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 enum VerificationStep { gps, camera, preview, submitting, done }
 
@@ -83,9 +84,10 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
       );
       state = state.copyWith(result: result, step: VerificationStep.done);
     } catch (e, stackTrace) {
-      debugPrint('AttendanceNotifier.submit error: $e\n$stackTrace');
+      AppLogger.error('AttendanceNotifier.submit error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+      final displayError = e is AppException ? e.message : 'Something went wrong. Please try again.';
       state = state.copyWith(
-        errorMessage: e.toString(),
+        errorMessage: displayError,
         isError: true,
         step: VerificationStep.done,
       );
@@ -97,8 +99,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
   }
 }
 
-final attendanceVerificationProvider = StateNotifierProvider.autoDispose<
+final attendanceVerificationProvider = StateNotifierProvider<
     AttendanceNotifier, AttendanceVerificationState>((ref) {
-  ref.keepAlive();
   return AttendanceNotifier(ref.read(attendanceRepositoryProvider));
 });

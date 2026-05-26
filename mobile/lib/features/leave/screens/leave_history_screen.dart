@@ -13,10 +13,8 @@ import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 final leaveHistoryProvider =
     FutureProvider.autoDispose<List<LeaveRequest>>((ref) async {
   final response = await ref.read(studentApiProvider).getMyLeaves();
-  final leaves = (response['leaves'] as List)
-      .map((e) => LeaveRequest.fromJson(e as Map<String, dynamic>))
-      .toList();
-  return leaves;
+  final listResponse = LeaveRequestListResponse.fromJson(response);
+  return listResponse.leaves;
 });
 
 class LeaveHistoryScreen extends ConsumerWidget {
@@ -267,33 +265,35 @@ class _LeaveTimelineItem extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          
-          Column(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.2),
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: statusColor.withValues(alpha: 0.5),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            
+            Column(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.5),
+                      width: 2,
+                    ),
+                  ),
+                  child: Icon(statusIcon, size: 16, color: statusColor),
+                ),
+                Expanded(
+                  child: Container(
                     width: 2,
+                    color: SasColors.glassBorder,
                   ),
                 ),
-                child: Icon(statusIcon, size: 16, color: statusColor),
-              ),
-              Container(
-                width: 2,
-                height: 80,
-                color: SasColors.glassBorder,
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
+              ],
+            ),
+            const SizedBox(width: 12),
 
           Expanded(
             child: GlassCard(
@@ -419,8 +419,9 @@ class _LeaveTimelineItem extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Color _getStatusColor(String status) {
     switch (status) {

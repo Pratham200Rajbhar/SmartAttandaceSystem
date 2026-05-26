@@ -1,13 +1,10 @@
 
-import logging
-
+from app.core.logging_config import get_logger
 from typing import Dict, Set
-
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
-
 from app.api.dependencies import get_current_user_from_token
 
-logger = logging.getLogger("app.websocket")
+logger = get_logger("app.websocket")
 
 router = APIRouter(prefix="/ws", tags=["WebSocket"])
 

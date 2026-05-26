@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/extensions.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/history/providers/history_provider.dart';
 import 'package:smart_attendance_app/features/settings/providers/preferences_provider.dart';
@@ -23,7 +24,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   @override
   void initState() {
     super.initState();
-    ref.read(historyProvider.notifier).fetch();
+    final currentHistory = ref.read(historyProvider);
+    if (currentHistory.data == null) {
+      ref.read(historyProvider.notifier).fetch();
+    }
   }
 
   @override
@@ -544,10 +548,13 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   const SizedBox(width: 100),
                   ...weekLabels.map((l) => Expanded(
                         child: Center(
-                          child: Text(l,
-                              style: const TextStyle(
-                                  color: SasColors.textMuted,
-                                  fontSize: 9)),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(l,
+                                style: const TextStyle(
+                                    color: SasColors.textMuted,
+                                    fontSize: 9)),
+                          ),
                         ),
                       )),
                 ],
@@ -704,11 +711,14 @@ class _StatCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       child: Column(
         children: [
-          Text(value,
-              style: TextStyle(
-                  color: color,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 20)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(value,
+                style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 20)),
+          ),
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(
@@ -769,9 +779,4 @@ class _ShimmerAnalytics extends StatelessWidget {
       ),
     );
   }
-}
-
-extension _StringTruncate on String {
-  String truncate(int max) =>
-      length <= max ? this : '${substring(0, max)}…';
 }

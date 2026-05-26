@@ -4,7 +4,7 @@ import uuid
 
 import shutil
 
-import logging
+from app.core.logging_config import get_logger
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 
@@ -28,7 +28,7 @@ from app.repositories.attendance_repo import AttendanceRepository
 
 from prisma.models import Student
 
-logger = logging.getLogger("app.api.student")
+logger = get_logger("app.api.student")
 
 router = APIRouter(prefix="/student", tags=["Student Features"])
 

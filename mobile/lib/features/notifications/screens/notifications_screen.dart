@@ -5,6 +5,7 @@ import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
 import 'package:smart_attendance_app/data/local/notification_service.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
+import 'package:smart_attendance_app/shared/widgets/glass_app_bar.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 
 class NotificationsScreen extends ConsumerWidget {
@@ -16,68 +17,66 @@ class NotificationsScreen extends ConsumerWidget {
     final pushNotifications = notifications.where((n) => n.source == 'push').toList();
     final localNotifications = notifications.where((n) => n.source == 'local').toList();
 
-    return AnimatedBackground(
-      child: SafeArea(
-        child: RefreshIndicator(
-          color: SasColors.accentEmerald,
-          backgroundColor: SasColors.bgSecondary,
-          onRefresh: () =>
-              ref.read(notificationsProvider.notifier).load(),
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.notifications_rounded,
-                      color: SasColors.textMuted, size: 20),
-                  const SizedBox(width: 8),
-                  const Text('Notifications',
-                      style:
-                          TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
-                  const Spacer(),
-                  if (notifications.isNotEmpty) ...[
-                    Semantics(
-                      label: 'Mark all notifications as read',
-                      child: IconButton(
-                        icon: const Icon(Icons.done_all_rounded,
-                            color: SasColors.textMuted),
-                        onPressed: () {
-                          ref.read(notificationsProvider.notifier).markAllRead();
-                        },
-                        tooltip: 'Mark All Read',
-                      ),
-                    ),
-                    Semantics(
-                      label: 'Clear all notifications',
-                      child: IconButton(
-                        icon: const Icon(Icons.clear_all_rounded,
-                            color: SasColors.textMuted),
-                        onPressed: () {
-                          ref.read(notificationsProvider.notifier).clear();
-                        },
-                        tooltip: 'Clear All',
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: SasColors.accentEmerald.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: SasColors.accentEmerald
-                                .withValues(alpha: 0.3)),
-                      ),
-                      child: Text('${notifications.where((n) => !n.isRead).length}',
-                          style: const TextStyle(
-                              color: SasColors.accentEmerald,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
-                    ),
-                  ],
-                ],
+    final unreadCount = notifications.where((n) => !n.isRead).length;
+
+    return Scaffold(
+      appBar: GlassAppBar(
+        title: 'Notifications',
+        actions: [
+          if (notifications.isNotEmpty) ...[
+            Semantics(
+              label: 'Mark all notifications as read',
+              child: IconButton(
+                icon: const Icon(Icons.done_all_rounded,
+                    color: SasColors.textMuted),
+                onPressed: () {
+                  ref.read(notificationsProvider.notifier).markAllRead();
+                },
+                tooltip: 'Mark All Read',
               ),
-              const SizedBox(height: 16),
+            ),
+            Semantics(
+              label: 'Clear all notifications',
+              child: IconButton(
+                icon: const Icon(Icons.clear_all_rounded,
+                    color: SasColors.textMuted),
+                onPressed: () {
+                  ref.read(notificationsProvider.notifier).clear();
+                },
+                tooltip: 'Clear All',
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: SasColors.accentEmerald.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: SasColors.accentEmerald
+                        .withValues(alpha: 0.3)),
+              ),
+              child: Text('$unreadCount',
+                  style: const TextStyle(
+                      color: SasColors.accentEmerald,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700)),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
+      ),
+      body: AnimatedBackground(
+        child: SafeArea(
+          child: RefreshIndicator(
+            color: SasColors.accentEmerald,
+            backgroundColor: SasColors.bgSecondary,
+            onRefresh: () =>
+                ref.read(notificationsProvider.notifier).load(),
+            child: ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
 
               if (notifications.isEmpty)
                 GlassCard(
@@ -135,8 +134,9 @@ class NotificationsScreen extends ConsumerWidget {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SectionHeader extends StatelessWidget {

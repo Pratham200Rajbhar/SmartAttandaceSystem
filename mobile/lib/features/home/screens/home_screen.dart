@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
-import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
 import 'package:smart_attendance_app/features/home/providers/session_provider.dart';
@@ -17,9 +16,7 @@ import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 import 'package:smart_attendance_app/shared/widgets/at_risk_banner.dart';
 import 'package:smart_attendance_app/shared/widgets/streak_counter.dart';
 
-final pendingCountProvider = Provider<int>((ref) {
-  return ref.watch(attendanceRepositoryProvider).pendingOfflineCount;
-});
+import 'package:smart_attendance_app/data/local/pending_count_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -243,7 +240,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 const SizedBox(height: 8),
                 StreakCounter(
                   currentStreak: _calculateStreak(historyState.data!.history),
-                  highestStreak: _calculateStreak(historyState.data!.history), 
+                  highestStreak: _calculateHighestStreak(historyState.data!.history), 
                   isCompact: true,
                 ),
               ],
@@ -312,6 +309,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
       }
     }
     return streak;
+  }
+
+  int _calculateHighestStreak(List<AttendanceHistoryItem> history) {
+    if (history.isEmpty) return 0;
+    final sorted = [...history]..sort((a, b) => a.markedAt.compareTo(b.markedAt));
+    int maxStreak = 0;
+    int currentStreak = 0;
+    for (final item in sorted) {
+      if (item.status == 'Present' || item.status == 'Approved') {
+        currentStreak++;
+        if (currentStreak > maxStreak) {
+          maxStreak = currentStreak;
+        }
+      } else {
+        currentStreak = 0;
+      }
+    }
+    return maxStreak;
   }
 }
 

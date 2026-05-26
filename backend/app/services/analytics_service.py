@@ -1,17 +1,12 @@
 
-import logging
-
+from app.core.logging_config import get_logger
 from datetime import datetime, timedelta, timezone
-
 from typing import List, Dict
-
 from app.repositories.student_repo import StudentRepository
-
 from app.repositories.attendance_repo import AttendanceRepository
-
 from app.services.gamification_service import GamificationService
 
-logger = logging.getLogger("app.analytics")
+logger = get_logger("app.analytics")
 
 class AnalyticsService:
 

@@ -23,11 +23,25 @@ final dioProvider = Provider<Dio>((ref) {
       if (token != null) {
         options.headers['Authorization'] = 'Bearer $token';
       }
+      AppLogger.debug(
+        '[HTTP] --> ${options.method} ${options.path}',
+        context: {
+          'baseUrl': options.baseUrl,
+          'queryParams': options.queryParameters,
+        },
+      );
       handler.next(options);
+    },
+    onResponse: (response, handler) {
+      AppLogger.info(
+        '[HTTP] <-- ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.path}',
+        context: {'statusCode': response.statusCode},
+      );
+      handler.next(response);
     },
     onError: (error, handler) async {
       AppLogger.error(
-        'API Request Error: [${error.requestOptions.method}] ${error.requestOptions.path} failed: ${error.message}',
+        '[HTTP] ERR ${error.requestOptions.method} ${error.requestOptions.path}: ${error.message}',
         context: {
           'statusCode': error.response?.statusCode,
           'responseData': error.response?.data?.toString(),

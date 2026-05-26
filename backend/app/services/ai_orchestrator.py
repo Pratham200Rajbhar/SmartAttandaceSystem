@@ -1,7 +1,5 @@
 import asyncio
-
-import logging
-
+from app.core.logging_config import get_logger
 import os
 
 import shutil
@@ -28,7 +26,7 @@ from tensorflow.keras.applications.mobilenet import preprocess_input
 
 from huggingface_hub import hf_hub_download
 
-logger = logging.getLogger("app.ai")
+logger = get_logger("app.ai")
 
 BASE_MODELS_DIR = os.path.abspath(
 

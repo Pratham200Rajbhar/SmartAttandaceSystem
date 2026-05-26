@@ -1,43 +1,33 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.schemas.auth import Token, UserLogin, UserProfileResponse
-
 from app.schemas.student import StudentCreate, StudentResponse
-
 from app.schemas.teacher import TeacherCreate, TeacherResponse
-
 from app.services.auth_service import AuthService
-
 from app.api.dependencies import get_current_user, reusable_oauth2
-
+from app.core.logging_config import get_logger
+from app.core.security import decode_access_token
+from app.db.client import db
+from app.db.redis import get_redis
 from prisma.models import User
 
-from app.db.client import db
+logger = get_logger("app.api.auth")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/login", response_model=Token)
-
 async def login(
-
     login_data: UserLogin,
-
-    auth_service: AuthService = Depends()
-
+    auth_service: AuthService = Depends(),
 ) -> Token:
-
     token = await auth_service.authenticate(login_data)
-
     if not token:
-
+        logger.warning("Failed login attempt for email: %s", login_data.email)
         raise HTTPException(
-
             status_code=status.HTTP_401_UNAUTHORIZED,
-
             detail="Incorrect email or password",
-
         )
-
+    logger.info("Successful login for email: %s", login_data.email)
     return token
 
 @router.post(
@@ -177,76 +167,38 @@ async def get_me(
     )
 
 @router.post("/request-device-reset", status_code=status.HTTP_200_OK)
-
 async def request_device_reset(
-
-    current_user: User = Depends(get_current_user)
-
+    current_user: User = Depends(get_current_user),
 ) -> dict:
-
     if current_user.role != "STUDENT":
-
         raise HTTPException(
-
             status_code=status.HTTP_403_FORBIDDEN,
-
-            detail="Only students can request device resets"
-
+            detail="Only students can request device resets",
         )
-
-    from app.db.client import db
-
     await db.student.update(
-
         where={"userId": current_user.id},
-
-        data={"deviceResetRequested": True}
-
+        data={"deviceResetRequested": True},
     )
-
-    import logging
-
-    logging.info(f"User {current_user.email} requested a device reset.")
-
+    logger.info("Device reset requested by user: %s (id=%s)", current_user.email, current_user.id)
     return {"status": "success", "message": "Device reset request recorded successfully"}
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
-
 async def logout(
-
-    token: str = Depends(reusable_oauth2)
-
+    token: str = Depends(reusable_oauth2),
 ) -> dict:
-
     from datetime import datetime, timezone
-
-    from app.core.security import decode_access_token
-
-    from app.db.redis import get_redis
-
     payload = decode_access_token(token)
-
     if payload:
-
         exp = payload.get("exp")
-
         if exp:
-
             now = int(datetime.now(timezone.utc).timestamp())
-
             ttl = exp - now
-
             if ttl > 0:
-
                 try:
-
                     redis_client = get_redis()
-
                     await redis_client.setex(f"denylist:{token}", ttl, "revoked")
-
-                except Exception:
-
-                    pass
-
+                    logger.info("Token added to denylist. user_id=%s, ttl=%ds", payload.get("sub"), ttl)
+                except Exception as cache_err:
+                    logger.warning("Failed to add token to Redis denylist: %s", cache_err)
     return {"status": "success", "message": "Successfully logged out."}
 

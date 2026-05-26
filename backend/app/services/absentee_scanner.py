@@ -1,14 +1,10 @@
 import asyncio
-
-import logging
-
+from app.core.logging_config import get_logger
 from typing import List, Dict, Any
-
 import pandas as pd
-
 from sklearn.ensemble import IsolationForest
 
-logger = logging.getLogger("app.ai.scanner")
+logger = get_logger("app.ai.scanner")
 
 def _run_isolation_forest(attendance_records: List[Dict[str, Any]], contamination: float) -> List[Dict[str, Any]]:
 

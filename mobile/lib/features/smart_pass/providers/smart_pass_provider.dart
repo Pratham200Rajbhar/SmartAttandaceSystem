@@ -1,9 +1,9 @@
 
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/domain/models/smart_pass.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 class SmartPassState {
   final SmartPass? pass;
@@ -39,13 +39,15 @@ class SmartPassNotifier extends StateNotifier<SmartPassState> {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       final data = await _api.getSmartPass();
+      if (!mounted) return;
       final pass = SmartPass.fromJson(data);
       state = SmartPassState(pass: pass, isLoading: false);
-    } catch (e) {
-      debugPrint('Smart Pass generation failed: $e');
-      state = SmartPassState(
+    } catch (e, stack) {
+      if (!mounted) return;
+      AppLogger.error('Smart Pass generation failed: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+      state = const SmartPassState(
         isLoading: false,
-        errorMessage: 'Failed to generate Smart Pass: $e',
+        errorMessage: 'Something went wrong. Please try again.',
       );
     }
   }

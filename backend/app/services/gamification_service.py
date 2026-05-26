@@ -1,13 +1,10 @@
 
-import logging
-
+from app.core.logging_config import get_logger
 from datetime import datetime, timedelta, timezone
-
 from app.repositories.student_repo import StudentRepository
-
 from app.repositories.attendance_repo import AttendanceRepository
 
-logger = logging.getLogger("app.gamification")
+logger = get_logger("app.gamification")
 
 class GamificationService:
 

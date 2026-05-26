@@ -11,6 +11,7 @@ import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_app_bar.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 class LeaveRequestsScreen extends ConsumerStatefulWidget {
   const LeaveRequestsScreen({super.key});
@@ -106,8 +107,8 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
           _selectedDocument = File(pickedFile.path);
         });
       }
-    } catch (e) {
-      debugPrint('Error picking document: $e');
+    } catch (e, stack) {
+      AppLogger.error('Error picking document: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
     }
   }
 
@@ -140,9 +141,10 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
         );
         context.pop(true);
       }
-    } catch (e) {
+    } catch (e, stack) {
+      AppLogger.error('Failed to submit request: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
       if (mounted) {
-        _showError('Failed to submit request: $e');
+        _showError('Something went wrong. Please try again.');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

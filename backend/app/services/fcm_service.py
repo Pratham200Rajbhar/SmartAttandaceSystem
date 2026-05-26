@@ -1,11 +1,9 @@
 
-import logging
-
+from app.core.logging_config import get_logger
 import os
-
 from typing import List, Optional
 
-logger = logging.getLogger("app.fcm")
+logger = get_logger("app.fcm")
 
 try:
 

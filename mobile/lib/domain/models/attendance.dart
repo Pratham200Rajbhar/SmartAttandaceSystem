@@ -121,6 +121,8 @@ class StudentClass {
   final String teacherName;
   final String? activeSessionId;
   final DateTime? sessionEndTime;
+  final double? latitude;
+  final double? longitude;
 
   const StudentClass({
     required this.classId,
@@ -129,6 +131,8 @@ class StudentClass {
     required this.teacherName,
     this.activeSessionId,
     this.sessionEndTime,
+    this.latitude,
+    this.longitude,
   });
 
   factory StudentClass.fromJson(Map<String, dynamic> json) => StudentClass(
@@ -140,5 +144,7 @@ class StudentClass {
         sessionEndTime: json['session_end_time'] != null
             ? DateTime.tryParse(json['session_end_time'] as String)
             : null,
+        latitude: (json['latitude'] as num?)?.toDouble(),
+        longitude: (json['longitude'] as num?)?.toDouble(),
       );
 }

@@ -1,11 +1,13 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/core/events.dart';
+import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/local/device_service.dart';
 import 'package:smart_attendance_app/data/repositories/auth_repository.dart';
 import 'package:smart_attendance_app/domain/enums/auth_state.dart';
 import 'package:smart_attendance_app/domain/models/user.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 class AuthStateData {
   final AuthStatus status;
@@ -55,7 +57,7 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
       final result = await _repo.checkAuthState();
       state = AuthStateData(status: result.status, user: result.profile);
     } catch (e, stackTrace) {
-      debugPrint('AuthNotifier.checkInitialAuth failed: $e\n$stackTrace');
+      AppLogger.error('AuthNotifier.checkInitialAuth failed: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
       state = const AuthStateData(status: AuthStatus.unauthenticated);
     }
   }
@@ -66,11 +68,18 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
       final deviceUuid = await _deviceService.getDeviceUUID();
       final result = await _repo.login(email, password, deviceUuid);
       state = AuthStateData(status: result.status, user: result.profile);
-    } catch (e, stackTrace) {
-      debugPrint('AuthNotifier.login error: $e\n$stackTrace');
+    } on DioException catch (e, stackTrace) {
+      AppLogger.error('AuthNotifier.login DioException: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+      final mapped = mapDioError(e);
       state = AuthStateData(
         status: AuthStatus.unauthenticated,
-        errorMessage: e.toString(),
+        errorMessage: mapped.message,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error('AuthNotifier.login error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+      state = const AuthStateData(
+        status: AuthStatus.unauthenticated,
+        errorMessage: 'Something went wrong. Please try again.',
       );
     }
   }
