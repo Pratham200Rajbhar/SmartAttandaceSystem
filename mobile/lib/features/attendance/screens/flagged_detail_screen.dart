@@ -2,7 +2,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_attendance_app/app/theme.dart';
@@ -369,7 +369,12 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
         subject: widget.item.subject,
         onSuccess: () {
           if (mounted) {
-            context.pop(); 
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Dispute submitted successfully. Your teacher will review it soon.'),
+                backgroundColor: SasColors.success,
+              ),
+            );
           }
         },
       ),
@@ -601,9 +606,7 @@ class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
           _selectedImage = File(pickedFile.path);
         });
       }
-    } catch (e) {
-      debugPrint('Error picking image: $e');
-    }
+    } catch (_) {} 
   }
 
   Future<void> _submit() async {

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { RefreshCw, ClipboardList } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "@/lib/api";
+import { getWebSocket } from "@/lib/websocket";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassTable, { type TableColumn } from "@/components/ui/GlassTable";
@@ -39,11 +40,20 @@ export default function SessionRosterPage(): React.ReactElement {
     void (async () => {
       await fetchRoster();
     })();
+    
+    const ws = getWebSocket();
+    ws.connect();
+    
+    const unsubscribe = ws.on("attendance_updated", () => {
+      void fetchRoster();
+    });
+
     intervalRef.current = setInterval(() => {
       void fetchRoster();
     }, 5000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      unsubscribe();
     };
   }, [fetchRoster]);
 

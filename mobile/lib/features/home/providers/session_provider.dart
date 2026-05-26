@@ -106,16 +106,16 @@ class SessionNotifier extends StateNotifier<SessionState> {
         sessions: classSessions,
         markedSessionIds: state.markedSessionIds,
       );
-    } on DioException catch (e, stackTrace) {
-      AppLogger.error('SessionNotifier.fetchSessions DioException: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } on DioException catch (e) {
+      AppLogger.error('Fetch sessions failed: $e');
       final mapped = mapDioError(e);
       state = SessionState(
         sessions: state.sessions,
         errorMessage: mapped.message,
         markedSessionIds: state.markedSessionIds,
       );
-    } catch (e, stackTrace) {
-      AppLogger.error('SessionNotifier.fetchSessions unexpected error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } catch (e) {
+      AppLogger.error('Fetch sessions error: $e');
       state = SessionState(
         sessions: state.sessions,
         errorMessage: 'Failed to load sessions',

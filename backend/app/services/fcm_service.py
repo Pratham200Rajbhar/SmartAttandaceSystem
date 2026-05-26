@@ -19,19 +19,17 @@ try:
 
         firebase_admin.initialize_app(cred)
 
-        logger.info("✅ Firebase Admin SDK initialized successfully")
-
-        FCM_ENABLED = True
+        pass
 
     else:
 
-        logger.warning(f"⚠️ Firebase credentials not found at {cred_path}. FCM disabled.")
+        logger.warning("FCM credentials not found at %s", cred_path)
 
         FCM_ENABLED = False
 
 except Exception as e:
 
-    logger.error(f"❌ Failed to initialize Firebase Admin SDK: {e}")
+    logger.error("Failed to initialize Firebase Admin SDK: %s", e, exc_info=True)
 
     FCM_ENABLED = False
 
@@ -75,15 +73,13 @@ class FCMService:
 
             )
 
-            response = messaging.send(message)
-
-            logger.info(f"✅ FCM notification sent: {response}")
+            messaging.send(message)
 
             return True
 
         except Exception as e:
 
-            logger.error(f"❌ FCM notification failed: {e}")
+            logger.error("FCM notification failed: %s", e, exc_info=True)
 
             return False
 
@@ -127,13 +123,11 @@ class FCMService:
 
             response = messaging.send_multicast(message)
 
-            logger.info(f"✅ FCM multicast sent: {response.success_count}/{len(tokens)} successful")
-
             return response.success_count
 
         except Exception as e:
 
-            logger.error(f"❌ FCM multicast failed: {e}")
+            logger.error("FCM multicast failed: %s", e, exc_info=True)
 
             return 0
 

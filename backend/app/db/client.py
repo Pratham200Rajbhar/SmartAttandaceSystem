@@ -11,11 +11,11 @@ async def connect_db() -> None:
 
         await db.connect()
 
-        logger.info("Successfully connected to the database via Prisma.")
+        logger.info("Connected to database")
 
     except Exception as e:
 
-        logger.error("Failed to connect to the database via Prisma: %s", e)
+        logger.error("Failed to connect to database: %s", e, exc_info=True)
 
         raise e
 
@@ -27,9 +27,7 @@ async def disconnect_db() -> None:
 
             await db.disconnect()
 
-            logger.info("Successfully disconnected from the database via Prisma.")
-
     except Exception as e:
 
-        logger.error("Error during database disconnection: %s", e)
+        logger.error("Error disconnecting database: %s", e, exc_info=True)
 

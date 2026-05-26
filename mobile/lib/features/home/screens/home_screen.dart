@@ -56,7 +56,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final sessionState = ref.watch(sessionProvider);
     final pendingCount = ref.watch(pendingCountProvider);
     final historyState = ref.watch(historyProvider);
-    final overallPct = historyState.data?.overallAttendancePercentage ?? 100;
+    final rawPct = historyState.data?.overallAttendancePercentage ?? 100;
+    final overallPct = (rawPct.isNaN || rawPct.isInfinite) ? 100.0 : rawPct.toDouble();
 
     return AnimatedBackground(
       child: SafeArea(
@@ -660,7 +661,7 @@ class _QuickStatsRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(child: _QuickStat(
             label: 'Streak',
-            value: '$streak 🔥',
+            value: '$streak',
             color: SasColors.accentEmerald,
             icon: Icons.local_fire_department_rounded,
           )),

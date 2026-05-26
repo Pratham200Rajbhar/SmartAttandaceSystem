@@ -45,8 +45,8 @@ class _FaceRegistrationScreenState
           CameraController(front, ResolutionPreset.high, enableAudio: false);
       await _cameraController!.initialize();
       if (mounted) setState(() => _isCameraReady = true);
-    } catch (e, stackTrace) {
-      debugPrint('FaceRegistrationScreen._initCamera error: $e\n$stackTrace');
+    } catch (e) {
+      AppLogger.error('Camera init failed: $e');
       if (mounted) {
         setState(() => _cameraError = 'Camera initialization failed: $e');
       }
@@ -60,8 +60,8 @@ class _FaceRegistrationScreenState
     try {
       final file = await _cameraController!.takePicture();
       setState(() => _capturedPath = file.path);
-    } catch (e, stackTrace) {
-      debugPrint('FaceRegistrationScreen._capturePhoto error: $e\n$stackTrace');
+    } catch (e) {
+      AppLogger.error('Capture failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -125,7 +125,6 @@ class _FaceRegistrationScreenState
 
       await Future.delayed(const Duration(milliseconds: 1500));
       if (mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
         ref.read(authProvider.notifier).onFaceRegistered();
       }
     }

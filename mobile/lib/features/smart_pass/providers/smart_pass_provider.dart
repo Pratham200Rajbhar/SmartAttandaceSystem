@@ -42,9 +42,9 @@ class SmartPassNotifier extends StateNotifier<SmartPassState> {
       if (!mounted) return;
       final pass = SmartPass.fromJson(data);
       state = SmartPassState(pass: pass, isLoading: false);
-    } catch (e, stack) {
+    } catch (e) {
       if (!mounted) return;
-      AppLogger.error('Smart Pass generation failed: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+      AppLogger.error('Smart Pass failed: $e');
       state = const SmartPassState(
         isLoading: false,
         errorMessage: 'Something went wrong. Please try again.',

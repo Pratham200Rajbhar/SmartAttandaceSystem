@@ -69,11 +69,9 @@ class OfflineSyncService {
     try {
       final response = await _dio.get<Map<String, dynamic>>('/health');
       if (response.statusCode != 200 || response.data?['status'] != 'healthy') {
-        AppLogger.warn('OfflineSyncService: Backend health check failed or returned unhealthy.');
         return 0;
       }
-    } catch (e, stack) {
-      AppLogger.warn('OfflineSyncService: Backend health check ping failed (true offline). Error: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (_) {
       return 0;
     }
 
@@ -130,7 +128,7 @@ class OfflineSyncService {
             continue;
           }
 
-          AppLogger.error('OfflineSyncService sync failed (5xx/network): $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+          AppLogger.error('Sync failed (5xx/network): $e');
           await _notificationService.addNotification(
             title: 'Sync Failed',
             body:
@@ -138,8 +136,8 @@ class OfflineSyncService {
             severity: 'warning',
           );
           break;
-        } catch (e, stackTrace) {
-          AppLogger.error('OfflineSyncService sync failed: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+        } catch (e) {
+          AppLogger.error('Sync failed: $e');
           await _notificationService.addNotification(
             title: 'Sync Failed',
             body:
@@ -173,8 +171,7 @@ class OfflineSyncService {
       if (await file.exists()) {
         await file.delete();
       }
-    } catch (e, stack) {
-      AppLogger.error('OfflineSyncService: Failed to delete image file $imagePath: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (_) {
     }
   }
 

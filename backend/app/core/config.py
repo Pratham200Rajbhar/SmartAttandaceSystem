@@ -1,3 +1,4 @@
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
@@ -18,7 +19,17 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/smart_attendance"
 
-    JWT_SECRET: str = "supersecretkeychangeinproduction"
+    JWT_SECRET: str = Field(default="", description="JWT signing secret (must be set via JWT_SECRET env var)")
+
+    @field_validator("JWT_SECRET")
+    @classmethod
+    def jwt_secret_must_be_set(cls, v: str) -> str:
+        if not v:
+            raise ValueError(
+                "JWT_SECRET environment variable is required. "
+                "Set it in your .env file for security."
+            )
+        return v
 
     JWT_ALGORITHM: str = "HS256"
 
@@ -26,7 +37,7 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379/0"
 
-    UPLOAD_DIR: str = "uploads"
+    UPLOAD_DIR: str = "static"
 
     FACE_WEIGHT: float = 0.50
 
@@ -37,6 +48,8 @@ class Settings(BaseSettings):
     PASS_THRESHOLD: float = 0.75
 
     ENVIRONMENT: str = "development"
+
+    LOG_LEVEL: str = Field(default="DEBUG", description="Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL")
 
 settings = Settings()
 

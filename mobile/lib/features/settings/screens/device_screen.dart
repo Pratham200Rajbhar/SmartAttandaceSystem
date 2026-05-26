@@ -233,8 +233,8 @@ class _DeviceScreenState extends ConsumerState<DeviceScreen> {
         );
         _noteController.clear();
       }
-    } catch (e, stack) {
-      AppLogger.error('Failed to send reset request: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('Failed to send reset request: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

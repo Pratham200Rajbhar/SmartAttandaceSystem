@@ -48,7 +48,7 @@ async def get_current_user(
 
     except Exception as cache_err:
 
-        logger.warning(f"⚠️ Redis Denylist verification bypassed: {cache_err}")
+        pass
 
     payload = decode_access_token(token)
 
@@ -196,7 +196,7 @@ async def get_current_user_from_token(token: str) -> User:
 
     except Exception as cache_err:
 
-        logger.warning(f"⚠️ Redis Denylist verification bypassed: {cache_err}")
+        pass
 
     payload = decode_access_token(token)
 

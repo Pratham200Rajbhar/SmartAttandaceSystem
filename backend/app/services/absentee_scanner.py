@@ -64,16 +64,12 @@ async def run_absentee_scan(attendance_records: List[Dict[str, Any]], contaminat
 
         if flagged_students:
 
-            logger.info("Found %d at-risk students during absentee scan.", len(flagged_students))
-
-        else:
-
-            logger.info("No at-risk students detected during absentee scan.")
+            logger.info("Absentee scan: %d at-risk students", len(flagged_students))
 
         return flagged_students
 
     except Exception as e:
 
-        logger.error("Failed to run async absentee scan wrapper: %s", e)
+        logger.error("Failed to run async absentee scan wrapper: %s", e, exc_info=True)
 
         return []

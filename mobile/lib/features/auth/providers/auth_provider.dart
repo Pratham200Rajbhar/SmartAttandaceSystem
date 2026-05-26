@@ -56,8 +56,8 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
 
       final result = await _repo.checkAuthState();
       state = AuthStateData(status: result.status, user: result.profile);
-    } catch (e, stackTrace) {
-      AppLogger.error('AuthNotifier.checkInitialAuth failed: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } catch (e) {
+      AppLogger.error('Auth check failed: $e');
       state = const AuthStateData(status: AuthStatus.unauthenticated);
     }
   }
@@ -68,15 +68,15 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
       final deviceUuid = await _deviceService.getDeviceUUID();
       final result = await _repo.login(email, password, deviceUuid);
       state = AuthStateData(status: result.status, user: result.profile);
-    } on DioException catch (e, stackTrace) {
-      AppLogger.error('AuthNotifier.login DioException: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } on DioException catch (e) {
+      AppLogger.error('Login failed: $e');
       final mapped = mapDioError(e);
       state = AuthStateData(
         status: AuthStatus.unauthenticated,
         errorMessage: mapped.message,
       );
-    } catch (e, stackTrace) {
-      AppLogger.error('AuthNotifier.login error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } catch (e) {
+      AppLogger.error('Login error: $e');
       state = const AuthStateData(
         status: AuthStatus.unauthenticated,
         errorMessage: 'Something went wrong. Please try again.',

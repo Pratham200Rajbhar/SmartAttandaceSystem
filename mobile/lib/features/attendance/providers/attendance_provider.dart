@@ -48,6 +48,9 @@ class AttendanceVerificationState {
 
 class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
   final AttendanceRepository _repo;
+  String? _lastSubmittedSessionId;
+
+  String? get lastSubmittedSessionId => _lastSubmittedSessionId;
 
   AttendanceNotifier(this._repo) : super(const AttendanceVerificationState());
 
@@ -82,9 +85,10 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
         longitude: state.longitude!,
         imagePath: state.imagePath!,
       );
+      _lastSubmittedSessionId = sessionId;
       state = state.copyWith(result: result, step: VerificationStep.done);
-    } catch (e, stackTrace) {
-      AppLogger.error('AttendanceNotifier.submit error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } catch (e) {
+      AppLogger.error('Attendance submit failed: $e');
       final displayError = e is AppException ? e.message : 'Something went wrong. Please try again.';
       state = state.copyWith(
         errorMessage: displayError,
@@ -95,6 +99,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
   }
 
   void reset() {
+    _lastSubmittedSessionId = null;
     state = const AttendanceVerificationState();
   }
 }

@@ -92,8 +92,6 @@ class AttendanceService:
 
             if cached_data:
 
-                logger.info(f"⚡ Redis Cache Hit: {cache_key}")
-
                 data = json.loads(cached_data)
 
                 end_time_str = data["endTime"]
@@ -116,7 +114,7 @@ class AttendanceService:
 
         except Exception as cache_err:
 
-            logger.warning(f"⚠️ Redis Session Cache read failed: {cache_err}. Falling back to DB.")
+            logger.warning("Redis session cache read failed: %s. Falling back to DB.", cache_err)
 
         if not session:
 
@@ -164,11 +162,9 @@ class AttendanceService:
 
                     )
 
-                    logger.info(f"💾 Redis Cache Write: {cache_key} (TTL: {ttl}s)")
-
                 except Exception as cache_err:
 
-                    logger.warning(f"⚠️ Redis Session Cache write failed: {cache_err}")
+                    logger.warning("Redis session cache write failed: %s", cache_err)
 
         if not session.isActive:
 
@@ -184,7 +180,7 @@ class AttendanceService:
 
             logger.warning(
 
-                f"Missing Geofence configuration for AcademicClass {session.academicClassId}. Student: {submission.student_id}"
+                "Missing geofence for class %s (student %s)", session.academicClassId, submission.student_id
 
             )
 
@@ -278,28 +274,35 @@ class AttendanceService:
         )
 
         try:
-
+            
             await manager.send_personal_message(
-
+                
                 {
-
+                    
                     "type": "attendance_updated",
-
+                    
                     "session_id": submission.session_id,
-
+                    
                     "status": status,
-
+                    
                 },
-
+                
                 student_id=submission.student_id,
-
+                
             )
 
-            logger.info(f"📡 WebSocket broadcast sent to student {submission.student_id}")
-
+            await manager.broadcast_to_teachers(
+                {
+                    "type": "attendance_updated",
+                    "session_id": submission.session_id,
+                    "student_id": submission.student_id,
+                    "status": status,
+                }
+            )
+            
         except Exception as ws_err:
 
-            logger.warning(f"WebSocket broadcast failed: {ws_err}")
+            logger.warning("WebSocket broadcast failed: %s", ws_err)
 
         try:
 
@@ -307,13 +310,11 @@ class AttendanceService:
 
             gamification = GamificationService()
 
-            streak_result = await gamification.update_streak(submission.student_id, status)
-
-            logger.info(f"🔥 Streak update: {streak_result}")
+            await gamification.update_streak(submission.student_id, status)
 
         except Exception as streak_err:
 
-            logger.warning(f"Streak update failed: {streak_err}")
+            logger.warning("Streak update failed: %s", streak_err)
 
         if status == "Present" and os.path.exists(submission.image_path):
 
@@ -321,17 +322,11 @@ class AttendanceService:
 
                 os.remove(submission.image_path)
 
-                logger.info(
-
-                    f"Successfully deleted temporary image {submission.image_path} for Student {submission.student_id}."
-
-                )
-
             except Exception as err:
 
                 logger.error(
 
-                    f"Could not remove temporary image {submission.image_path}: {err}"
+                    "Failed to remove temp image %s: %s", submission.image_path, err, exc_info=True
 
                 )
 
@@ -364,28 +359,35 @@ class AttendanceService:
         await self.attendance_repo.update_review(attendance_id, status, remarks)
 
         try:
-
+            
             await manager.send_personal_message(
-
+                
                 {
-
+                    
                     "type": "attendance_updated",
-
+                    
                     "session_id": record.sessionId,
-
+                    
                     "status": status,
-
+                    
                 },
-
+                
                 student_id=record.studentId,
-
+                
             )
 
-            logger.info(f"📡 WebSocket broadcast sent to student {record.studentId} after review update")
-
+            await manager.broadcast_to_teachers(
+                {
+                    "type": "attendance_updated",
+                    "session_id": record.sessionId,
+                    "student_id": record.studentId,
+                    "status": status,
+                }
+            )
+            
         except Exception as ws_err:
 
-            logger.warning(f"WebSocket broadcast failed: {ws_err}")
+            logger.warning("WebSocket broadcast failed: %s", ws_err)
 
         return True
 

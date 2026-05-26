@@ -22,12 +22,11 @@ async def login(
 ) -> Token:
     token = await auth_service.authenticate(login_data)
     if not token:
-        logger.warning("Failed login attempt for email: %s", login_data.email)
+        logger.warning("Failed login: %s", login_data.email)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
-    logger.info("Successful login for email: %s", login_data.email)
     return token
 
 @router.post(
@@ -179,7 +178,7 @@ async def request_device_reset(
         where={"userId": current_user.id},
         data={"deviceResetRequested": True},
     )
-    logger.info("Device reset requested by user: %s (id=%s)", current_user.email, current_user.id)
+    logger.info("Device reset requested: %s", current_user.email)
     return {"status": "success", "message": "Device reset request recorded successfully"}
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
@@ -197,7 +196,7 @@ async def logout(
                 try:
                     redis_client = get_redis()
                     await redis_client.setex(f"denylist:{token}", ttl, "revoked")
-                    logger.info("Token added to denylist. user_id=%s, ttl=%ds", payload.get("sub"), ttl)
+                    logger.info("Token revoked: user=%s", payload.get("sub"))
                 except Exception as cache_err:
                     logger.warning("Failed to add token to Redis denylist: %s", cache_err)
     return {"status": "success", "message": "Successfully logged out."}

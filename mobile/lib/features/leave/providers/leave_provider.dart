@@ -63,8 +63,8 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
         approved: response.approved,
         rejected: response.rejected,
       );
-    } catch (e, stack) {
-      AppLogger.error('Failed to fetch leaves: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('Fetch leaves failed: $e');
       state = LeaveState(
         isLoading: false,
         errorMessage: 'Something went wrong. Please try again.',
@@ -89,8 +89,8 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
       
       await fetchLeaves();
       return true;
-    } catch (e, stack) {
-      AppLogger.error('Failed to create leave: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('Create leave failed: $e');
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Something went wrong. Please try again.',

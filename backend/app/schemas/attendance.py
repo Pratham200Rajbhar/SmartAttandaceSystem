@@ -64,3 +64,12 @@ class AttendanceReview(BaseModel):
 
     remarks: Optional[str] = Field(default="", max_length=250, description="Audit notes/justification from the teacher")
 
+
+class DisputeResolveRequest(BaseModel):
+
+    status: str = Field(..., pattern="^(RESOLVED|REJECTED)$", description="Dispute resolution: 'RESOLVED' or 'REJECTED'")
+
+    remarks: Optional[str] = Field(default="", max_length=500, description="Resolution notes")
+
+    new_attendance_status: Optional[str] = Field(default=None, pattern="^(Present|Flagged|Approved|Absent)$", description="Updated attendance status after resolution")
+

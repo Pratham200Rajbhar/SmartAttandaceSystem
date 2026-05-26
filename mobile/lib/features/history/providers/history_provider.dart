@@ -36,12 +36,12 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     try {
       final data = await _repo.getHistory();
       state = HistoryState(data: data);
-    } on DioException catch (e, stackTrace) {
-      AppLogger.error('HistoryNotifier.fetch DioException: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } on DioException catch (e) {
+      AppLogger.error('Fetch history failed: $e');
       final mapped = mapDioError(e);
       state = HistoryState(data: state.data, errorMessage: mapped.message);
-    } catch (e, stackTrace) {
-      AppLogger.error('HistoryNotifier.fetch unexpected error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } catch (e) {
+      AppLogger.error('Fetch history error: $e');
       state = HistoryState(data: state.data, errorMessage: 'Something went wrong. Please try again.');
     }
   }

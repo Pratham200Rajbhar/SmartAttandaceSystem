@@ -59,7 +59,6 @@ class WebSocketService {
 
   Future<void> connect() async {
     if (_status == WebSocketStatus.connected || _status == WebSocketStatus.connecting) {
-      AppLogger.debug('WebSocket: Already connected or connecting');
       return;
     }
 
@@ -67,17 +66,14 @@ class WebSocketService {
     final token = await _secureStorage.getToken();
     
     if (token == null) {
-      AppLogger.warn('WebSocket: No JWT token found, cannot connect');
       _status = WebSocketStatus.error;
       return;
     }
 
     try {
-      
       final wsUrl = kApiBaseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://');
-      final uri = Uri.parse('$wsUrl/ws/connect?token=$token');
+      final uri = Uri.parse('$wsUrl/ws/connect');
       
-      AppLogger.info('WebSocket: Connecting to $uri');
       _channel = WebSocketChannel.connect(uri);
       
       _subscription = _channel!.stream.listen(
@@ -87,12 +83,14 @@ class WebSocketService {
         cancelOnError: false,
       );
 
+      await _channel!.ready;
+      _channel!.sink.add(jsonEncode({'type': 'auth', 'token': token}));
+
       _status = WebSocketStatus.connected;
       _reconnectAttempts = 0;
       _startPingTimer();
-      AppLogger.info('WebSocket: Connected successfully');
-    } catch (e, stack) {
-      AppLogger.error('WebSocket: Connection failed: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('WebSocket: Connection failed: $e');
       _status = WebSocketStatus.error;
       _scheduleReconnect();
     }
@@ -101,10 +99,9 @@ class WebSocketService {
   void _onMessage(dynamic message) {
     try {
       final data = jsonDecode(message as String) as Map<String, dynamic>;
-      AppLogger.info('WebSocket message received: ${data['type']}');
       _messageController.add(data);
-    } catch (e, stack) {
-      AppLogger.error('WebSocket: Failed to parse message: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('WebSocket: Failed to parse message: $e');
     }
   }
 
@@ -115,7 +112,6 @@ class WebSocketService {
   }
 
   void _onDone() {
-    AppLogger.info('WebSocket: Connection closed');
     _status = WebSocketStatus.disconnected;
     _pingTimer?.cancel();
     _scheduleReconnect();
@@ -123,7 +119,6 @@ class WebSocketService {
 
   void _scheduleReconnect() {
     if (_reconnectAttempts >= _maxReconnectAttempts) {
-      AppLogger.warn('WebSocket: Max reconnect attempts reached, giving up');
       return;
     }
 
@@ -131,10 +126,8 @@ class WebSocketService {
     _reconnectAttempts++;
     
     final delay = _reconnectDelay * _reconnectAttempts;
-    AppLogger.info('WebSocket: Scheduling reconnect in ${delay.inSeconds}s (attempt $_reconnectAttempts)');
     
     _reconnectTimer = Timer(delay, () {
-      AppLogger.info('WebSocket: Attempting reconnect...');
       connect();
     });
   }
@@ -145,16 +138,12 @@ class WebSocketService {
       if (_status == WebSocketStatus.connected) {
         try {
           _channel?.sink.add(jsonEncode({'type': 'ping'}));
-          AppLogger.debug('WebSocket: Ping sent');
-        } catch (e, stack) {
-          AppLogger.error('WebSocket: Ping failed: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
-        }
+        } catch (_) {}
       }
     });
   }
 
   void disconnect() {
-    AppLogger.info('WebSocket: Disconnecting...');
     _reconnectTimer?.cancel();
     _pingTimer?.cancel();
     _subscription?.cancel();

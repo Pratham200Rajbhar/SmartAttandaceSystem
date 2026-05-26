@@ -50,6 +50,12 @@ def _save_uploaded_image(upload_file: UploadFile, folder: str) -> str:
 
     return target_path
 
+def _local_path_to_url(local_path: str) -> str:
+
+    rel_path = os.path.relpath(local_path, settings.UPLOAD_DIR)
+
+    return f"/static/{rel_path}"
+
 @router.post("/attendance/mark", response_model=AttendanceMarkResponse)
 
 async def mark_attendance(
@@ -366,7 +372,9 @@ async def submit_dispute(
 
             )
 
-        proof_url = _save_uploaded_image(proof_image, "disputes")
+        local_path = _save_uploaded_image(proof_image, "disputes")
+
+        proof_url = _local_path_to_url(local_path)
 
     await db.attendance.update(
 
@@ -546,9 +554,7 @@ async def create_leave_request(
 
             document_url = f"/static/leaves/{filename}"
 
-        except Exception as e:
-
-            logger.error(f"Failed to save leave document: {e}")
+        except Exception:
 
             raise HTTPException(
 

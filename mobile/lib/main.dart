@@ -56,8 +56,7 @@ void callbackDispatcher() {
       final syncService = container.read(offlineSyncServiceProvider);
       await syncService.syncQueue();
       return Future.value(true);
-    } catch (e) {
-      debugPrint("Workmanager failed: $e");
+    } catch (_) {
       return Future.value(false);
     }
   });
@@ -105,9 +104,7 @@ Future<void> main() async {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
       
       await FirebaseMessaging.instance.requestPermission();
-    } catch (e) {
-      debugPrint("Firebase init failed: $e");
-    }
+    } catch (_) {} 
 
     Workmanager().initialize(
       callbackDispatcher,
@@ -132,8 +129,6 @@ Future<void> main() async {
     );
   }, (error, stackTrace) {
     
-    debugPrint('Unhandled error: $error');
-    debugPrint('Stack trace: $stackTrace');
     AppLogger.error(
       'Unhandled zoned error: $error',
       context: {'stack': stackTrace.toString()},
@@ -165,18 +160,13 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
       if (token != null) {
         try {
           await ref.read(studentApiProvider).registerFcmToken(token);
-        } catch (e) {
-          
-          debugPrint('FCM token registration failed (endpoint may not exist): $e');
-        }
+        } catch (_) {} 
       }
 
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         try {
           await ref.read(studentApiProvider).registerFcmToken(newToken);
-        } catch (e) {
-          debugPrint('FCM token refresh registration failed: $e');
-        }
+        } catch (_) {} 
       });
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
@@ -190,9 +180,7 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
         
         await ref.read(notificationsProvider.notifier).load();
       });
-    } catch (e) {
-      debugPrint('FCM initialization failed: $e');
-    }
+    } catch (_) {} 
   }
 
   @override

@@ -1,7 +1,7 @@
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 
 enum RegistrationStatus { idle, capturing, uploading, success, error }
 
@@ -34,8 +34,8 @@ class RegistrationNotifier extends StateNotifier<RegistrationState> {
       await _repo.registerFace(imagePath);
       state = state.copyWith(status: RegistrationStatus.success);
       return true;
-    } catch (e, stackTrace) {
-      debugPrint('RegistrationNotifier.uploadFace error: $e\n$stackTrace');
+    } catch (e) {
+      AppLogger.error('Face upload failed: $e');
       state = RegistrationState(
         status: RegistrationStatus.error,
         errorMessage: e.toString(),

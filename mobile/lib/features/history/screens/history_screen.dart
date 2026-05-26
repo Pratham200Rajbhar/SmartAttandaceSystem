@@ -411,7 +411,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     return GridView.count(
       crossAxisCount: 7, shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.0, children: cells,
+      childAspectRatio: 0.85, children: cells,
     );
   }
 

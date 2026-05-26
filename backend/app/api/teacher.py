@@ -34,7 +34,7 @@ from app.schemas.teacher import (
 
 )
 
-from app.schemas.attendance import AttendanceReview, FlaggedAttendanceResponse
+from app.schemas.attendance import AttendanceReview, FlaggedAttendanceResponse, DisputeResolveRequest
 
 from app.services.session_service import SessionService
 
@@ -494,11 +494,7 @@ async def resolve_dispute(
 
     attendance_id: str,
 
-    status: str = "RESOLVED",
-
-    remarks: str = "",
-
-    new_attendance_status: Optional[str] = None,
+    request: DisputeResolveRequest,
 
     teacher: Teacher = Depends(get_current_teacher),
 
@@ -523,32 +519,34 @@ async def resolve_dispute(
         )
 
     update_data = {
-
-        "disputeStatus": status,
-
-        "remarks": remarks,
-
-        "resolvedAt": datetime.now(timezone.utc)
-
+        
+        "disputeStatus": request.status,
+        
+        "remarks": request.remarks or "",
+        
     }
-
-    if status == "RESOLVED" and new_attendance_status:
-
-        update_data["status"] = new_attendance_status
-
+    
+    if request.status == "RESOLVED":
+        
+        update_data["resolvedAt"] = datetime.now(timezone.utc)
+        
+        if request.new_attendance_status:
+            
+            update_data["status"] = request.new_attendance_status
+    
     await db.attendance.update(
-
+        
         where={"id": attendance_id},
-
+        
         data=update_data
-
+        
     )
 
     return {
 
         "status": "success",
 
-        "message": f"Dispute {status.lower()} successfully."
+        "message": f"Dispute {request.status.lower()} successfully."
 
     }
 

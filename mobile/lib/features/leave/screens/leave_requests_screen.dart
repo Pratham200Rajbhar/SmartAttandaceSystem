@@ -107,8 +107,8 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
           _selectedDocument = File(pickedFile.path);
         });
       }
-    } catch (e, stack) {
-      AppLogger.error('Error picking document: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('Error picking document: $e');
     }
   }
 
@@ -141,8 +141,8 @@ class _LeaveRequestsScreenState extends ConsumerState<LeaveRequestsScreen> {
         );
         context.pop(true);
       }
-    } catch (e, stack) {
-      AppLogger.error('Failed to submit request: $e', context: {'error': e.toString(), 'stackTrace': stack.toString()});
+    } catch (e) {
+      AppLogger.error('Failed to submit request: $e');
       if (mounted) {
         _showError('Something went wrong. Please try again.');
       }

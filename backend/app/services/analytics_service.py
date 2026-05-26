@@ -80,8 +80,6 @@ class AnalyticsService:
 
                 })
 
-        logger.info(f"🚨 Detected {len(at_risk_students)} at-risk students")
-
         return at_risk_students
 
     async def _calculate_recent_attendance(self, student_id: str, days: int) -> float:

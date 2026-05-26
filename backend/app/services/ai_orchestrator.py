@@ -64,11 +64,9 @@ def _ensure_model_downloaded(repo_id: str, filename: str, local_path: str) -> st
 
     if os.path.exists(local_path):
 
-        logger.info("Model file found locally at: %s", local_path)
-
         return local_path
 
-    logger.info("Model file not found locally. Downloading from Hugging Face: %s/%s", repo_id, filename)
+    logger.info("Downloading model: %s/%s", repo_id, filename)
 
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
@@ -88,13 +86,11 @@ def _ensure_model_downloaded(repo_id: str, filename: str, local_path: str) -> st
 
         shutil.copy(downloaded_path, local_path)
 
-        logger.info("Successfully downloaded and cached model to: %s", local_path)
-
         return local_path
 
     except Exception as e:
 
-        logger.error("Failed to download model from Hugging Face: %s", e)
+        logger.error("Failed to download model from Hugging Face: %s", e, exc_info=True)
 
         raise RuntimeError(f"Could not load model {filename} from Hugging Face repository {repo_id}: {e}") from e
 
@@ -149,8 +145,6 @@ liveness_lock = threading.Lock()
 background_lock = threading.Lock()
 
 deepface_lock = threading.Lock()
-
-logger.info("✅ Native TensorFlow model weights initialized successfully inside backend.")
 
 class AIOrchestrator:
 
@@ -246,7 +240,7 @@ class AIOrchestrator:
 
         except Exception as e:
 
-            logger.error("DeepFace face comparison failed safely: %s", e)
+            logger.error("DeepFace face comparison failed safely: %s", e, exc_info=True)
 
             return 0.0
 
@@ -267,8 +261,12 @@ class AIOrchestrator:
         return float(prediction[0])
 
     def _run_background_inference(self, img: np.ndarray) -> float:
-
-        return 1.0
+        if img is None:
+            return 0.0
+        img_batch = self._preprocess_background(img)
+        with background_lock:
+            prediction = background_model.predict(img_batch, verbose=0)[0]
+        return float(prediction[0])
 
     def _run_embedding_extraction(self, image_path: str) -> List[float]:
 
@@ -294,7 +292,7 @@ class AIOrchestrator:
 
         except Exception as e:
 
-            logger.error("DeepFace face embedding extraction failed safely: %s", e)
+            logger.error("DeepFace face embedding extraction failed safely: %s", e, exc_info=True)
 
             return []
 
@@ -310,7 +308,7 @@ class AIOrchestrator:
 
         except Exception as e:
 
-            logger.error("Face embedding extraction thread run failed: %s", e)
+            logger.error("Face embedding extraction thread run failed: %s", e, exc_info=True)
 
             return []
 
@@ -346,7 +344,7 @@ class AIOrchestrator:
 
         except Exception as e:
 
-            logger.error("Failed to load and crop image: %s", e)
+            logger.error("Failed to load and crop image: %s", e, exc_info=True)
 
             return {"face_score": 0.0, "liveness_score": 0.0, "background_score": 0.0}
 
@@ -370,7 +368,7 @@ class AIOrchestrator:
 
         except Exception as e:
 
-            logger.error("Concurrent AI inference failed: %s", e)
+            logger.error("Concurrent AI inference failed: %s", e, exc_info=True)
 
             return {"face_score": 0.0, "liveness_score": 0.0, "background_score": 0.0}
 

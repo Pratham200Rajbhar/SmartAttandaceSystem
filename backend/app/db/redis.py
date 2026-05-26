@@ -13,19 +13,17 @@ async def connect_redis() -> Redis:
 
     if redis_client is None:
 
-        logger.info(f"Establishing connection to Redis at {settings.REDIS_URL}...")
-
         try:
 
             redis_client = Redis.from_url(settings.REDIS_URL, decode_responses=True)
 
             await redis_client.ping()
 
-            logger.info("✅ Successfully connected to Redis.")
+            logger.info("Connected to Redis")
 
         except Exception as err:
 
-            logger.error(f"❌ Failed to connect to Redis at {settings.REDIS_URL}: {err}")
+            logger.error("Failed to connect to Redis at %s: %s", settings.REDIS_URL, err, exc_info=True)
 
             redis_client = None
 
@@ -39,17 +37,13 @@ async def disconnect_redis() -> None:
 
     if redis_client is not None:
 
-        logger.info("Closing asynchronous Redis connection...")
-
         try:
 
             await redis_client.close()
 
-            logger.info("✅ Redis connection closed successfully.")
-
         except Exception as err:
 
-            logger.error(f"Error closing Redis connection: {err}")
+            logger.error("Error closing Redis connection: %s", err, exc_info=True)
 
         finally:
 

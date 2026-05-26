@@ -58,7 +58,7 @@ class LeaveService:
 
             await self._mark_excused_attendance(leave)
 
-            logger.info(f"✅ Leave approved for student {leave.studentId} from {leave.startDate} to {leave.endDate}")
+            logger.info("Leave approved: student=%s dates=%s to %s", leave.studentId, leave.startDate, leave.endDate)
 
         return updated_leave
 
@@ -104,8 +104,6 @@ class LeaveService:
 
                 )
 
-                logger.info(f"Updated attendance {existing.id} to Excused")
-
             else:
 
                 await self.attendance_repo.create({
@@ -131,8 +129,6 @@ class LeaveService:
                     "remarks": f"Approved leave: {leave.reason}"
 
                 })
-
-                logger.info(f"Created excused attendance for session {session.id}")
 
     async def check_leave_conflict(
 

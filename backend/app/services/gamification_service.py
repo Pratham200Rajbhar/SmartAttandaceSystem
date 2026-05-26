@@ -42,8 +42,6 @@ class GamificationService:
 
             )
 
-            logger.info(f"🔥 Streak updated for student {student_id}: {new_streak} (highest: {new_highest})")
-
             return {
 
                 "current_streak": new_streak,
@@ -65,8 +63,6 @@ class GamificationService:
                 highest_streak=highest_streak
 
             )
-
-            logger.info(f"❌ Streak reset for student {student_id} (was {current_streak})")
 
             return {
 

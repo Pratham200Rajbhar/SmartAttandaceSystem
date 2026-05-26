@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/domain/enums/auth_state.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
@@ -125,7 +126,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 context.go('/attendance');
               }
             });
-            return const Scaffold(body: SizedBox.shrink());
+            return const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(color: SasColors.accentEmerald),
+              ),
+            );
           }
           return FlaggedDetailScreen(item: item);
         },

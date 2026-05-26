@@ -1,11 +1,8 @@
 
-from app.core.logging_config import get_logger
 from datetime import datetime
 from typing import List, Optional
 from prisma.models import LeaveRequest
 from app.db.client import db
-
-logger = get_logger("app.leave_repo")
 
 class LeaveRepository:
 

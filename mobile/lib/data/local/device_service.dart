@@ -31,8 +31,7 @@ class DeviceService {
         final iosInfo = await _deviceInfo.iosInfo;
         newUUID = 'ios_${iosInfo.identifierForVendor}';
       }
-    } catch (e, stackTrace) {
-      AppLogger.error('DeviceService.getDeviceUUID error: $e', context: {'error': e.toString(), 'stackTrace': stackTrace.toString()});
+    } catch (_) {
       newUUID = 'fallback_${DateTime.now().millisecondsSinceEpoch}';
     }
 

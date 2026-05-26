@@ -63,7 +63,7 @@ export default function LoginPage(): React.ReactElement {
       <div className="w-full max-w-md animate-fade-in-up relative z-10">
         {}
         <div className="text-center mb-8">
-          <div className="inline-flex p-4 rounded-2xl bg-gradient-to-tr from-white/10/20 to-purple-500/10 border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] mb-5">
+          <div className="inline-flex p-4 rounded-2xl bg-gradient-to-tr from-white/10 to-purple-500/10 border border-white/10 shadow-[0_4px_12px_rgba(0,0,0,0.5)] mb-5">
             <Shield size={36} className="text-slate-300 animate-pulse" />
           </div>
           <h1 className="text-3xl font-extrabold text-slate-100 tracking-tight font-[Outfit] bg-clip-text bg-gradient-to-r from-slate-100 to-indigo-200">

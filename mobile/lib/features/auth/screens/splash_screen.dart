@@ -30,8 +30,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     );
     _fadeController.forward();
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      ref.read(authProvider.notifier).checkInitialAuth();
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      try {
+        await ref.read(authProvider.notifier).checkInitialAuth().timeout(
+          const Duration(seconds: 10),
+        );
+      } catch (_) {
+        if (mounted) {
+          ref.read(authProvider.notifier).logout();
+        }
+      }
     });
   }
 

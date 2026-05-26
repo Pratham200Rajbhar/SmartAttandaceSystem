@@ -1,7 +1,4 @@
 import sys
-from app.core.logging_config import get_logger
-
-logger = get_logger("app.keras_patch")
 
 try:
 
@@ -17,9 +14,7 @@ try:
 
     tf.keras.layers.LocallyConnected2D = tf_keras.layers.LocallyConnected2D
 
-    logger.info("Successfully registered Keras 3 compatibility patch for LocallyConnected2D.")
-
-except Exception as err:
-
-    logger.debug("Keras 3 compatibility patch skipped: %s", err)
+    pass
+except Exception:
+    pass
 

@@ -14,6 +14,7 @@ import 'package:image/image.dart' as img;
 import 'package:flutter/foundation.dart';
 import 'package:smart_attendance_app/features/attendance/providers/attendance_provider.dart';
 import 'package:smart_attendance_app/features/attendance/providers/location_provider.dart';
+import 'package:smart_attendance_app/features/home/providers/session_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
@@ -151,8 +152,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
       if (mounted) {
         setState(() => _cameraReady = true);
       }
-    } catch (e, st) {
-      debugPrint('_initCamera error: $e\n$st');
+    } catch (e) {
+      AppLogger.error('Camera init failed: $e');
       if (mounted) setState(() => _cameraError = 'Camera initialization failed');
     }
   }
@@ -179,11 +180,11 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
           });
         }
       });
-    } catch (e, st) {
-      debugPrint('_capturePhoto error: $e\n$st');
+    } catch (e) {
+      AppLogger.error('Capture failed: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Capture failed: $e'), backgroundColor: SasColors.bgSurface),
+          SnackBar(content: Text('Capture failed'), backgroundColor: SasColors.bgSurface),
         );
       }
     }
@@ -227,6 +228,10 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
       if (next.step == VerificationStep.done &&
           prev?.step != VerificationStep.done) {
         _aiStepTimer?.cancel();
+        final submittedId = ref.read(attendanceVerificationProvider.notifier).lastSubmittedSessionId;
+        if (submittedId != null) {
+          ref.read(sessionProvider.notifier).markSessionSubmitted(submittedId);
+        }
         if (mounted) context.go('/result');
       }
     });
@@ -536,6 +541,28 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
+                  if (_brightnessScore != null && (_brightnessScore! < 0.15 || ((_blurScore ?? 0) / 10).clamp(0.0, 1.0) < 0.1))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: SasColors.warning.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: SasColors.warning.withValues(alpha: 0.3)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: SasColors.warning, size: 16),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text('Photo too dark or blurry — please retake',
+                                  style: TextStyle(color: SasColors.warning, fontSize: 12)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                   Row(children: [
                     Expanded(
                       child: GlassButton(
@@ -550,7 +577,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                       child: GlassButton(
                         label: 'Submit',
                         icon: Icons.check_rounded,
-                        onPressed: _submitPhoto,
+                        onPressed: (_brightnessScore != null && (_brightnessScore! < 0.15 || ((_blurScore ?? 0) / 10).clamp(0.0, 1.0) < 0.1)) ? null : _submitPhoto,
                       ),
                     ),
                   ]),

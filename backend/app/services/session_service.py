@@ -48,11 +48,9 @@ class SessionService:
 
                 await redis_client.delete(f"session:{active.id}")
 
-                logger.info(f"🗑️ Invalidated Redis cache for implicitly stopped session: {active.id}")
-
             except Exception as cache_err:
 
-                logger.warning(f"⚠️ Redis Implicit Cache Invalidation failed: {cache_err}")
+                pass
 
         now = datetime.utcnow()
 
@@ -96,11 +94,9 @@ class SessionService:
 
             await redis_client.delete(f"session:{session_id}")
 
-            logger.info(f"🗑️ Invalidated Redis cache for stopped session: {session_id}")
+        except Exception:
 
-        except Exception as cache_err:
-
-            logger.warning(f"⚠️ Redis Cache Invalidation failed: {cache_err}")
+            pass
 
         return True
 
