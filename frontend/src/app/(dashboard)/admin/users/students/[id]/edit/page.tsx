@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { User, GraduationCap, Save, X } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -94,8 +94,7 @@ export default function EditStudentPage(): React.ReactElement {
       toast.success("Student updated successfully");
       router.push(`/admin/users/students/${id}`);
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Update failed";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Update failed"));
     } finally {
       setSaving(false);
     }

@@ -132,6 +132,24 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 16),
 
+            _SectionHeader(title: 'Leave'),
+            const SizedBox(height: 8),
+            _MenuItem(
+              icon: Icons.add_circle_outline_rounded,
+              title: 'Request Leave',
+              subtitle: 'Submit a new leave request',
+              onTap: () => context.push('/leave/request'),
+            ),
+            const SizedBox(height: 6),
+            _MenuItem(
+              icon: Icons.history_rounded,
+              title: 'Leave History',
+              subtitle: 'View all your leave requests',
+              onTap: () => context.push('/leave/history'),
+            ),
+
+            const SizedBox(height: 16),
+
             _SectionHeader(title: 'Notifications'),
             const SizedBox(height: 8),
             _MenuItem(

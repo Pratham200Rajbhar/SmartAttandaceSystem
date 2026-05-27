@@ -54,8 +54,7 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
     try {
       final data = await _api.getMyLeaves();
       final response = LeaveRequestListResponse.fromJson(data);
-      
-      state = LeaveState(
+      state = state.copyWith(
         leaves: response.leaves,
         isLoading: false,
         total: response.total,
@@ -65,7 +64,7 @@ class LeaveNotifier extends StateNotifier<LeaveState> {
       );
     } catch (e) {
       AppLogger.error('Fetch leaves failed: $e');
-      state = LeaveState(
+      state = const LeaveState(
         isLoading: false,
         errorMessage: 'Something went wrong. Please try again.',
       );

@@ -1,7 +1,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_constants.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
 import 'package:smart_attendance_app/data/local/notification_service.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
@@ -14,8 +16,9 @@ class NotificationsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notifications = ref.watch(notificationsProvider);
-    final pushNotifications = notifications.where((n) => n.source == 'push').toList();
-    final localNotifications = notifications.where((n) => n.source == 'local').toList();
+    final isLoading = ref.watch(notificationsLoadingProvider);
+    final pushNotifications = notifications.where((n) => n.source == kAttendanceTypePush).toList();
+    final localNotifications = notifications.where((n) => n.source == kAttendanceTypeLocal).toList();
 
     final unreadCount = notifications.where((n) => !n.isRead).length;
 
@@ -78,7 +81,9 @@ class NotificationsScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               children: [
 
-              if (notifications.isEmpty)
+              if (isLoading)
+                _ShimmerNotifications()
+              else if (notifications.isEmpty)
                 GlassCard(
                   child: Column(
                     children: [
@@ -137,6 +142,31 @@ class NotificationsScreen extends ConsumerWidget {
     ),
   );
 }
+}
+
+class _ShimmerNotifications extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: SasColors.glassBg,
+      highlightColor: SasColors.glassBgHover,
+      child: Column(
+        children: List.generate(
+          4,
+          (_) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                color: SasColors.glassBg,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -250,16 +280,16 @@ class _NotificationTile extends StatelessWidget {
 
   ({IconData icon, Color color}) _getSeverityIcon(String severity) {
     switch (severity) {
-      case 'success':
+      case kSeveritySuccess:
         return (
           icon: Icons.check_circle_outline_rounded,
           color: SasColors.success
         );
-      case 'warning':
+      case kSeverityWarning:
         return (icon: Icons.warning_amber_rounded, color: SasColors.warning);
-      case 'danger':
+      case kSeverityDanger:
         return (icon: Icons.error_outline_rounded, color: SasColors.danger);
-      case 'info':
+      case kSeverityInfo:
       default:
         return (icon: Icons.info_outline_rounded, color: SasColors.info);
     }

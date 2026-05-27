@@ -31,13 +31,23 @@ class AuthRepository {
         _storage = storage,
         _hive = hive;
 
+  AuthStatus _computeAuthStatus(UserProfile profile) {
+    final needsRegistration =
+        profile.studentProfile == null || !profile.hasFaceRegistered;
+    return needsRegistration
+        ? AuthStatus.registrationRequired
+        : AuthStatus.authenticated;
+  }
+
   Future<({UserProfile profile, AuthStatus status})> login(
     String email,
     String password,
     String deviceUuid,
   ) async {
     try {
-      final tokenResponse = await _authApi.login(email, password, deviceUuid: deviceUuid);
+      final tokenResponse = await _authApi.login(
+        email, password, deviceUuid: deviceUuid,
+      );
 
       if (tokenResponse.role != 'STUDENT') {
         throw const AuthException(
@@ -51,12 +61,7 @@ class AuthRepository {
       final profile = await _authApi.getProfile();
       await _hive.cacheProfile(profile);
 
-      final needsRegistration = profile.studentProfile == null || !profile.hasFaceRegistered;
-      final status = needsRegistration
-          ? AuthStatus.registrationRequired
-          : AuthStatus.authenticated;
-
-      return (profile: profile, status: status);
+      return (profile: profile, status: _computeAuthStatus(profile));
     } on DioException catch (e) {
       throw mapDioError(e);
     }
@@ -72,12 +77,7 @@ class AuthRepository {
       final profile = await _authApi.getProfile();
       await _hive.cacheProfile(profile);
 
-      final needsRegistration = profile.studentProfile == null || !profile.hasFaceRegistered;
-      final status = needsRegistration
-          ? AuthStatus.registrationRequired
-          : AuthStatus.authenticated;
-
-      return (profile: profile, status: status);
+      return (profile: profile, status: _computeAuthStatus(profile));
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
         await _storage.clearAll();

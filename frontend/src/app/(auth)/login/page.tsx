@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Shield } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import { useAuthStore } from "@/store/authStore";
 import GlassInput from "@/components/ui/GlassInput";
 import GlassButton from "@/components/ui/GlassButton";
@@ -46,10 +46,7 @@ export default function LoginPage(): React.ReactElement {
       const destination = tokenData.role === "ADMIN" ? "/admin/dashboard" : "/teacher/classes";
       router.push(destination);
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "Login failed. Please check your credentials.";
-      toast.error(message);
+      toast.error(getApiErrorMessage(err, "Login failed. Please check your credentials."));
     } finally {
       setLoading(false);
     }

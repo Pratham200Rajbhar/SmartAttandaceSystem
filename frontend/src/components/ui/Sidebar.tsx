@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, Building2, ScanSearch,
-  ScrollText, Radio, ClipboardCheck, BarChart3, Shield, Sliders, ChevronDown, ChevronRight
+  ScrollText, Radio, ClipboardCheck, BarChart3, Shield, Sliders, ChevronDown, ChevronRight,
+  FileText
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
@@ -37,6 +38,7 @@ const teacherLinks: NavItem[] = [
   { label: "My Classes", href: "/teacher/classes", icon: <BookOpen size={18} /> },
   { label: "Sessions", href: "/teacher/sessions", icon: <Radio size={18} /> },
   { label: "Review Queue", href: "/teacher/review", icon: <ClipboardCheck size={18} /> },
+  { label: "Leave Requests", href: "/teacher/leaves", icon: <FileText size={18} /> },
 ];
 
 const teacherReportLinks: NavItem[] = [
@@ -58,7 +60,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
   const [setupOpen, setSetupOpen] = useState(isSetupActive);
   const [prevIsSetupActive, setPrevIsSetupActive] = useState(isSetupActive);
   const [flaggedCount, setFlaggedCount] = useState(0);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   if (isSetupActive !== prevIsSetupActive) {
     setPrevIsSetupActive(isSetupActive);
@@ -67,23 +68,29 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps): React.ReactE
     }
   }
 
-  const fetchFlagged = useRef(async () => {
-    try {
-      const { data } = await api.get<unknown[]>("/teacher/attendance/flagged");
-      setFlaggedCount(Array.isArray(data) ? data.length : 0);
-    } catch {
-      
-    }
-  });
-
   useEffect(() => {
     if (role !== "TEACHER") return;
-    void fetchFlagged.current();
-    intervalRef.current = setInterval(() => {
-      void fetchFlagged.current();
+
+    let isMounted = true;
+    async function fetchFlagged(): Promise<void> {
+      try {
+        const { data } = await api.get<unknown[]>("/teacher/attendance/flagged");
+        if (isMounted) {
+          setFlaggedCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch {
+        // Ignore errors in background polling
+      }
+    }
+
+    void fetchFlagged();
+    const interval = setInterval(() => {
+      void fetchFlagged();
     }, 60_000);
+
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
+      isMounted = false;
+      clearInterval(interval);
     };
   }, [role]);
 

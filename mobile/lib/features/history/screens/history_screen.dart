@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
+import 'package:smart_attendance_app/core/attendance_utils.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/history/providers/history_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
@@ -66,12 +67,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       width: 52, height: 52,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _pctColor(pct).withValues(alpha: 0.15),
+                        color: pctColor(pct).withValues(alpha: 0.15),
                       ),
                       child: Center(
                         child: Text('${pct.toStringAsFixed(0)}%',
                             style: TextStyle(
-                                color: _pctColor(pct),
+                                color: pctColor(pct),
                                 fontWeight: FontWeight.w800,
                                 fontSize: 16)),
                       ),
@@ -151,9 +152,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final monthItems = (hState.data?.history ?? []).where((h) =>
         h.markedAt.year == _focusedMonth.year &&
         h.markedAt.month == _focusedMonth.month).toList();
-    final mPresent = monthItems.where((h) => h.status == 'Present' || h.status == 'Approved').length;
-    final mAbsent = monthItems.where((h) => h.status == 'Absent').length;
-    final mFlagged = monthItems.where((h) => h.status == 'Flagged').length;
+    final mPresent = countPresentOrApproved(monthItems);
+    final mAbsent = countAbsent(monthItems);
+    final mFlagged = countFlagged(monthItems);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,9 +237,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     filtered.sort((a, b) => b.markedAt.compareTo(a.markedAt));
 
     final total = all.length;
-    final present = all.where((h) => h.status == 'Present' || h.status == 'Approved').length;
-    final absent = all.where((h) => h.status == 'Absent').length;
-    final flagged = all.where((h) => h.status == 'Flagged').length;
+    final present = countPresentOrApproved(all);
+    final absent = countAbsent(all);
+    final flagged = countFlagged(all);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -429,11 +430,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     )).toList();
   }
 
-  Color _pctColor(double pct) {
-    if (pct >= 75) return SasColors.success;
-    if (pct >= 50) return SasColors.warning;
-    return SasColors.danger;
-  }
+
 }
 
 class _TabButton extends StatelessWidget {
@@ -565,15 +562,12 @@ class _ListItemCard extends StatelessWidget {
   final AttendanceHistoryItem item;
   const _ListItemCard({required this.item});
 
-  Color _statusColor(String s) => s == 'Present' || s == 'Approved'
-      ? SasColors.success : s == 'Flagged' ? SasColors.warning : SasColors.danger;
-
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(item.status);
+    final color = statusColor(item.status);
     return GlassCard(
       padding: const EdgeInsets.all(14),
-      onTap: item.status == 'Flagged'
+      onTap: isFlagged(item.status)
           ? () => context.push('/flagged/${item.attendanceId}', extra: item)
           : null,
       child: Row(
@@ -612,7 +606,7 @@ class _ListItemCard extends StatelessWidget {
             child: Text(item.status, style: TextStyle(color: color, fontSize: 11,
                 fontWeight: FontWeight.w700)),
           ),
-          if (item.status == 'Flagged') ...[
+          if (isFlagged(item.status)) ...[
             const SizedBox(width: 4),
             const Icon(Icons.chevron_right_rounded, color: SasColors.textMuted, size: 16),
           ],
@@ -632,16 +626,14 @@ class _HistoryItemCard extends StatefulWidget {
 class _HistoryItemCardState extends State<_HistoryItemCard> {
   bool _expanded = false;
 
-  Color _statusColor(String s) => s == 'Present' || s == 'Approved'
-      ? SasColors.success : s == 'Flagged' ? SasColors.warning : SasColors.danger;
-
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
     final hasAiScores = item.finalAiScore != null;
+    final itemStatusColor = statusColor(item.status);
     return GlassCard(
       padding: const EdgeInsets.all(14),
-      onTap: item.status == 'Flagged'
+      onTap: isFlagged(item.status)
           ? () => context.push('/flagged/${item.attendanceId}', extra: item)
           : (hasAiScores ? () => setState(() => _expanded = !_expanded) : null),
       child: Column(
@@ -651,7 +643,7 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
             children: [
               Container(width: 8, height: 8,
                   decoration: BoxDecoration(shape: BoxShape.circle,
-                      color: _statusColor(item.status))),
+                      color: itemStatusColor)),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -668,11 +660,11 @@ class _HistoryItemCardState extends State<_HistoryItemCard> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: _statusColor(item.status).withValues(alpha: 0.1),
+                      color: itemStatusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: _statusColor(item.status).withValues(alpha: 0.3)),
+                      border: Border.all(color: itemStatusColor.withValues(alpha: 0.3)),
                     ),
-                    child: Text(item.status, style: TextStyle(color: _statusColor(item.status),
+                    child: Text(item.status, style: TextStyle(color: itemStatusColor,
                         fontSize: 11, fontWeight: FontWeight.w700)),
                   ),
                   const SizedBox(height: 4),
@@ -718,7 +710,7 @@ class _ScoreChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = score >= 0.7 ? SasColors.success : (score >= 0.4 ? SasColors.warning : SasColors.danger);
+    final color = scoreColor(score);
     return Column(
       children: [
         Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 10)),

@@ -1,6 +1,8 @@
 
 import 'dart:async';
+import 'dart:math';
 import 'package:geolocator/geolocator.dart';
+import 'package:smart_attendance_app/core/constants.dart';
 
 class LocationException implements Exception {
   final String message;
@@ -36,37 +38,104 @@ class LocationService {
   Future<Position> getHighlyAccuratePosition() async {
     await ensurePermissionsGranted();
 
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.bestForNavigation,
-          timeLimit: Duration(seconds: 10),
-        ),
-      );
+    int attempts = 0;
+    List<String> errors = [];
 
-      if (pos.isMocked) {
-        throw const LocationException(
-          'Mocked location detected. Attendance blocked.',
+    while (attempts < kGpsRetryAttempts) {
+      attempts++;
+      try {
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings: LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: kGpsTimeoutSeconds),
+          ),
         );
-      }
 
-      return pos;
-    } on TimeoutException {
-      final lastPos = await Geolocator.getLastKnownPosition();
-      if (lastPos == null) {
-        throw const LocationException(
-          'GPS timed out and no last known position available.',
-        );
+        if (pos.isMocked) {
+          throw const LocationException(
+            'Mocked location detected. Attendance blocked.',
+          );
+        }
+
+        if (pos.accuracy > kMinGpsAccuracyMeters) {
+          errors.add('Attempt $attempts: GPS accuracy ${pos.accuracy.toStringAsFixed(0)}m exceeds limit ${kMinGpsAccuracyMeters.toStringAsFixed(0)}m');
+          if (attempts < kGpsRetryAttempts) {
+            await Future.delayed(const Duration(seconds: 5));
+          }
+          continue;
+        }
+
+        return pos;
+      } on TimeoutException {
+        errors.add('Attempt $attempts: GPS timed out after ${kGpsTimeoutSeconds}s');
+        if (attempts < kGpsRetryAttempts) {
+          await Future.delayed(const Duration(seconds: 5));
+        }
       }
-      return lastPos;
     }
+
+    throw LocationException(
+      'Failed to acquire accurate GPS position after $kGpsRetryAttempts attempts.\n${errors.join('\n')}',
+    );
+  }
+
+  Future<Position> getAveragedPosition({int samples = kGpsAveragingSamples}) async {
+    List<Position> positions = [];
+
+    for (int i = 0; i < samples; i++) {
+      try {
+        final pos = await getHighlyAccuratePosition();
+        positions.add(pos);
+        if (i < samples - 1) {
+          await Future.delayed(const Duration(seconds: 3));
+        }
+      } on LocationException {
+        if (i < samples - 1) {
+          await Future.delayed(const Duration(seconds: 3));
+        }
+      }
+    }
+
+    if (positions.isEmpty) {
+      throw const LocationException(
+        'Could not acquire enough GPS samples for position averaging.',
+      );
+    }
+
+    final meanLat = positions.map((p) => p.latitude).reduce((a, b) => a + b) / positions.length;
+    final meanLng = positions.map((p) => p.longitude).reduce((a, b) => a + b) / positions.length;
+
+    final varianceLat = positions.map((p) => pow(p.latitude - meanLat, 2)).reduce((a, b) => a + b) / positions.length;
+    final varianceLng = positions.map((p) => pow(p.longitude - meanLng, 2)).reduce((a, b) => a + b) / positions.length;
+    final stdDev = sqrt(varianceLat + varianceLng) * 111320;
+
+    if (stdDev > 20) {
+      throw LocationException(
+        'GPS readings unstable (stdDev: ${stdDev.toStringAsFixed(0)}m). Hold steady and retry.',
+      );
+    }
+
+    final best = positions.reduce((a, b) => a.accuracy <= b.accuracy ? a : b);
+
+    return Position(
+      longitude: meanLng,
+      latitude: meanLat,
+      accuracy: best.accuracy,
+      altitude: best.altitude,
+      heading: best.heading,
+      speed: best.speed,
+      speedAccuracy: best.speedAccuracy,
+      timestamp: best.timestamp,
+      altitudeAccuracy: best.altitudeAccuracy,
+      headingAccuracy: best.headingAccuracy,
+    );
   }
 
   bool isWithinGeofence(
     Position student,
     double classLat,
     double classLng, {
-    double radiusMeters = 50.0,
+    double radiusMeters = 100.0,
   }) {
     final distance = Geolocator.distanceBetween(
       student.latitude,
@@ -74,6 +143,23 @@ class LocationService {
       classLat,
       classLng,
     );
-    return distance <= radiusMeters;
+    return distance <= radiusMeters + kGeofenceGraceMeters;
+  }
+
+  String describeDistance(
+    Position student,
+    double classLat,
+    double classLng,
+  ) {
+    final distance = Geolocator.distanceBetween(
+      student.latitude,
+      student.longitude,
+      classLat,
+      classLng,
+    );
+    if (distance < 1000) {
+      return '${distance.toStringAsFixed(0)}m';
+    }
+    return '${(distance / 1000).toStringAsFixed(1)}km';
   }
 }

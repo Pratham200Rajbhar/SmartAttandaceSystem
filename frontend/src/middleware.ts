@@ -54,6 +54,11 @@ export function middleware(request: NextRequest): NextResponse {
 
   const role = parseRoleFromCookie(request);
   if (token && role) {
+    if (role === "STUDENT") {
+      if (pathname.startsWith("/admin") || pathname.startsWith("/teacher")) {
+        return NextResponse.redirect(new URL("/login", request.url));
+      }
+    }
     if (role !== "ADMIN" && pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/teacher/classes", request.url));
     }

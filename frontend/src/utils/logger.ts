@@ -1,6 +1,6 @@
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-const PREFIX = {
+const PREFIX: Record<LogLevel, string> = {
   debug: '⚫',
   info: '🔵',
   warn: '🟡',

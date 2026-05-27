@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -62,8 +62,7 @@ export default function EditSubjectPage(): React.ReactElement {
       toast.success("Subject updated successfully");
       router.push("/admin/setup/subjects");
     } catch (err: unknown) {
-      const errMsg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Update failed";
-      toast.error(errMsg);
+      toast.error(getApiErrorMessage(err, "Update failed"));
     } finally {
       setSaving(false);
     }

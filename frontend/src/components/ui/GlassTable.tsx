@@ -18,6 +18,16 @@ interface GlassTableProps<T> {
   onRowClick?: (row: T) => void;
 }
 
+function sortByColumn<T extends Record<string, unknown>>(a: T, b: T, key: string, asc: boolean): number {
+  const aVal = a[key];
+  const bVal = b[key];
+  if (aVal === bVal) return 0;
+  if (aVal == null) return 1;
+  if (bVal == null) return -1;
+  const cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
+  return asc ? cmp : -cmp;
+}
+
 export default function GlassTable<T extends Record<string, unknown>>({
   columns,
   data,
@@ -31,15 +41,7 @@ export default function GlassTable<T extends Record<string, unknown>>({
 
   const sorted = useMemo(() => {
     if (!sortKey) return data;
-    return [...data].sort((a, b) => {
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
-      if (aVal === bVal) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-      const cmp = String(aVal).localeCompare(String(bVal), undefined, { numeric: true });
-      return sortAsc ? cmp : -cmp;
-    });
+    return [...data].sort((a, b) => sortByColumn(a, b, sortKey, sortAsc));
   }, [data, sortKey, sortAsc]);
 
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));

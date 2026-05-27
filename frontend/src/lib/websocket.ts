@@ -59,7 +59,9 @@ class WebSocketClient {
   }
 
   disconnect(): void {
-    this.reconnectTimer && clearTimeout(this.reconnectTimer);
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
     this.stopPing();
     this.ws?.close();
     this.ws = null;

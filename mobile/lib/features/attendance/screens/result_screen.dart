@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_utils.dart';
+import 'package:smart_attendance_app/core/attendance_constants.dart';
 import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
 import 'package:smart_attendance_app/features/attendance/providers/attendance_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
@@ -139,7 +141,7 @@ class ResultScreen extends ConsumerWidget {
 
                 const Spacer(),
 
-                if (result is OnlineResult && !result.result.isPresent) ...[
+                if (result is OnlineResult && result.result.isFlagged) ...[
                   GlassButton(
                     label: 'View Flagged Record',
                     isExpanded: true,
@@ -155,7 +157,7 @@ class ResultScreen extends ConsumerWidget {
                 GlassButton(
                   label: 'Back to Dashboard',
                   isExpanded: true,
-                  variant: result is OnlineResult && !result.result.isPresent
+                  variant: result is OnlineResult && result.result.isFlagged
                       ? GlassButtonVariant.ghost
                       : GlassButtonVariant.primary,
                   icon: Icons.home_rounded,
@@ -173,7 +175,7 @@ class ResultScreen extends ConsumerWidget {
   }
 
   Widget _buildSubScore(String label, double score) {
-    final color = score >= 0.7 ? SasColors.success : (score >= 0.4 ? SasColors.warning : SasColors.danger);
+    final color = scoreColor(score);
     final hint = _scoreHint(label, score);
     return Row(
       children: [
@@ -208,22 +210,22 @@ class ResultScreen extends ConsumerWidget {
   }
 
   String _scoreHint(String label, double score) {
-    if (label == 'Face') {
-      if (score >= 0.85) return 'Strong match';
-      if (score >= 0.7) return 'Good match';
-      if (score >= 0.5) return 'Weak match';
-      return 'Poor match — try better lighting';
+    switch (label) {
+      case 'Face':
+        if (score >= 0.85) return 'Strong match';
+        if (score >= kGoodScoreThreshold) return 'Good match';
+        if (score >= 0.5) return 'Weak match';
+        return 'Poor match — try better lighting';
+      case 'Liveness':
+        if (score >= 0.8) return 'Confirmed live';
+        if (score >= 0.6) return 'Likely live';
+        return 'Try better lighting';
+      case 'Background':
+        if (score >= kGoodScoreThreshold) return 'Classroom verified';
+        return 'Unfamiliar background';
+      default:
+        return '';
     }
-    if (label == 'Liveness') {
-      if (score >= 0.8) return 'Confirmed live';
-      if (score >= 0.6) return 'Likely live';
-      return 'Try better lighting';
-    }
-    if (label == 'Background') {
-      if (score >= 0.7) return 'Classroom verified';
-      return 'Unfamiliar background';
-    }
-    return '';
   }
 }
 

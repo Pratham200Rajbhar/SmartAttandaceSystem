@@ -9,6 +9,8 @@ import GlassTable, { type TableColumn } from "@/components/ui/GlassTable";
 import GlassBadge from "@/components/ui/GlassBadge";
 import GlassLoader from "@/components/ui/GlassLoader";
 import GlassEmptyState from "@/components/ui/GlassEmptyState";
+import toast from "react-hot-toast";
+import { getApiErrorMessage } from "@/lib/api";
 import GlassSelect from "@/components/ui/GlassSelect";
 
 interface SessionLogItem {
@@ -47,8 +49,8 @@ export default function HistoryPage(): React.ReactElement {
         ]);
         setSessions(sessionsRes.data);
         setClasses(classesRes.data);
-      } catch {
-        
+      } catch (err: unknown) {
+        toast.error(getApiErrorMessage(err, "Failed to load history"));
       } finally {
         setLoading(false);
       }

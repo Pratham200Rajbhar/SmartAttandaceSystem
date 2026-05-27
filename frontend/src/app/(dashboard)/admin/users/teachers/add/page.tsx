@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, Briefcase, PlusCircle, X } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -31,24 +31,21 @@ export default function AddTeacherPage(): React.ReactElement {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
 
-  const fetchMasterData = useCallback(async (): Promise<void> => {
-    try {
-      const [deptsRes, desigRes] = await Promise.all([
-        api.get<DepartmentResponse[]>("/admin/departments"),
-        api.get<DesignationResponse[]>("/admin/designations"),
-      ]);
-      setDepartments(deptsRes.data);
-      setDesignations(desigRes.data);
-    } catch {
-      toast.error("Could not load departments/designations.");
-    }
-  }, []);
-
   useEffect(() => {
-    void (async () => {
-      await fetchMasterData();
-    })();
-  }, [fetchMasterData]);
+    async function fetchMasterData(): Promise<void> {
+      try {
+        const [deptsRes, desigRes] = await Promise.all([
+          api.get<DepartmentResponse[]>("/admin/departments"),
+          api.get<DesignationResponse[]>("/admin/designations"),
+        ]);
+        setDepartments(deptsRes.data);
+        setDesignations(desigRes.data);
+      } catch {
+        toast.error("Could not load departments/designations.");
+      }
+    }
+    void fetchMasterData();
+  }, []);
 
   function set(field: keyof TeacherCreate, value: string | number | undefined): void {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -77,10 +74,7 @@ export default function AddTeacherPage(): React.ReactElement {
       toast.success("Teacher created successfully");
       router.push("/admin/users/teachers");
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "Failed to create teacher";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Failed to create teacher"));
     } finally {
       setLoading(false);
     }

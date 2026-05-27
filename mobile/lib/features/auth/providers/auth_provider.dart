@@ -24,7 +24,7 @@ class AuthStateData {
     return AuthStateData(
       status: status ?? this.status,
       user: user ?? this.user,
-      errorMessage: errorMessage,
+      errorMessage: errorMessage ?? this.errorMessage,
     );
   }
 }
@@ -94,7 +94,7 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
   }
 
   Future<void> logoutWithReason(String reason) async {
-    await _repo.logout();
+    await logout();
     state = AuthStateData(
       status: AuthStatus.unauthenticated,
       errorMessage: reason,

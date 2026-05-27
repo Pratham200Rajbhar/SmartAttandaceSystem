@@ -5,15 +5,17 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_constants.dart';
 import 'package:smart_attendance_app/data/local/location_service.dart';
 import 'package:smart_attendance_app/data/local/preferences_service.dart';
-import 'package:image/image.dart' as img;
-import 'package:flutter/foundation.dart';
 import 'package:smart_attendance_app/features/attendance/providers/attendance_provider.dart';
 import 'package:smart_attendance_app/features/attendance/providers/location_provider.dart';
+import 'package:smart_attendance_app/utils/logger.dart';
 import 'package:smart_attendance_app/features/home/providers/session_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
@@ -88,10 +90,17 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   int _aiStepIndex = 0;
   Timer? _aiStepTimer;
   bool _showTips = false;
-  
+
   bool _isAnalyzingQuality = false;
   double? _brightnessScore;
   double? _blurScore;
+
+  double? _gpsAccuracy;
+  bool _gpsLocked = false;
+  String? _geofenceErrorMessage;
+  double? _geofenceDistance;
+  double? _geofenceRadius;
+  Timer? _gpsTransitionTimer;
 
   static const _aiStepLabels = [
     'Checking face identity...',
@@ -112,6 +121,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     WidgetsBinding.instance.removeObserver(this);
     _camera?.dispose();
     _aiStepTimer?.cancel();
+    _gpsTransitionTimer?.cancel();
     super.dispose();
   }
 
@@ -202,6 +212,11 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     _camera = null;
     _cameraReady = false;
     _cameraError = null;
+    _gpsAccuracy = null;
+    _gpsLocked = false;
+    _geofenceErrorMessage = null;
+    _geofenceDistance = null;
+    _geofenceRadius = null;
     ref.read(attendanceVerificationProvider.notifier).reset();
     ref.invalidate(currentLocationProvider);
   }
@@ -239,9 +254,46 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     ref.listen(currentLocationProvider, (prev, next) {
       next.whenOrNull(data: (position) {
         if (ref.read(attendanceVerificationProvider).step != VerificationStep.gps) return;
-        ref.read(attendanceVerificationProvider.notifier)
-            .setGpsLocation(position.latitude, position.longitude);
-        _initCamera();
+        if (_gpsLocked) return;
+
+        final sessionState = ref.read(sessionProvider);
+        final classSession = sessionState.sessions.where(
+          (s) => s.sessionId == widget.sessionId,
+        ).firstOrNull;
+
+        if (classSession != null && classSession.latitude != null && classSession.longitude != null) {
+          final distance = Geolocator.distanceBetween(
+            position.latitude,
+            position.longitude,
+            classSession.latitude!,
+            classSession.longitude!,
+          );
+          final radius = (classSession.radiusMeters ?? 100.0) + 10.0;
+          final isInside = distance <= radius;
+
+          if (!isInside) {
+            setState(() {
+              _geofenceErrorMessage = 'You are outside the class area';
+              _geofenceDistance = distance;
+              _geofenceRadius = classSession.radiusMeters ?? 100.0;
+            });
+            return;
+          }
+        }
+
+        setState(() {
+          _gpsLocked = true;
+          _gpsAccuracy = position.accuracy;
+        });
+
+        _gpsTransitionTimer?.cancel();
+        _gpsTransitionTimer = Timer(const Duration(milliseconds: 1500), () {
+          if (mounted) {
+            ref.read(attendanceVerificationProvider.notifier)
+                .setGpsLocation(position.latitude, position.longitude);
+            _initCamera();
+          }
+        });
       });
     });
 
@@ -257,62 +309,126 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
 
                 if (vState.step == VerificationStep.gps) ...[
                   const Spacer(),
-                  locationAsync.when(
-                    loading: () => GlassCard(
+
+                  if (_geofenceErrorMessage != null)
+                    GlassCard(
+                      borderColor: SasColors.danger.withValues(alpha: 0.3),
+                      child: Column(children: [
+                        const SizedBox(height: 16),
+                        const Icon(Icons.location_off_rounded, color: SasColors.danger, size: 48),
+                        const SizedBox(height: 12),
+                        Text(_geofenceErrorMessage!,
+                            style: const TextStyle(color: SasColors.danger, fontWeight: FontWeight.w700),
+                            textAlign: TextAlign.center),
+                        const SizedBox(height: 8),
+                        if (_geofenceDistance != null && _geofenceRadius != null)
+                          Text(
+                            'Distance: ${_geofenceDistance!.toStringAsFixed(0)}m — Limit: ${_geofenceRadius!.toStringAsFixed(0)}m',
+                            style: const TextStyle(color: SasColors.textSecondary, fontSize: 13),
+                            textAlign: TextAlign.center,
+                          ),
+                        const SizedBox(height: 16),
+                        GlassButton(
+                          label: 'Retry Location',
+                          icon: Icons.refresh_rounded,
+                          onPressed: () {
+                            setState(() {
+                              _geofenceErrorMessage = null;
+                              _geofenceDistance = null;
+                              _geofenceRadius = null;
+                              _gpsLocked = false;
+                              _gpsAccuracy = null;
+                            });
+                            ref.invalidate(currentLocationProvider);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        GlassButton(
+                          label: 'Cancel',
+                          variant: GlassButtonVariant.ghost,
+                          icon: Icons.arrow_back_rounded,
+                          onPressed: () => context.pop(),
+                        ),
+                        const SizedBox(height: 16),
+                      ]),
+                    )
+                  else if (_gpsLocked)
+                    GlassCard(
                       child: Column(children: [
                         const SizedBox(height: 16),
                         const SizedBox(width: 48, height: 48,
                             child: CircularProgressIndicator(strokeWidth: 3, color: SasColors.accentEmerald)),
-                        const SizedBox(height: 16),
-                        const Text('Acquiring high-accuracy GPS lock…',
-                            style: TextStyle(color: SasColors.textSecondary, fontSize: 16)),
+                        const SizedBox(height: 12),
+                        const Icon(Icons.gps_fixed_rounded, color: SasColors.success, size: 28),
+                        const SizedBox(height: 4),
+                        Text('GPS locked',
+                            style: const TextStyle(color: SasColors.success, fontWeight: FontWeight.w600, fontSize: 15)),
+                        if (_gpsAccuracy != null)
+                          Text('Accuracy: ${_gpsAccuracy!.toStringAsFixed(0)}m',
+                              style: const TextStyle(color: SasColors.textSecondary, fontSize: 13)),
+                        const SizedBox(height: 8),
+                        const Text('Preparing camera…',
+                            style: TextStyle(color: SasColors.textSecondary, fontSize: 14)),
                         const SizedBox(height: 16),
                       ]),
-                    ),
-                    error: (error, _) {
-                      final msg = error is LocationException
-                          ? error.message
-                          : 'Failed to acquire location.';
-                      final needsSettings = msg.contains('Settings');
-                      return GlassCard(
+                    )
+                  else
+                    locationAsync.when(
+                      loading: () => GlassCard(
                         child: Column(children: [
                           const SizedBox(height: 16),
-                          const Icon(Icons.location_off_rounded, color: SasColors.danger, size: 48),
-                          const SizedBox(height: 12),
-                          Text(msg, style: const TextStyle(color: SasColors.danger),
-                              textAlign: TextAlign.center),
+                          const SizedBox(width: 48, height: 48,
+                              child: CircularProgressIndicator(strokeWidth: 3, color: SasColors.accentEmerald)),
                           const SizedBox(height: 16),
-                          if (needsSettings)
-                            GlassButton(
-                              label: 'Open Settings',
-                              icon: Icons.settings_rounded,
-                              onPressed: () async {
-                                await Geolocator.openAppSettings();
-                                if (mounted) ref.invalidate(currentLocationProvider);
-                              },
-                            )
-                          else
-                            GlassButton(
-                              label: 'Retry',
-                              icon: Icons.refresh_rounded,
-                              onPressed: () => ref.invalidate(currentLocationProvider),
-                            ),
+                          const Text('Acquiring GPS lock…',
+                              style: TextStyle(color: SasColors.textSecondary, fontSize: 16)),
+                          const SizedBox(height: 4),
+                          const Text('Stand near a window for best accuracy',
+                              style: TextStyle(color: SasColors.textMuted, fontSize: 12)),
                           const SizedBox(height: 16),
                         ]),
-                      );
-                    },
-                    data: (_) => GlassCard(
-                      child: Column(children: [
-                        const SizedBox(height: 16),
-                        const SizedBox(width: 48, height: 48,
-                            child: CircularProgressIndicator(strokeWidth: 3, color: SasColors.accentEmerald)),
-                        const SizedBox(height: 16),
-                        const Text('Preparing camera…',
-                            style: TextStyle(color: SasColors.textSecondary, fontSize: 16)),
-                        const SizedBox(height: 16),
-                      ]),
+                      ),
+                      error: (error, _) {
+                        final msg = error is LocationException
+                            ? error.message
+                            : 'Failed to acquire location.';
+                        final needsSettings = msg.contains('Settings');
+                        return GlassCard(
+                          child: Column(children: [
+                            const SizedBox(height: 16),
+                            const Icon(Icons.location_off_rounded, color: SasColors.danger, size: 48),
+                            const SizedBox(height: 12),
+                            Text(msg, style: const TextStyle(color: SasColors.danger),
+                                textAlign: TextAlign.center),
+                            const SizedBox(height: 16),
+                            if (needsSettings)
+                              GlassButton(
+                                label: 'Open Settings',
+                                icon: Icons.settings_rounded,
+                                onPressed: () async {
+                                  await Geolocator.openAppSettings();
+                                  if (mounted) ref.invalidate(currentLocationProvider);
+                                },
+                              )
+                            else
+                              GlassButton(
+                                label: 'Retry',
+                                icon: Icons.refresh_rounded,
+                                onPressed: () => ref.invalidate(currentLocationProvider),
+                              ),
+                            const SizedBox(height: 8),
+                            GlassButton(
+                              label: 'Cancel',
+                              variant: GlassButtonVariant.ghost,
+                              icon: Icons.arrow_back_rounded,
+                              onPressed: () => context.pop(),
+                            ),
+                            const SizedBox(height: 16),
+                          ]),
+                        );
+                      },
+                      data: (_) => const SizedBox.shrink(),
                     ),
-                  ),
                   const Spacer(),
                 ],
 
@@ -541,7 +657,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (_brightnessScore != null && (_brightnessScore! < 0.15 || ((_blurScore ?? 0) / 10).clamp(0.0, 1.0) < 0.1))
+                  if (_brightnessScore != null && (_brightnessScore! < kMinBrightnessForPhoto || ((_blurScore ?? 0) / 10).clamp(0.0, 1.0) < kMinSharpnessForPhoto))
                     Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: Container(
@@ -577,7 +693,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                       child: GlassButton(
                         label: 'Submit',
                         icon: Icons.check_rounded,
-                        onPressed: (_brightnessScore != null && (_brightnessScore! < 0.15 || ((_blurScore ?? 0) / 10).clamp(0.0, 1.0) < 0.1)) ? null : _submitPhoto,
+                        onPressed: (_brightnessScore != null && (_brightnessScore! < kMinBrightnessForPhoto || ((_blurScore ?? 0) / 10).clamp(0.0, 1.0) < kMinSharpnessForPhoto)) ? null : _submitPhoto,
                       ),
                     ),
                   ]),

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Search, UserPlus, CheckCircle2, Circle, X } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -71,22 +71,20 @@ export default function EnrollStudentsPage(): React.ReactElement {
     });
   }, [students, searchQuery, selectedDepartment, selectedSemester, selectedBatch]);
 
-  const uniqueDepartments = useMemo(() => {
-    const depts = new Set<string>();
-    students.forEach((s) => { if (s.department_name) depts.add(s.department_name); });
-    return Array.from(depts).sort();
-  }, [students]);
-
-  const uniqueSemesters = useMemo(() => {
-    const sems = new Set<string>();
-    students.forEach((s) => { if (s.semester) sems.add(String(s.semester)); });
-    return Array.from(sems).sort();
-  }, [students]);
-
-  const uniqueBatches = useMemo(() => {
+  const filterOptions = useMemo(() => {
+    const departments = new Set<string>();
+    const semesters = new Set<string>();
     const batches = new Set<string>();
-    students.forEach((s) => { if (s.batch) batches.add(s.batch); });
-    return Array.from(batches).sort();
+    for (const s of students) {
+      if (s.department_name) departments.add(s.department_name);
+      if (s.semester) semesters.add(String(s.semester));
+      if (s.batch) batches.add(s.batch);
+    }
+    return {
+      uniqueDepartments: Array.from(departments).sort(),
+      uniqueSemesters: Array.from(semesters).sort(),
+      uniqueBatches: Array.from(batches).sort(),
+    };
   }, [students]);
 
   const toggleSelect = (studentId: string) => {
@@ -123,7 +121,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
       toast.success(`${data.enrolled_count} students enrolled successfully`);
       router.push(`/admin/classes/${id}`);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Enrollment failed");
+      toast.error(getApiErrorMessage(err, "Enrollment failed"));
     } finally { 
       setEnrolling(false); 
     }
@@ -209,7 +207,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
                 label=""
                 options={[
                   { value: "", label: "All Departments" },
-                  ...uniqueDepartments.map((d) => ({ value: d, label: d }))
+                  ...filterOptions.uniqueDepartments.map((d) => ({ value: d, label: d }))
                 ]}
                 value={selectedDepartment}
                 onChange={setSelectedDepartment}
@@ -220,7 +218,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
                 label=""
                 options={[
                   { value: "", label: "All Semesters" },
-                  ...uniqueSemesters.map((s) => ({ value: s, label: `Semester ${s}` }))
+                  ...filterOptions.uniqueSemesters.map((s) => ({ value: s, label: `Semester ${s}` }))
                 ]}
                 value={selectedSemester}
                 onChange={setSelectedSemester}
@@ -231,7 +229,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
                 label=""
                 options={[
                   { value: "", label: "All Batches" },
-                  ...uniqueBatches.map((b) => ({ value: b, label: `Batch ${b}` }))
+                  ...filterOptions.uniqueBatches.map((b) => ({ value: b, label: `Batch ${b}` }))
                 ]}
                 value={selectedBatch}
                 onChange={setSelectedBatch}

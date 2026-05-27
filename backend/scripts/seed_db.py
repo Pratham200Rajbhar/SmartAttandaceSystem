@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from app.db.client import db, connect_db, disconnect_db
-from app.core.security import hash_password
+from app.db.client import db, connect_db, disconnect_db  # noqa: E402
+from app.core.security import hash_password  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("seed")
@@ -15,105 +15,67 @@ logger = logging.getLogger("seed")
 
 async def clear_database() -> None:
     logger.info("Clearing database...")
-    try:
-        await db.attendance.delete_many()
-        await db.enrollment.delete_many()
-        await db.session.delete_many()
-        await db.geofence.delete_many()
-        await db.academicclass.delete_many()
-        await db.teacher.delete_many()
-        await db.student.delete_many()
-        await db.leaverequest.delete_many()
-        await db.auditlog.delete_many()
-        await db.user.delete_many()
-        await db.department.delete_many()
-        await db.subject.delete_many()
-        await db.classroom.delete_many()
-        await db.designation.delete_many()
-    except Exception as err:
-        logger.error("Failed to clear database: %s", err, exc_info=True)
-        raise err
-
-
-async def seed_departments() -> dict:
-    departments_data = [
-        {"name": "Computer Science & Engineering", "code": "CSE", "head": "Dr. Ramesh Sharma", "description": "Department of CSE"},
-        {"name": "Information Technology", "code": "IT", "head": "Dr. Anita Roy", "description": "Department of IT"},
-        {"name": "Electronics & Communication Engineering", "code": "ECE", "head": "Dr. Sunil Verma", "description": "Department of ECE"},
+    tables = [
+        db.attendance, db.enrollment, db.session, db.geofence,
+        db.academicclass, db.teacher, db.student, db.leaverequest,
+        db.auditlog, db.user, db.department, db.subject, db.classroom, db.designation,
     ]
-    depts = {}
-    for dept in departments_data:
+    for table in tables:
         try:
-            record = await db.department.create(data=dept)
-            depts[dept["code"]] = record
+            await table.delete_many()
         except Exception as err:
-            logger.error("Failed to seed department %s: %s", dept["code"], err, exc_info=True)
-            raise err
-    return depts
-
-
-async def seed_designations() -> dict:
-    designations_data = [
-        {"name": "Professor", "code": "PROF", "description": "Senior faculty head position"},
-        {"name": "Assistant Professor", "code": "ASST", "description": "Tenure-track faculty"},
-        {"name": "Lecturer", "code": "LECT", "description": "Contractual/entry teaching position"},
-    ]
-    desigs = {}
-    for desig in designations_data:
-        try:
-            record = await db.designation.create(data=desig)
-            desigs[desig["code"]] = record
-        except Exception as err:
-            logger.error("Failed to seed designation %s: %s", desig["code"], err, exc_info=True)
-            raise err
-    return desigs
-
-
-async def seed_subjects() -> dict:
-    subjects_data = [
-        {"name": "Data Structures & Algorithms", "code": "CS101", "description": "Fundamental course on data structures"},
-        {"name": "Web Development", "code": "CS102", "description": "Full stack web development basics"},
-        {"name": "Digital Electronics", "code": "EC101", "description": "Fundamentals of logic gates and circuits"},
-    ]
-    subs = {}
-    for sub in subjects_data:
-        try:
-            record = await db.subject.create(data=sub)
-            subs[sub["code"]] = record
-        except Exception as err:
-            logger.error("Failed to seed subject %s: %s", sub["code"], err, exc_info=True)
-            raise err
-    return subs
-
-
-async def seed_classrooms() -> dict:
-    classrooms_data = [
-        {"name": "Lab 1", "building": "Block A", "capacity": 40},
-        {"name": "Seminar Hall 1", "building": "Block B", "capacity": 120},
-        {"name": "Room 301", "building": "Block C", "capacity": 60},
-    ]
-    rooms = {}
-    for room in classrooms_data:
-        try:
-            record = await db.classroom.create(data=room)
-            rooms[room["name"]] = record
-        except Exception as err:
-            logger.error("Failed to seed classroom %s: %s", room["name"], err, exc_info=True)
-            raise err
-    return rooms
+            logger.error("Failed to clear table %s: %s", table.__class__.__name__, err, exc_info=True)
 
 
 async def seed_admin() -> None:
-    try:
-        await db.user.create(data={
-            "email": "admin@example.com",
-            "hashedPassword": hash_password("admin123"),
-            "role": "ADMIN",
-            "isActive": True,
-        })
-    except Exception as err:
-        logger.error("Failed to seed admin: %s", err, exc_info=True)
-        raise err
+    await db.user.create(data={
+        "email": "admin@example.com", "hashedPassword": hash_password("admin123"),
+        "role": "ADMIN", "isActive": True,
+    })
+
+
+async def seed_from_list(table, items: list[dict]) -> dict:
+    result = {}
+    for item in items:
+        try:
+            record = await table.create(data={k: v for k, v in item.items() if k != "_key"})
+            result[item.get("_key", item.get("code") or item.get("name"))] = record
+        except Exception as err:
+            logger.error("Failed to seed %s: %s", item.get("name", item), err, exc_info=True)
+            raise
+    return result
+
+
+async def seed_departments() -> dict:
+    return await seed_from_list(db.department, [
+        {"name": "Computer Science & Engineering", "code": "CSE", "head": "Dr. Ramesh Sharma", "description": "Department of CSE"},
+        {"name": "Information Technology", "code": "IT", "head": "Dr. Anita Roy", "description": "Department of IT"},
+        {"name": "Electronics & Communication Engineering", "code": "ECE", "head": "Dr. Sunil Verma", "description": "Department of ECE"},
+    ])
+
+
+async def seed_designations() -> dict:
+    return await seed_from_list(db.designation, [
+        {"name": "Professor", "code": "PROF", "description": "Senior faculty head position"},
+        {"name": "Assistant Professor", "code": "ASST", "description": "Tenure-track faculty"},
+        {"name": "Lecturer", "code": "LECT", "description": "Contractual/entry teaching position"},
+    ])
+
+
+async def seed_subjects() -> dict:
+    return await seed_from_list(db.subject, [
+        {"name": "Data Structures & Algorithms", "code": "CS101", "description": "Fundamental course on data structures"},
+        {"name": "Web Development", "code": "CS102", "description": "Full stack web development basics"},
+        {"name": "Digital Electronics", "code": "EC101", "description": "Fundamentals of logic gates and circuits"},
+    ])
+
+
+async def seed_classrooms() -> dict:
+    return await seed_from_list(db.classroom, [
+        {"name": "Lab 1", "building": "Block A", "capacity": 40, "_key": "Lab 1"},
+        {"name": "Seminar Hall 1", "building": "Block B", "capacity": 120, "_key": "Seminar Hall 1"},
+        {"name": "Room 301", "building": "Block C", "capacity": 60, "_key": "Room 301"},
+    ])
 
 
 async def seed_teachers(depts: dict, desigs: dict) -> dict:
@@ -127,19 +89,19 @@ async def seed_teachers(depts: dict, desigs: dict) -> dict:
     teachers = {}
     for t in teachers_data:
         try:
-            user_rec = await db.user.create(data={
+            user = await db.user.create(data={
                 "email": t["email"], "hashedPassword": hash_password(t["password"]),
                 "role": "TEACHER", "isActive": True,
             })
-            teacher_rec = await db.teacher.create(data={
-                "userId": user_rec.id, "firstName": t["firstName"], "lastName": t["lastName"],
+            teacher = await db.teacher.create(data={
+                "userId": user.id, "firstName": t["firstName"], "lastName": t["lastName"],
                 "employeeId": t["employeeId"], "departmentId": depts[t["dept_code"]].id,
                 "designationId": desigs[t["desig_code"]].id,
             })
-            teachers[t["employeeId"]] = teacher_rec
+            teachers[t["employeeId"]] = teacher
         except Exception as err:
             logger.error("Failed to seed teacher %s: %s", t["email"], err, exc_info=True)
-            raise err
+            raise
     return teachers
 
 
@@ -154,20 +116,20 @@ async def seed_students(depts: dict) -> dict:
     students = {}
     for s in students_data:
         try:
-            user_rec = await db.user.create(data={
+            user = await db.user.create(data={
                 "email": s["email"], "hashedPassword": hash_password("student123"),
                 "role": "STUDENT", "isActive": True,
             })
-            student_rec = await db.student.create(data={
-                "userId": user_rec.id, "enrollmentNumber": s["enroll"],
+            student = await db.student.create(data={
+                "userId": user.id, "enrollmentNumber": s["enroll"],
                 "firstName": s["firstName"], "lastName": s["lastName"],
                 "semester": 4, "batch": "2026", "gender": s["gender"],
                 "departmentId": depts[s["dept_code"]].id,
             })
-            students[s["enroll"]] = student_rec
+            students[s["enroll"]] = student
         except Exception as err:
             logger.error("Failed to seed student %s: %s", s["email"], err, exc_info=True)
-            raise err
+            raise
     return students
 
 
@@ -178,60 +140,55 @@ async def seed_academic_classes(subs: dict, rooms: dict, teachers: dict) -> dict
         {"name": "ECE-DE-4C", "sub_code": "EC101", "room_name": "Room 301", "teacher_emp": "T005", "semester": 4, "batch": "2026"},
     ]
     classes = {}
-    for cls in classes_data:
+    for c in classes_data:
         try:
-            class_rec = await db.academicclass.create(data={
-                "name": cls["name"], "subjectId": subs[cls["sub_code"]].id,
-                "classroomId": rooms[cls["room_name"]].id,
-                "teacherId": teachers[cls["teacher_emp"]].id,
-                "semester": cls["semester"], "batch": cls["batch"], "maxStudents": 40,
+            cls = await db.academicclass.create(data={
+                "name": c["name"], "subjectId": subs[c["sub_code"]].id,
+                "classroomId": rooms[c["room_name"]].id, "teacherId": teachers[c["teacher_emp"]].id,
+                "semester": c["semester"], "batch": c["batch"], "maxStudents": 40,
             })
-            classes[cls["name"]] = class_rec
+            classes[c["name"]] = cls
         except Exception as err:
-            logger.error("Failed to seed class %s: %s", cls["name"], err, exc_info=True)
-            raise err
+            logger.error("Failed to seed class %s: %s", c["name"], err, exc_info=True)
+            raise
     return classes
 
 
 async def seed_geofences(classes: dict) -> None:
-    for name, cls_rec in classes.items():
+    for name, cls in classes.items():
         try:
             await db.geofence.create(data={
-                "academicClassId": cls_rec.id, "latitude": 19.0760,
-                "longitude": 72.8777, "radiusMeters": 100.0,
+                "academicClassId": cls.id, "latitude": 19.0760, "longitude": 72.8777, "radiusMeters": 100.0,
             })
         except Exception as err:
             logger.error("Failed to seed geofence for %s: %s", name, err, exc_info=True)
-            raise err
+            raise
 
 
 async def seed_enrollments(students: dict, classes: dict) -> None:
     try:
-        cse = classes["CSE-DSA-4A"]
-        it = classes["IT-WEBDEV-4B"]
-        ece = classes["ECE-DE-4C"]
         for enroll_no in ["S001", "S002"]:
-            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": cse.id})
-            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": it.id})
+            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": classes["CSE-DSA-4A"].id})
+            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": classes["IT-WEBDEV-4B"].id})
         for enroll_no in ["S003", "S004"]:
-            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": it.id})
-        await db.enrollment.create(data={"studentId": students["S005"].id, "academicClassId": ece.id})
+            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": classes["IT-WEBDEV-4B"].id})
+        await db.enrollment.create(data={"studentId": students["S005"].id, "academicClassId": classes["ECE-DE-4C"].id})
     except Exception as err:
         logger.error("Failed to seed enrollments: %s", err, exc_info=True)
-        raise err
+        raise
 
 
 async def seed_active_sessions(classes: dict) -> None:
     now = datetime.now(timezone.utc)
     end = now + timedelta(hours=1)
-    for name, cls_rec in classes.items():
+    for name, cls in classes.items():
         try:
             await db.session.create(data={
-                "academicClassId": cls_rec.id, "startTime": now, "endTime": end, "isActive": True,
+                "academicClassId": cls.id, "startTime": now, "endTime": end, "isActive": True,
             })
         except Exception as err:
             logger.error("Failed to seed session for %s: %s", name, err, exc_info=True)
-            raise err
+            raise
 
 
 async def seed_all() -> None:
@@ -252,7 +209,7 @@ async def seed_all() -> None:
         logger.info("Database seeded successfully")
     except Exception as err:
         logger.error("Seeding failed: %s", err, exc_info=True)
-        raise err
+        raise
     finally:
         await disconnect_db()
 

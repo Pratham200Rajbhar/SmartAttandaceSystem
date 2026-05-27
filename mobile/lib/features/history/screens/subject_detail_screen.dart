@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_utils.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/history/providers/history_provider.dart';
 import 'package:smart_attendance_app/features/settings/providers/preferences_provider.dart';
@@ -32,27 +33,19 @@ class SubjectDetailScreen extends ConsumerWidget {
         items.isNotEmpty ? items.first.className : '';
 
     final total = items.length;
-    final present = items
-        .where((h) => h.status == 'Present' || h.status == 'Approved')
-        .length;
-    final absent = items.where((h) => h.status == 'Absent').length;
-    final flagged = items.where((h) => h.status == 'Flagged').length;
-    final pct = total > 0 ? (present / total * 100) : 0.0;
-    final color = pct >= 75
-        ? SasColors.success
-        : (pct >= 50 ? SasColors.warning : SasColors.danger);
+    final present = countPresentOrApproved(items);
+    final absent = countAbsent(items);
+    final flagged = countFlagged(items);
+    final pct = computeSubjectPct(present, total);
+    final color = pctColor(pct);
 
-    int canMiss = 0;
-    int needToAttend = 0;
-    if (pct >= target) {
-      canMiss = ((present / (target / 100)) - total).floor().clamp(0, 999);
-    } else {
-      final ratio = target / 100;
-      if (ratio < 1.0) {
-        needToAttend =
-            ((ratio * total - present) / (1 - ratio)).ceil().clamp(0, 999);
-      }
-    }
+    final needs = computeAttendanceNeeds(
+      present: present,
+      total: total,
+      target: target,
+    );
+    final canMiss = needs.canMiss;
+    final needToAttend = needs.needToAttend;
 
     return Scaffold(
       appBar: GlassAppBar(title: subjectName),
@@ -185,17 +178,9 @@ class _SessionRow extends StatelessWidget {
   final AttendanceHistoryItem item;
   const _SessionRow({required this.item});
 
-  Color _statusColor(String status) {
-    return status == 'Present' || status == 'Approved'
-        ? SasColors.success
-        : status == 'Flagged'
-            ? SasColors.warning
-            : SasColors.danger;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final color = _statusColor(item.status);
+    final color = statusColor(item.status);
     return GlassCard(
       padding: const EdgeInsets.all(14),
       onTap: item.status == 'Flagged'
@@ -259,7 +244,7 @@ class _SessionRow extends StatelessWidget {
                     fontSize: 11,
                     fontWeight: FontWeight.w700)),
           ),
-          if (item.status == 'Flagged') ...[
+          if (isFlagged(item.status)) ...[
             const SizedBox(width: 6),
             const Icon(Icons.chevron_right_rounded,
                 color: SasColors.textMuted, size: 16),

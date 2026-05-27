@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { ScanSearch, AlertTriangle } from "lucide-react";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import toast from "react-hot-toast";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
@@ -27,7 +27,7 @@ export default function ScannerPage(): React.ReactElement {
       if (data.length === 0) toast.success("No anomalies detected");
       else toast("Scan complete — anomalies found", { icon: "⚠️" });
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Scan failed");
+      toast.error(getApiErrorMessage(err, "Scan failed"));
     } finally { setLoading(false); }
   }
 

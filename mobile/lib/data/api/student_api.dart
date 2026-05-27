@@ -73,25 +73,6 @@ class StudentApi {
     );
   }
 
-  Future<void> submitDispute({
-    required String attendanceId,
-    required String reason,
-    String? proofImagePath,
-  }) async {
-    final formData = FormData.fromMap({
-      'reason': reason,
-      if (proofImagePath != null)
-        'proof_image': await MultipartFile.fromFile(
-          proofImagePath,
-          contentType: MediaType('image', 'jpeg'),
-        ),
-    });
-    await _dio.post<void>(
-      '/student/attendance/$attendanceId/dispute',
-      data: formData,
-    );
-  }
-
   Future<Map<String, dynamic>> getMyLeaves() async {
     final response = await _dio.get<Map<String, dynamic>>('/student/leaves');
     return response.data!;

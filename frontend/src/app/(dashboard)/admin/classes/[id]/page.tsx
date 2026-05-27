@@ -7,7 +7,8 @@ import {
   Pencil, UserPlus, Users, BookOpen, GraduationCap, MapPin, 
   Hash, LayoutDashboard, ChevronRight
 } from "lucide-react";
-import api from "@/lib/api";
+import toast from "react-hot-toast";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassCard from "@/components/ui/GlassCard";
 import GlassButton from "@/components/ui/GlassButton";
@@ -15,10 +16,17 @@ import GlassLoader from "@/components/ui/GlassLoader";
 import GlassBadge from "@/components/ui/GlassBadge";
 import type { ClassResponse } from "@/types";
 
+const colorVariants: Record<string, string> = {
+  emerald: "bg-emerald-500/10 text-emerald-400 group-hover:shadow-emerald-500/20",
+  rose: "bg-rose-500/10 text-rose-400 group-hover:shadow-rose-500/20",
+  blue: "bg-blue-500/10 text-blue-400 group-hover:shadow-blue-500/20",
+  slate: "bg-slate-500/10 text-slate-400 group-hover:shadow-slate-500/20",
+};
+
 const InfoItem = ({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: string | React.ReactNode, color: string }) => (
   <div className="group flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-white/5 hover:bg-white/[0.02] transition-all duration-300">
     <div className="flex items-center gap-4">
-      <div className={`p-3 rounded-2xl bg-${color}-500/10 text-${color}-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.5)] group-hover:shadow-${color}-500/20`}>
+      <div className={`p-3 rounded-2xl ${colorVariants[color] || colorVariants.slate} group-hover:scale-110 transition-transform duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.5)]`}>
         <Icon size={20} />
       </div>
       <div>
@@ -38,9 +46,10 @@ export default function ClassDetailPage(): React.ReactElement {
   useEffect(() => {
     async function fetch(): Promise<void> {
       try {
-        const { data } = await api.get<ClassResponse[]>("/admin/classes");
-        setCls(data.find((c) => c.id === id) || null);
-      } catch {
+        const { data } = await api.get<ClassResponse>(`/admin/classes/${id}`);
+        setCls(data);
+      } catch (err: unknown) {
+        toast.error(getApiErrorMessage(err, "Failed to load class"));
         setCls(null);
       } finally {
         setLoading(false);

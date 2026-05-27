@@ -2,9 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -41,8 +41,8 @@ export default function ReviewDetailPage(): React.ReactElement {
 
   useEffect(() => {
     async function fetch(): Promise<void> {
-      try { const { data } = await api.get<FlaggedAttendanceResponse[]>("/teacher/attendance/flagged"); setRecord(data.find((r) => r.id === id) || null); }
-      catch { setRecord(null); } finally { setLoading(false); }
+      try { const { data } = await api.get<FlaggedAttendanceResponse>(`/teacher/attendance/${id}`); setRecord(data); }
+      catch (err: unknown) { toast.error(getApiErrorMessage(err, "Failed to load record")); setRecord(null); } finally { setLoading(false); }
     }
     fetch();
   }, [id]);
@@ -80,6 +80,16 @@ export default function ReviewDetailPage(): React.ReactElement {
               <div><p className="text-xs text-slate-500">Date</p><p className="text-sm text-slate-400">{new Date(record.created_at).toLocaleString()}</p></div>
             </div>
           </GlassCard>
+          {record.student_note && (
+            <GlassCard>
+              <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <MessageSquare size={16} /> Student Note
+              </h3>
+              <p className="text-sm text-slate-300 bg-white/[0.03] p-4 rounded-xl border border-white/5 italic">
+                &ldquo;{record.student_note}&rdquo;
+              </p>
+            </GlassCard>
+          )}
         </div>
         <GlassCard>
           <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Decision</h3>

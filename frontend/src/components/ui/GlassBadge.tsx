@@ -2,7 +2,7 @@
 
 import React from "react";
 
-type BadgeVariant = "success" | "warning" | "danger" | "info" | "neutral";
+export type BadgeVariant = "success" | "warning" | "danger" | "info" | "neutral";
 
 interface GlassBadgeProps {
   variant: BadgeVariant;
@@ -14,15 +14,16 @@ export default function GlassBadge({ variant, children, className = "" }: GlassB
   return <span className={`badge badge-${variant} ${className}`}>{children}</span>;
 }
 
+const STATUS_VARIANT_MAP: Record<string, BadgeVariant> = {
+  Present: "success",
+  Approved: "success",
+  Flagged: "warning",
+  Absent: "danger",
+  Rejected: "danger",
+  Active: "info",
+  Inactive: "neutral",
+};
+
 export function statusToBadgeVariant(status: string): BadgeVariant {
-  const map: Record<string, BadgeVariant> = {
-    Present: "success",
-    Approved: "success",
-    Flagged: "warning",
-    Absent: "danger",
-    Rejected: "danger",
-    Active: "info",
-    Inactive: "neutral",
-  };
-  return map[status] || "neutral";
+  return STATUS_VARIANT_MAP[status] || "neutral";
 }

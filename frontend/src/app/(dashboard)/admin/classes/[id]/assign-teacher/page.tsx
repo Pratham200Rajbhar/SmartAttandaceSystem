@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -23,7 +23,7 @@ export default function AssignTeacherPage(): React.ReactElement {
   useEffect(() => {
     async function fetch(): Promise<void> {
       try { const { data } = await api.get<TeacherResponse[]>("/admin/users/teachers"); setTeachers(data); }
-      catch {  }
+      catch (err: unknown) { toast.error(getApiErrorMessage(err, "Failed to load teachers")); }
       finally { setLoading(false); }
     }
     fetch();
@@ -38,7 +38,7 @@ export default function AssignTeacherPage(): React.ReactElement {
       toast.success("Teacher assigned");
       router.push(`/admin/classes/${id}`);
     } catch (err: unknown) {
-      toast.error((err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Assignment failed");
+      toast.error(getApiErrorMessage(err, "Assignment failed"));
     } finally { setSaving(false); }
   }
 

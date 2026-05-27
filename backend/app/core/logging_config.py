@@ -45,19 +45,13 @@ def setup_logging(level: str | None = None) -> None:
     console = logging.StreamHandler()
     console.setFormatter(_FORMAT)
 
-    backend_logger = logging.getLogger("app")
-    backend_logger.setLevel(effective_level)
-    backend_logger.propagate = False
-    backend_logger.handlers.clear()
-    backend_logger.addHandler(console)
-    backend_logger.addHandler(backend_handler)
-
-    access_logger = logging.getLogger("app.access")
-    access_logger.setLevel(effective_level)
-    access_logger.propagate = False
-    access_logger.handlers.clear()
-    access_logger.addHandler(console)
-    access_logger.addHandler(access_handler)
+    for logger_name, handler in [("app", backend_handler), ("app.access", access_handler)]:
+        logger = logging.getLogger(logger_name)
+        logger.setLevel(effective_level)
+        logger.propagate = False
+        logger.handlers.clear()
+        logger.addHandler(console)
+        logger.addHandler(handler)
 
     for name in _SILENCED_LOGGERS:
         logging.getLogger(name).setLevel(logging.ERROR)

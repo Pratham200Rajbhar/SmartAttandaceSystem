@@ -9,6 +9,8 @@ import GlassLoader from "@/components/ui/GlassLoader";
 import GlassCard from "@/components/ui/GlassCard";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassBadge from "@/components/ui/GlassBadge";
+import toast from "react-hot-toast";
+import { getApiErrorMessage } from "@/lib/api";
 import type { 
   AcademicClassWithGeofence, 
   SessionWithClassResponse, 
@@ -32,8 +34,8 @@ export default function TeacherDashboardPage(): React.ReactElement {
         setClasses(clsRes.data);
         setSessions(sessRes.data);
         setFlagged(flagRes.data);
-      } catch {
-        
+      } catch (err: unknown) {
+        toast.error(getApiErrorMessage(err, "Failed to load dashboard"));
       } finally {
         setLoading(false);
       }

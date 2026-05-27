@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_constants.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/domain/models/leave_request.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
@@ -45,9 +46,9 @@ class LeaveHistoryScreen extends ConsumerWidget {
     final sorted = [...leaves]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    final pending = leaves.where((l) => l.status == 'PENDING').length;
-    final approved = leaves.where((l) => l.status == 'APPROVED').length;
-    final rejected = leaves.where((l) => l.status == 'REJECTED').length;
+    final pending = leaves.where((l) => l.status == kStatusPending).length;
+    final approved = leaves.where((l) => l.status == kStatusApprovedUpper).length;
+    final rejected = leaves.where((l) => l.status == kStatusRejected).length;
 
     return ListView(
       padding: const EdgeInsets.all(20),
@@ -425,9 +426,9 @@ class _LeaveTimelineItem extends StatelessWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'APPROVED':
+      case kStatusApprovedUpper:
         return SasColors.success;
-      case 'REJECTED':
+      case kStatusRejected:
         return SasColors.danger;
       default:
         return SasColors.warning;
@@ -436,9 +437,9 @@ class _LeaveTimelineItem extends StatelessWidget {
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'APPROVED':
+      case kStatusApprovedUpper:
         return Icons.check_circle_rounded;
-      case 'REJECTED':
+      case kStatusRejected:
         return Icons.cancel_rounded;
       default:
         return Icons.pending_rounded;

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { BookOpen, Users, Save, X, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -31,12 +31,12 @@ export default function EditClassPage(): React.ReactElement {
 
   const fetchData = useCallback(async (): Promise<void> => {
     try {
-      const [classesRes, subjectsRes, classroomsRes] = await Promise.all([
-        api.get<ClassResponse[]>("/admin/classes"),
+      const [classRes, subjectsRes, classroomsRes] = await Promise.all([
+        api.get<ClassResponse>(`/admin/classes/${id}`),
         api.get<SubjectResponse[]>("/admin/subjects"),
         api.get<ClassroomResponse[]>("/admin/classrooms"),
       ]);
-      const found = classesRes.data.find((c) => c.id === id);
+      const found = classRes.data;
       if (found) {
         setCls(found);
         setName(found.name);
@@ -45,6 +45,11 @@ export default function EditClassPage(): React.ReactElement {
           (s) => s.name === found.subject_name && s.code === found.subject_code
         );
         if (matchedSubject) setSubjectId(matchedSubject.id);
+        
+        const matchedClassroom = classroomsRes.data.find(
+          (c) => c.name === found.classroom_name
+        );
+        if (matchedClassroom) setClassroomId(matchedClassroom.id);
         
         setSemester(found.semester ? String(found.semester) : "");
         setBatch(found.batch || "");
@@ -80,10 +85,7 @@ export default function EditClassPage(): React.ReactElement {
       toast.success("Class updated");
       router.push(`/admin/classes/${id}`);
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-          "Update failed"
-      );
+      toast.error(getApiErrorMessage(err, "Update failed"));
     } finally {
       setSaving(false); }
   }

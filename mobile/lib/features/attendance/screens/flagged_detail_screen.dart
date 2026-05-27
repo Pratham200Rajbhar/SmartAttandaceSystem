@@ -1,11 +1,9 @@
 
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_utils.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
@@ -36,11 +34,7 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final item = widget.item;
-    final statusColor = item.status == 'Approved'
-        ? SasColors.success
-        : item.status == 'Flagged'
-            ? SasColors.warning
-            : SasColors.danger;
+    final itemColor = statusColor(item.status);
 
     return Scaffold(
       appBar: const GlassAppBar(title: 'Flagged Submission'),
@@ -51,7 +45,7 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
             children: [
               
               GlassCard(
-                borderColor: statusColor.withValues(alpha: 0.3),
+                borderColor: itemColor.withValues(alpha: 0.3),
                 child: Column(
                   children: [
                     Container(
@@ -59,13 +53,13 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
                       height: 56,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: statusColor.withValues(alpha: 0.12),
+                        color: itemColor.withValues(alpha: 0.12),
                       ),
                       child: Icon(
-                        item.status == 'Approved'
+                        isPresentOrApproved(item.status)
                             ? Icons.check_circle_rounded
                             : Icons.warning_amber_rounded,
-                        color: statusColor,
+                        color: itemColor,
                         size: 28,
                       ),
                     ),
@@ -81,14 +75,14 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.1),
+                        color: itemColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: statusColor.withValues(alpha: 0.3)),
+                            color: itemColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(item.status,
                           style: TextStyle(
-                              color: statusColor,
+                              color: itemColor,
                               fontSize: 12,
                               fontWeight: FontWeight.w700)),
                     ),
@@ -201,36 +195,6 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
               ],
 
               if (item.status == 'Flagged') ...[
-                const Text(
-                  'SUBMIT A DISPUTE',
-                  style: TextStyle(
-                    color: SasColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                GlassCard(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'If you believe this flagged attendance is incorrect, you can submit a formal dispute with supporting evidence.',
-                        style: TextStyle(
-                            color: SasColors.textMuted, fontSize: 13),
-                      ),
-                      const SizedBox(height: 16),
-                      GlassButton(
-                        label: 'Submit Dispute',
-                        isExpanded: true,
-                        icon: Icons.gavel_rounded,
-                        onPressed: () => _showDisputeBottomSheet(context),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
                 const Text(
                   'ADD A NOTE FOR YOUR TEACHER',
                   style: TextStyle(
@@ -357,29 +321,6 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
-
-  void _showDisputeBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _DisputeBottomSheet(
-        attendanceId: widget.item.attendanceId,
-        className: widget.item.className,
-        subject: widget.item.subject,
-        onSuccess: () {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Dispute submitted successfully. Your teacher will review it soon.'),
-                backgroundColor: SasColors.success,
-              ),
-            );
-          }
-        },
-      ),
-    );
-  }
 }
 
 class _ScoreBar extends StatelessWidget {
@@ -397,9 +338,7 @@ class _ScoreBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = score >= 0.7
-        ? SasColors.success
-        : (score >= 0.4 ? SasColors.warning : SasColors.danger);
+    final color = scoreColor(score);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,371 +493,4 @@ class _ReasonTile extends StatelessWidget {
   }
 }
 
-class _DisputeBottomSheet extends ConsumerStatefulWidget {
-  final String attendanceId;
-  final String className;
-  final String subject;
-  final VoidCallback onSuccess;
 
-  const _DisputeBottomSheet({
-    required this.attendanceId,
-    required this.className,
-    required this.subject,
-    required this.onSuccess,
-  });
-
-  @override
-  ConsumerState<_DisputeBottomSheet> createState() => _DisputeBottomSheetState();
-}
-
-class _DisputeBottomSheetState extends ConsumerState<_DisputeBottomSheet> {
-  final _reasonController = TextEditingController();
-  final _picker = ImagePicker();
-  File? _selectedImage;
-  bool _isSubmitting = false;
-  String _selectedReason = 'GPS Inaccurate';
-
-  final List<String> _reasonOptions = [
-    'GPS Inaccurate',
-    'Poor Lighting',
-    'Camera Issue',
-    'Network Problem',
-    'System Error',
-    'Other',
-  ];
-
-  @override
-  void dispose() {
-    _reasonController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickImage(ImageSource source) async {
-    try {
-      final pickedFile = await _picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
-      }
-    } catch (_) {} 
-  }
-
-  Future<void> _submit() async {
-    final note = _reasonController.text.trim();
-    if (note.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter dispute details.'),
-          backgroundColor: SasColors.warning,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-    try {
-      await ref.read(studentApiProvider).submitDispute(
-            attendanceId: widget.attendanceId,
-            reason: '$_selectedReason: $note',
-            proofImagePath: _selectedImage?.path,
-          );
-      if (mounted) {
-        Navigator.pop(context); 
-        widget.onSuccess();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit dispute: $e'),
-            backgroundColor: SasColors.danger,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: SasColors.glassBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(
-            top: BorderSide(color: SasColors.glassBorder),
-          ),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: SasColors.textMuted.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Submit Dispute',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: SasColors.textPrimary,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.close, color: SasColors.textMuted),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              
-              Text(
-                'Class: ${widget.className} (${widget.subject})',
-                style: const TextStyle(
-                  color: SasColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 20),
-              
-              const Text(
-                'DISPUTE REASON',
-                style: TextStyle(
-                  color: SasColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _reasonOptions.map((reason) {
-                  final isSelected = _selectedReason == reason;
-                  return GestureDetector(
-                    onTap: () => setState(() => _selectedReason = reason),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? SasColors.warning.withValues(alpha: 0.2)
-                            : SasColors.glassBg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isSelected
-                              ? SasColors.warning.withValues(alpha: 0.5)
-                              : SasColors.glassBorder,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Text(
-                        reason,
-                        style: TextStyle(
-                          color: isSelected
-                              ? SasColors.warning
-                              : SasColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight:
-                              isSelected ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 20),
-              
-              const Text(
-                'PROOF IMAGE (OPTIONAL)',
-                style: TextStyle(
-                  color: SasColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              if (_selectedImage != null) ...[
-                Stack(
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: Image.file(
-                        _selectedImage!,
-                        height: 120,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                    Positioned(
-                      top: 8,
-                      right: 8,
-                      child: GestureDetector(
-                        onTap: () => setState(() => _selectedImage = null),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close_rounded,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ] else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _pickImage(ImageSource.gallery),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: SasColors.glassBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: SasColors.glassBorder),
-                          ),
-                          child: const Column(
-                            children: [
-                              Icon(Icons.photo_library_outlined,
-                                  color: SasColors.textMuted, size: 24),
-                              SizedBox(height: 6),
-                              Text(
-                                'Gallery',
-                                style: TextStyle(
-                                  color: SasColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: InkWell(
-                        onTap: () => _pickImage(ImageSource.camera),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: SasColors.glassBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: SasColors.glassBorder),
-                          ),
-                          child: const Column(
-                            children: [
-                              Icon(Icons.camera_alt_outlined,
-                                  color: SasColors.textMuted, size: 24),
-                              SizedBox(height: 6),
-                              Text(
-                                'Camera',
-                                style: TextStyle(
-                                  color: SasColors.textSecondary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-              ],
-              
-              const Text(
-                'ADDITIONAL DETAILS *',
-                style: TextStyle(
-                  color: SasColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _reasonController,
-                maxLines: 3,
-                maxLength: 500,
-                style: const TextStyle(color: SasColors.textPrimary, fontSize: 14),
-                decoration: InputDecoration(
-                  hintText:
-                      'Explain what happened and why you believe this marking is incorrect...',
-                  hintStyle: const TextStyle(color: SasColors.textMuted, fontSize: 13),
-                  filled: true,
-                  fillColor: SasColors.glassBg,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: SasColors.glassBorder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: SasColors.glassBorder),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: SasColors.glassBorderHover),
-                  ),
-                  counterStyle: const TextStyle(color: SasColors.textMuted, fontSize: 11),
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              GlassButton(
-                label: 'Submit Dispute',
-                isExpanded: true,
-                isLoading: _isSubmitting,
-                icon: Icons.send_rounded,
-                onPressed: _isSubmitting ? null : _submit,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

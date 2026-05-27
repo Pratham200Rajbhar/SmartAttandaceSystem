@@ -8,6 +8,11 @@ import api from "@/lib/api";
 import toast from "react-hot-toast";
 import GlassBadge from "./GlassBadge";
 
+const ROLE_BADGE_VARIANT: Record<string, "info" | "success"> = {
+  ADMIN: "info",
+  TEACHER: "success",
+};
+
 interface HeaderProps {
   onMenuToggle: () => void;
 }
@@ -27,7 +32,7 @@ export default function Header({ onMenuToggle }: HeaderProps): React.ReactElemen
     router.push("/login");
   }
 
-  const roleBadge = user?.role === "ADMIN" ? "info" : "success";
+  const roleBadge = ROLE_BADGE_VARIANT[user?.role ?? ""] ?? "success";
 
   return (
     <header

@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassTable, { type TableColumn } from "@/components/ui/GlassTable";
@@ -65,8 +65,7 @@ export default function DesignationsPage(): React.ReactElement {
       setDeleteTarget(null);
       await fetchDesignations();
     } catch (err: unknown) {
-      const errMsg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Delete failed";
-      toast.error(errMsg);
+      toast.error(getApiErrorMessage(err, "Delete failed"));
     } finally {
       setDeleting(false);
     }

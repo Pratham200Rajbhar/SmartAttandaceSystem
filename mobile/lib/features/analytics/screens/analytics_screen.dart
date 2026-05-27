@@ -7,7 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
+import 'package:smart_attendance_app/core/attendance_utils.dart';
+import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
+import 'package:smart_attendance_app/domain/models/student_stats.dart';
 import 'package:smart_attendance_app/features/history/providers/history_provider.dart';
 import 'package:smart_attendance_app/features/settings/providers/preferences_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
@@ -21,12 +24,31 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 }
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
+  StudentStats? _stats;
+  bool _statsLoading = true;
+
   @override
   void initState() {
     super.initState();
     final currentHistory = ref.read(historyProvider);
     if (currentHistory.data == null) {
       ref.read(historyProvider.notifier).fetch();
+    }
+    _fetchStats();
+  }
+
+  Future<void> _fetchStats() async {
+    try {
+      final api = ref.read(studentApiProvider);
+      final statsData = await api.getMyStats();
+      if (mounted) {
+        setState(() {
+          _stats = StudentStats.fromJson(statsData);
+          _statsLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _statsLoading = false);
     }
   }
 
@@ -41,7 +63,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         child: RefreshIndicator(
           color: SasColors.accentEmerald,
           backgroundColor: SasColors.bgSecondary,
-          onRefresh: () => ref.read(historyProvider.notifier).fetch(),
+          onRefresh: () async {
+            await ref.read(historyProvider.notifier).fetch();
+            await _fetchStats();
+          },
           child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
@@ -96,10 +121,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   Widget _buildOverallStats(AttendanceHistoryResponse data, double target) {
     final history = data.history;
     final total = history.length;
-    final present =
-        history.where((h) => h.status == 'Present' || h.status == 'Approved').length;
-    final absent = history.where((h) => h.status == 'Absent').length;
-    final flagged = history.where((h) => h.status == 'Flagged').length;
+    final present = countPresentOrApproved(history);
+    final absent = countAbsent(history);
+    final flagged = countFlagged(history);
     final pct = data.overallAttendancePercentage;
 
     return Column(
@@ -151,7 +175,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   Text(
                     '${pct.toStringAsFixed(1)}%',
                     style: TextStyle(
-                      color: _pctColor(pct),
+                      color: pctColor(pct),
                       fontWeight: FontWeight.w800,
                       fontSize: 16,
                     ),
@@ -165,7 +189,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   value: (pct / 100).clamp(0.0, 1.0),
                   backgroundColor: SasColors.glassBg,
                   valueColor:
-                      AlwaysStoppedAnimation<Color>(_pctColor(pct)),
+                      AlwaysStoppedAnimation<Color>(pctColor(pct)),
                   minHeight: 8,
                 ),
               ),
@@ -214,10 +238,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
             h.markedAt.isBefore(weekEnd.add(const Duration(days: 1)));
       }).toList();
 
-      final present = weekItems
-          .where((h) => h.status == 'Present' || h.status == 'Approved')
-          .length
-          .toDouble();
+      final present = countPresentOrApproved(weekItems).toDouble();
       final total = weekItems.length.toDouble();
       presentCounts.add(present);
       totalCounts.add(total);
@@ -352,23 +373,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           final pct = stat.total > 0
               ? (stat.present / stat.total * 100)
               : 0.0;
-          final color = _pctColor(pct);
+          final color = pctColor(pct);
 
-          int canMiss = 0;
-          int needToAttend = 0;
-          if (pct >= target) {
-            
-            canMiss = ((stat.present / (target / 100)) - stat.total).floor();
-            canMiss = canMiss.clamp(0, 999);
-          } else {
-            
-            final ratio = target / 100;
-            if (ratio < 1.0) {
-              needToAttend =
-                  ((ratio * stat.total - stat.present) / (1 - ratio)).ceil();
-              needToAttend = needToAttend.clamp(0, 999);
-            }
-          }
+          final needs = computeAttendanceNeeds(
+            present: stat.present,
+            total: stat.total,
+            target: target,
+          );
+          final canMiss = needs.canMiss;
+          final needToAttend = needs.needToAttend;
 
           return Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -445,7 +458,48 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   }
 
   Widget _buildStreakCard(AttendanceHistoryResponse data) {
-    
+    if (_stats != null && _stats!.highestStreak > 0) {
+      return GlassCard(
+        padding: const EdgeInsets.all(16),
+        borderColor: SasColors.accentEmerald.withValues(alpha: 0.3),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: SasColors.accentEmerald.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.local_fire_department_rounded,
+                  color: SasColors.accentEmerald, size: 28),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${_stats!.highestStreak} session streak',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                  Text(
+                    'Current: ${_stats!.currentStreak} sessions',
+                    style: const TextStyle(
+                        color: SasColors.textMuted, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '🔥',
+              style: const TextStyle(fontSize: 28),
+            ),
+          ],
+        ),
+      );
+    }
+
     final subjectStreaks = <String, int>{};
     final subjectNames = <String, String>{};
     final grouped = <String, List<AttendanceHistoryItem>>{};
@@ -460,7 +514,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         ..sort((a, b) => b.markedAt.compareTo(a.markedAt));
       int streak = 0;
       for (final item in sorted) {
-        if (item.status == 'Present' || item.status == 'Approved') {
+        if (isPresentOrApproved(item.status)) {
           streak++;
         } else {
           break;
@@ -588,11 +642,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                                   weekEnd.add(const Duration(days: 1)));
                         }).toList();
                         final wTotal = weekItems.length;
-                        final wPresent = weekItems
-                            .where((h) =>
-                                h.status == 'Present' ||
-                                h.status == 'Approved')
-                            .length;
+                        final wPresent = countPresentOrApproved(weekItems);
                         final wPct =
                             wTotal > 0 ? wPresent / wTotal : -1.0;
 
@@ -674,18 +724,14 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       );
       stat.total++;
       stat.items.add(item);
-      if (item.status == 'Present' || item.status == 'Approved') {
+      if (isPresentOrApproved(item.status)) {
         stat.present++;
       }
     }
     return map;
   }
 
-  Color _pctColor(double pct) {
-    if (pct >= 75) return SasColors.success;
-    if (pct >= 50) return SasColors.warning;
-    return SasColors.danger;
-  }
+
 }
 
 class _SubjectAnalyticsStat {

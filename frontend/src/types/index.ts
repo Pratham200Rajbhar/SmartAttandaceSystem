@@ -340,6 +340,28 @@ export interface FlaggedAttendanceResponse {
   gps_latitude: number;
   gps_longitude: number;
   created_at: string;
+  student_note?: string | null;
+}
+
+export interface PendingLeaveItem {
+  id: string;
+  student_id: string;
+  student_name: string;
+  enrollment_number: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  document_url: string | null;
+  status: string;
+  approved_by?: string | null;
+  approver_note?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeaveApproveRequest {
+  status: "APPROVED" | "REJECTED";
+  approver_note?: string;
 }
 
 export interface AttendanceReview {

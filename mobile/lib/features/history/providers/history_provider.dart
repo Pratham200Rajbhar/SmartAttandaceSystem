@@ -1,7 +1,5 @@
 
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/api/websocket_service.dart';
 import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
@@ -34,15 +32,13 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
   Future<void> fetch() async {
     state = HistoryState(data: state.data, isLoading: true);
     try {
-      final data = await _repo.getHistory();
-      state = HistoryState(data: data);
-    } on DioException catch (e) {
-      AppLogger.error('Fetch history failed: $e');
-      final mapped = mapDioError(e);
-      state = HistoryState(data: state.data, errorMessage: mapped.message);
+      state = HistoryState(data: await _repo.getHistory());
     } catch (e) {
-      AppLogger.error('Fetch history error: $e');
-      state = HistoryState(data: state.data, errorMessage: 'Something went wrong. Please try again.');
+      AppLogger.error('Fetch history failed: $e');
+      state = HistoryState(
+        data: state.data,
+        errorMessage: e is Exception ? e.toString() : 'Something went wrong. Please try again.',
+      );
     }
   }
 }

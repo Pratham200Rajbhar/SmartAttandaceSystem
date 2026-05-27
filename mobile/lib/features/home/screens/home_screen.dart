@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
+import 'package:smart_attendance_app/core/attendance_utils.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
 import 'package:smart_attendance_app/features/home/providers/session_provider.dart';
@@ -15,7 +16,6 @@ import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 import 'package:smart_attendance_app/shared/widgets/at_risk_banner.dart';
 import 'package:smart_attendance_app/shared/widgets/streak_counter.dart';
-
 import 'package:smart_attendance_app/data/local/pending_count_provider.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -56,8 +56,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     final sessionState = ref.watch(sessionProvider);
     final pendingCount = ref.watch(pendingCountProvider);
     final historyState = ref.watch(historyProvider);
-    final rawPct = historyState.data?.overallAttendancePercentage ?? 100;
-    final overallPct = (rawPct.isNaN || rawPct.isInfinite) ? 100.0 : rawPct.toDouble();
+    final rawPct = historyState.data?.overallAttendancePercentage ?? 0;
+    final overallPct = (rawPct.isNaN || rawPct.isInfinite) ? 0.0 : rawPct.toDouble();
 
     return AnimatedBackground(
       child: SafeArea(
@@ -237,14 +237,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                 ),
               ],
 
-              if (historyState.data != null && _calculateStreak(historyState.data!.history) > 0) ...[
+              if (historyState.data != null && calculateStreak(historyState.data!.history) > 0) ...[
                 const SizedBox(height: 8),
                 StreakCounter(
-                  currentStreak: _calculateStreak(historyState.data!.history),
-                  highestStreak: _calculateHighestStreak(historyState.data!.history), 
+                  currentStreak: calculateStreak(historyState.data!.history),
+                  highestStreak: calculateHighestStreak(historyState.data!.history),
                   isCompact: true,
                 ),
               ],
+
+              const SizedBox(height: 8),
+
+              _LeaveQuickActions(),
 
               const SizedBox(height: 8),
 
@@ -298,37 +302,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
     );
   }
 
-  int _calculateStreak(List<AttendanceHistoryItem> history) {
-    if (history.isEmpty) return 0;
-    final sorted = [...history]..sort((a, b) => b.markedAt.compareTo(a.markedAt));
-    int streak = 0;
-    for (final item in sorted) {
-      if (item.status == 'Present' || item.status == 'Approved') {
-        streak++;
-      } else {
-        break;
-      }
-    }
-    return streak;
-  }
 
-  int _calculateHighestStreak(List<AttendanceHistoryItem> history) {
-    if (history.isEmpty) return 0;
-    final sorted = [...history]..sort((a, b) => a.markedAt.compareTo(b.markedAt));
-    int maxStreak = 0;
-    int currentStreak = 0;
-    for (final item in sorted) {
-      if (item.status == 'Present' || item.status == 'Approved') {
-        currentStreak++;
-        if (currentStreak > maxStreak) {
-          maxStreak = currentStreak;
-        }
-      } else {
-        currentStreak = 0;
-      }
-    }
-    return maxStreak;
-  }
 }
 
 class _ClassCard extends StatefulWidget {
@@ -622,24 +596,8 @@ class _QuickStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    
-    final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1));
-    final weekItems = history.where((h) =>
-        h.markedAt.isAfter(weekStart.subtract(const Duration(days: 1)))).toList();
-    final weekPresent = weekItems
-        .where((h) => h.status == 'Present' || h.status == 'Approved')
-        .length;
-
-    final sorted = [...history]..sort((a, b) => b.markedAt.compareTo(a.markedAt));
-    int streak = 0;
-    for (final item in sorted) {
-      if (item.status == 'Present' || item.status == 'Approved') {
-        streak++;
-      } else {
-        break;
-      }
-    }
+    final weekPresent = computeWeekPresent(history);
+    final streak = calculateStreak(history);
 
     return GestureDetector(
       onTap: onTapAnalytics,
@@ -690,6 +648,107 @@ class _QuickStat extends StatelessWidget {
           Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 10)),
         ],
       ),
+    );
+  }
+}
+
+class _LeaveQuickActions extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            const Icon(Icons.event_note_rounded,
+                color: SasColors.textMuted, size: 18),
+            const SizedBox(width: 8),
+            const Text(
+              'Leave Management',
+              style: TextStyle(
+                color: SasColors.textSecondary,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: GlassCard(
+                onTap: () => context.push('/leave/request'),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: SasColors.accentEmerald.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.add_circle_outline_rounded,
+                          color: SasColors.accentEmerald, size: 24),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Request Leave',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Submit new request',
+                      style: TextStyle(
+                        color: SasColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: GlassCard(
+                onTap: () => context.push('/leave/history'),
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: SasColors.info.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.history_rounded,
+                          color: SasColors.info, size: 24),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Leave History',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'View all requests',
+                      style: TextStyle(
+                        color: SasColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

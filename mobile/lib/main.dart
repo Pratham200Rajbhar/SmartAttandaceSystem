@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/app/router.dart';
 import 'package:smart_attendance_app/app/theme.dart';
+import 'package:smart_attendance_app/core/attendance_constants.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/data/local/hive_service.dart';
 import 'package:smart_attendance_app/data/local/offline_sync_service.dart';
@@ -30,9 +31,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 String _inferSeverity(Map<String, dynamic> data) {
   final type = data['type'] as String?;
-  if (type == 'low_attendance' || type == 'anomaly') return 'danger';
-  if (type == 'warning') return 'warning';
-  return 'info';
+  if (type == 'low_attendance' || type == 'anomaly') return kSeverityDanger;
+  if (type == 'warning') return kSeverityWarning;
+  return kSeverityInfo;
 }
 
 @pragma('vm:entry-point')
@@ -56,7 +57,8 @@ void callbackDispatcher() {
       final syncService = container.read(offlineSyncServiceProvider);
       await syncService.syncQueue();
       return Future.value(true);
-    } catch (_) {
+    } catch (e) {
+      AppLogger.error('Workmanager sync failed: $e');
       return Future.value(false);
     }
   });
@@ -104,7 +106,9 @@ Future<void> main() async {
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
       
       await FirebaseMessaging.instance.requestPermission();
-    } catch (_) {} 
+    } catch (e) {
+      AppLogger.error('Firebase init failed: $e');
+    } 
 
     Workmanager().initialize(
       callbackDispatcher,
@@ -160,13 +164,17 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
       if (token != null) {
         try {
           await ref.read(studentApiProvider).registerFcmToken(token);
-        } catch (_) {} 
+        } catch (e) {
+          AppLogger.error('FCM token registration failed: $e');
+        } 
       }
 
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
         try {
           await ref.read(studentApiProvider).registerFcmToken(newToken);
-        } catch (_) {} 
+        } catch (e) {
+          AppLogger.error('FCM token refresh registration failed: $e');
+        } 
       });
 
       FirebaseMessaging.onMessage.listen((RemoteMessage message) async {
@@ -180,7 +188,9 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
         
         await ref.read(notificationsProvider.notifier).load();
       });
-    } catch (_) {} 
+    } catch (e) {
+      AppLogger.error('FCM listener setup failed: $e');
+    }
   }
 
   @override

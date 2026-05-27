@@ -12,6 +12,30 @@ interface GlassStatCardProps {
   accentColor?: string;
 }
 
+const iconColors: Record<string, string> = {
+  blue: "text-blue-400 bg-blue-500/[0.15] shadow-[0_0_15px_rgba(59,130,246,0.3)]",
+  emerald: "text-emerald-400 bg-emerald-500/[0.15] shadow-[0_0_15px_rgba(16,185,129,0.3)]",
+  amber: "text-amber-400 bg-amber-500/[0.15] shadow-[0_0_15px_rgba(245,158,11,0.3)]",
+  rose: "text-rose-400 bg-rose-500/[0.15] shadow-[0_0_15px_rgba(244,63,94,0.3)]",
+  purple: "text-purple-400 bg-purple-500/[0.15] shadow-[0_0_15px_rgba(168,85,247,0.3)]",
+};
+
+const hexColors: Record<string, string> = {
+  blue: "#3b82f6",
+  emerald: "#10b981",
+  amber: "#f59e0b",
+  rose: "#f43f5e",
+  purple: "#a855f7",
+};
+
+const bgGradients: Record<string, string> = {
+  blue: "bg-gradient-to-br from-blue-500/[0.04] to-transparent",
+  emerald: "bg-gradient-to-br from-emerald-500/[0.04] to-transparent",
+  amber: "bg-gradient-to-br from-amber-500/[0.04] to-transparent",
+  rose: "bg-gradient-to-br from-rose-500/[0.04] to-transparent",
+  purple: "bg-gradient-to-br from-purple-500/[0.04] to-transparent",
+};
+
 export default function GlassStatCard({
   icon,
   label,
@@ -20,30 +44,6 @@ export default function GlassStatCard({
   trendUp,
   accentColor = "blue",
 }: GlassStatCardProps): React.ReactElement {
-  const iconColors: Record<string, string> = {
-    blue: "text-blue-400 bg-blue-500/[0.15] shadow-[0_0_15px_rgba(59,130,246,0.3)]",
-    emerald: "text-emerald-400 bg-emerald-500/[0.15] shadow-[0_0_15px_rgba(16,185,129,0.3)]",
-    amber: "text-amber-400 bg-amber-500/[0.15] shadow-[0_0_15px_rgba(245,158,11,0.3)]",
-    rose: "text-rose-400 bg-rose-500/[0.15] shadow-[0_0_15px_rgba(244,63,94,0.3)]",
-    purple: "text-purple-400 bg-purple-500/[0.15] shadow-[0_0_15px_rgba(168,85,247,0.3)]",
-  };
-
-  const hexColors: Record<string, string> = {
-    blue: "#3b82f6",
-    emerald: "#10b981",
-    amber: "#f59e0b",
-    rose: "#f43f5e",
-    purple: "#a855f7",
-  };
-
-  const bgGradients: Record<string, string> = {
-    blue: "bg-gradient-to-br from-blue-500/[0.04] to-transparent",
-    emerald: "bg-gradient-to-br from-emerald-500/[0.04] to-transparent",
-    amber: "bg-gradient-to-br from-amber-500/[0.04] to-transparent",
-    rose: "bg-gradient-to-br from-rose-500/[0.04] to-transparent",
-    purple: "bg-gradient-to-br from-purple-500/[0.04] to-transparent",
-  };
-
   return (
     <GlassCard 
       hoverable 

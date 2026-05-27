@@ -4,7 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Radio, Play, Square, ClipboardList, BookOpen } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassCard from "@/components/ui/GlassCard";
@@ -36,12 +36,8 @@ export default function SessionsPage(): React.ReactElement {
       setActiveSessions(
         allSessionsRes.data
           .filter((s) => s.isActive)
-          .map((s) => ({
-            id: s.id,
-            academicClassId: s.academicClassId,
-            startTime: s.startTime,
-            endTime: s.endTime,
-            isActive: s.isActive,
+          .map(({ id, academicClassId, startTime, endTime, isActive }) => ({
+            id, academicClassId, startTime, endTime, isActive,
           }))
       );
       setPastSessions(allSessionsRes.data.filter((s) => !s.isActive));
@@ -71,10 +67,7 @@ export default function SessionsPage(): React.ReactElement {
       setActiveSessions((prev) => [...prev, data]);
       toast.success("Session started!");
     } catch (err: unknown) {
-      toast.error(
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-          "Failed to start session"
-      );
+      toast.error(getApiErrorMessage(err, "Failed to start session"));
     } finally {
       setStarting(false);
     }

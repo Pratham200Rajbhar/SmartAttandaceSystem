@@ -112,21 +112,9 @@ class AttendanceRepository {
     }
   }
 
-  Future<void> registerFace(String imagePath) async {
-    try {
-      await _studentApi.registerFace(imagePath);
-    } on DioException catch (e) {
-      throw mapDioError(e);
-    }
-  }
+  Future<void> registerFace(String imagePath) => _studentApi.registerFace(imagePath);
 
-  Future<AttendanceHistoryResponse> getHistory() async {
-    try {
-      return await _studentApi.getMyAttendance();
-    } on DioException catch (e) {
-      throw mapDioError(e);
-    }
-  }
+  Future<AttendanceHistoryResponse> getHistory() => _studentApi.getMyAttendance();
 
   int get pendingOfflineCount => _hive.pendingCount;
 }

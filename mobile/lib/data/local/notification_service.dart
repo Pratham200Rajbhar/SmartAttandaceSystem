@@ -112,18 +112,27 @@ final notificationsProvider =
   return NotificationsNotifier(ref.read(notificationServiceProvider));
 });
 
+final notificationsLoadingProvider = Provider<bool>((ref) {
+  return ref.read(notificationsProvider.notifier).isLoading;
+});
+
 class NotificationsNotifier extends StateNotifier<List<LocalNotification>> {
   final NotificationService _service;
+  bool _isLoading = true;
+
+  bool get isLoading => _isLoading;
 
   NotificationsNotifier(this._service) : super([]) {
     load();
   }
 
   Future<void> load() async {
+    _isLoading = true;
     if (!_service.isInitialized) {
       await _service.initialize();
     }
     state = _service.getNotifications();
+    _isLoading = false;
   }
 
   Future<void> clear() async {

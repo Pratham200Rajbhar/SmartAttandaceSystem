@@ -1,102 +1,46 @@
 from datetime import datetime, timedelta, timezone
-
-from typing import Optional, Any, Dict
+from typing import Any
 
 import bcrypt
-
 import jwt
 
 from app.core.config import settings
 
+
 def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
 
-    salt = bcrypt.gensalt(rounds=12)
-
-    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
-
-    return hashed.decode("utf-8")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-
     try:
-
-        return bcrypt.checkpw(
-
-            plain_password.encode("utf-8"),
-
-            hashed_password.encode("utf-8")
-
-        )
-
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
     except (ValueError, TypeError):
-
         return False
 
+
 def create_access_token(
-
     subject: str,
-
     role: str,
-
-    expires_delta: Optional[timedelta] = None,
-
-    extra_data: Optional[Dict[str, Any]] = None
-
+    expires_delta: timedelta | None = None,
+    extra_data: dict[str, Any] | None = None,
 ) -> str:
-
-    if expires_delta:
-
-        expire = datetime.now(timezone.utc) + expires_delta
-
-    else:
-
-        expire = datetime.now(timezone.utc) + timedelta(
-
-            minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-
-        )
-
-    to_encode: Dict[str, Any] = {
-
-        "sub": subject,
-
-        "role": role,
-
-        "exp": int(expire.timestamp())
-
-    }
-
-    if extra_data:
-
-        to_encode.update(extra_data)
-
-    return jwt.encode(
-
-        to_encode,
-
-        settings.JWT_SECRET,
-
-        algorithm=settings.JWT_ALGORITHM
-
+    expire = datetime.now(timezone.utc) + (
+        expires_delta if expires_delta
+        else timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )
+    to_encode: dict[str, Any] = {
+        "sub": subject,
+        "role": role,
+        "exp": int(expire.timestamp()),
+    }
+    if extra_data:
+        to_encode.update(extra_data)
+    return jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
-def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
 
+def decode_access_token(token: str) -> dict[str, Any] | None:
     try:
-
-        payload = jwt.decode(
-
-            token,
-
-            settings.JWT_SECRET,
-
-            algorithms=[settings.JWT_ALGORITHM]
-
-        )
-
-        return payload
-
+        return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
     except jwt.PyJWTError:
-
         return None
 

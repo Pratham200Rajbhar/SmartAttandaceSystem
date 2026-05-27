@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookOpen, Users, PlusCircle, X, Settings2 } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -38,26 +38,23 @@ export default function CreateClassPage(): React.ReactElement {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
 
-  const fetchMasterData = useCallback(async (): Promise<void> => {
-    try {
-      const [teachersRes, subjectsRes, classroomsRes] = await Promise.all([
-        api.get<TeacherResponse[]>("/admin/users/teachers"),
-        api.get<SubjectResponse[]>("/admin/subjects"),
-        api.get<ClassroomResponse[]>("/admin/classrooms"),
-      ]);
-      setTeachers(teachersRes.data);
-      setSubjects(subjectsRes.data);
-      setClassrooms(classroomsRes.data);
-    } catch {
-      toast.error("Could not load master data.");
-    }
-  }, []);
-
   useEffect(() => {
-    void (async () => {
-      await fetchMasterData();
-    })();
-  }, [fetchMasterData]);
+    async function fetchMasterData(): Promise<void> {
+      try {
+        const [teachersRes, subjectsRes, classroomsRes] = await Promise.all([
+          api.get<TeacherResponse[]>("/admin/users/teachers"),
+          api.get<SubjectResponse[]>("/admin/subjects"),
+          api.get<ClassroomResponse[]>("/admin/classrooms"),
+        ]);
+        setTeachers(teachersRes.data);
+        setSubjects(subjectsRes.data);
+        setClassrooms(classroomsRes.data);
+      } catch {
+        toast.error("Could not load master data.");
+      }
+    }
+    void fetchMasterData();
+  }, []);
 
   function set(field: keyof ClassCreate, value: string | number | undefined): void {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -82,10 +79,7 @@ export default function CreateClassPage(): React.ReactElement {
       toast.success("Class created successfully");
       router.push("/admin/classes");
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "Failed to create class";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Failed to create class"));
     } finally {
       setLoading(false);
     }

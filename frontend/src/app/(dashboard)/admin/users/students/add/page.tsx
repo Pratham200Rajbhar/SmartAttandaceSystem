@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { User, GraduationCap, PlusCircle, X } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -40,20 +40,17 @@ export default function AddStudentPage(): React.ReactElement {
   const [errors, setErrors] = useState<FormErrors>({});
   const [loading, setLoading] = useState(false);
 
-  const fetchDepartments = useCallback(async (): Promise<void> => {
-    try {
-      const { data } = await api.get<DepartmentResponse[]>("/admin/departments");
-      setDepartments(data);
-    } catch {
-      
-    }
-  }, []);
-
   useEffect(() => {
-    void (async () => {
-      await fetchDepartments();
-    })();
-  }, [fetchDepartments]);
+    async function fetchDepartments(): Promise<void> {
+      try {
+        const { data } = await api.get<DepartmentResponse[]>("/admin/departments");
+        setDepartments(data);
+      } catch {
+        
+      }
+    }
+    void fetchDepartments();
+  }, []);
 
   function set(field: keyof StudentCreate, value: string | number | undefined): void {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -80,10 +77,7 @@ export default function AddStudentPage(): React.ReactElement {
       toast.success("Student created successfully");
       router.push("/admin/users/students");
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        "Failed to create student";
-      toast.error(msg);
+      toast.error(getApiErrorMessage(err, "Failed to create student"));
     } finally {
       setLoading(false);
     }

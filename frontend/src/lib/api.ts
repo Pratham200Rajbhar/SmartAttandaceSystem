@@ -33,4 +33,8 @@ api.interceptors.response.use(
   }
 );
 
+export function getApiErrorMessage(err: unknown, fallback = "Something went wrong"): string {
+  return (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || fallback;
+}
+
 export default api;

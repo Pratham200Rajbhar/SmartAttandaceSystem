@@ -123,6 +123,7 @@ class StudentClass {
   final DateTime? sessionEndTime;
   final double? latitude;
   final double? longitude;
+  final double? radiusMeters;
 
   const StudentClass({
     required this.classId,
@@ -133,6 +134,7 @@ class StudentClass {
     this.sessionEndTime,
     this.latitude,
     this.longitude,
+    this.radiusMeters,
   });
 
   factory StudentClass.fromJson(Map<String, dynamic> json) => StudentClass(
@@ -146,5 +148,6 @@ class StudentClass {
             : null,
         latitude: (json['latitude'] as num?)?.toDouble(),
         longitude: (json['longitude'] as num?)?.toDouble(),
+        radiusMeters: (json['radius_meters'] as num?)?.toDouble(),
       );
 }

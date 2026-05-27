@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
+import type { StateStorage } from "zustand/middleware";
 import type { UserProfile } from "@/types";
 
 interface AuthState {
@@ -17,6 +18,28 @@ interface AuthActions {
 }
 
 type AuthStore = AuthState & AuthActions;
+
+const cookieStorage: StateStorage = {
+  getItem: (name: string): string | null => {
+    if (typeof window === "undefined") return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      const cookieVal = parts.pop()?.split(";").shift();
+      return cookieVal ? decodeURIComponent(cookieVal) : null;
+    }
+    return null;
+  },
+  setItem: (name: string, value: string): void => {
+    if (typeof window === "undefined") return;
+    const secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=604800; SameSite=Lax${secure}`;
+  },
+  removeItem: (name: string): void => {
+    if (typeof window === "undefined") return;
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax`;
+  },
+};
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -44,6 +67,7 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: "sas-auth-storage",
+      storage: createJSONStorage(() => cookieStorage),
       onRehydrateStorage: () => {
         return (state): void => {
           state?.setHydrated(true);

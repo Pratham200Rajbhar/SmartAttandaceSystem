@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:smart_attendance_app/data/local/secure_storage.dart';
-import 'package:smart_attendance_app/utils/logger.dart';
 
 final deviceServiceProvider = Provider<DeviceService>((ref) {
   return DeviceService(ref.read(secureStorageProvider));

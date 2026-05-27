@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassCard from "@/components/ui/GlassCard";
@@ -40,8 +40,7 @@ export default function CreateDesignationPage(): React.ReactElement {
       toast.success("Designation created successfully");
       router.push("/admin/setup/designations");
     } catch (err: unknown) {
-      const errMsg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Creation failed";
-      toast.error(errMsg);
+      toast.error(getApiErrorMessage(err, "Creation failed"));
     } finally {
       setLoading(false);
     }

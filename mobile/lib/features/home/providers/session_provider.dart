@@ -6,6 +6,7 @@ import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
 import 'package:smart_attendance_app/domain/enums/auth_state.dart';
+import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
 import 'package:smart_attendance_app/utils/logger.dart';
 
@@ -19,6 +20,7 @@ class ClassSession {
   final DateTime? sessionEndTime;
   final double? latitude;
   final double? longitude;
+  final double? radiusMeters;
 
   const ClassSession({
     required this.classId,
@@ -30,6 +32,7 @@ class ClassSession {
     this.sessionEndTime,
     this.latitude,
     this.longitude,
+    this.radiusMeters,
   });
 }
 
@@ -68,6 +71,32 @@ class SessionNotifier extends StateNotifier<SessionState> {
     });
   }
 
+  void _adjustPollInterval(List<ClassSession> sessions) {
+    final hasActive = sessions.any((s) => s.isActive);
+    if (hasActive) {
+      _currentInterval = kSessionPollMinInterval;
+    } else {
+      _currentInterval = Duration(
+        seconds: (_currentInterval.inSeconds * 2)
+            .clamp(kSessionPollMinInterval.inSeconds, kSessionPollMaxInterval.inSeconds),
+      );
+    }
+  }
+
+  List<ClassSession> _mapClasses(List<StudentClass> classes) =>
+      classes.map((c) => ClassSession(
+            classId: c.classId,
+            className: c.className,
+            subject: c.subject,
+            teacherName: c.teacherName,
+            sessionId: c.activeSessionId,
+            isActive: c.activeSessionId != null,
+            sessionEndTime: c.sessionEndTime,
+            latitude: c.latitude,
+            longitude: c.longitude,
+            radiusMeters: c.radiusMeters,
+          )).toList();
+
   Future<void> fetchSessions() async {
     state = SessionState(
       sessions: state.sessions,
@@ -75,43 +104,17 @@ class SessionNotifier extends StateNotifier<SessionState> {
       markedSessionIds: state.markedSessionIds,
     );
     try {
-      final classes = await _api.getMyClasses();
-
-      final classSessions = classes
-          .map((c) => ClassSession(
-                classId: c.classId,
-                className: c.className,
-                subject: c.subject,
-                teacherName: c.teacherName,
-                sessionId: c.activeSessionId,
-                isActive: c.activeSessionId != null,
-                sessionEndTime: c.sessionEndTime,
-                latitude: c.latitude,
-                longitude: c.longitude,
-              ))
-          .toList();
-
-      final hasActive = classSessions.any((s) => s.isActive);
-
-      if (hasActive) {
-        _currentInterval = kSessionPollMinInterval;
-      } else {
-        _currentInterval = Duration(
-          seconds: (_currentInterval.inSeconds * 2)
-              .clamp(kSessionPollMinInterval.inSeconds, kSessionPollMaxInterval.inSeconds),
-        );
-      }
-
+      final classSessions = _mapClasses(await _api.getMyClasses());
+      _adjustPollInterval(classSessions);
       state = SessionState(
         sessions: classSessions,
         markedSessionIds: state.markedSessionIds,
       );
     } on DioException catch (e) {
       AppLogger.error('Fetch sessions failed: $e');
-      final mapped = mapDioError(e);
       state = SessionState(
         sessions: state.sessions,
-        errorMessage: mapped.message,
+        errorMessage: mapDioError(e).message,
         markedSessionIds: state.markedSessionIds,
       );
     } catch (e) {

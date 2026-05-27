@@ -9,6 +9,14 @@ import GlassSearch from "@/components/ui/GlassSearch";
 import GlassBadge from "@/components/ui/GlassBadge";
 import GlassLoader from "@/components/ui/GlassLoader";
 import type { AuditLogResponse } from "@/types";
+import type { BadgeVariant } from "@/components/ui/GlassBadge";
+
+const SEVERITY_VARIANT: Record<string, BadgeVariant> = {
+  HIGH: "danger",
+  CRITICAL: "danger",
+  MEDIUM: "warning",
+  LOW: "info",
+};
 
 export default function AuditPage(): React.ReactElement {
   const [logs, setLogs] = useState<AuditLogResponse[]>([]);
@@ -30,17 +38,10 @@ export default function AuditPage(): React.ReactElement {
     setFiltered(logs.filter((l) => l.eventType.toLowerCase().includes(lq) || l.actor.toLowerCase().includes(lq) || l.description.toLowerCase().includes(lq)));
   }, [logs]);
 
-  const severityVariant = (s: string): "success" | "warning" | "danger" | "info" => {
-    if (s === "HIGH" || s === "CRITICAL") return "danger";
-    if (s === "MEDIUM") return "warning";
-    if (s === "LOW") return "info";
-    return "info";
-  };
-
   const columns: TableColumn<AuditLogResponse & Record<string, unknown>>[] = [
     { key: "timestamp", header: "Time", sortable: true, render: (r) => <span className="text-xs text-slate-400">{new Date(String(r.timestamp)).toLocaleString()}</span> },
     { key: "eventType", header: "Event", sortable: true },
-    { key: "severity", header: "Severity", render: (r) => <GlassBadge variant={severityVariant(String(r.severity))}>{String(r.severity)}</GlassBadge> },
+    { key: "severity", header: "Severity", render: (r) => <GlassBadge variant={SEVERITY_VARIANT[String(r.severity)] ?? "info"}>{String(r.severity)}</GlassBadge> },
     { key: "actor", header: "Actor" },
     { key: "target", header: "Target" },
     { key: "description", header: "Description", render: (r) => <span className="text-sm text-slate-400 max-w-xs truncate block">{String(r.description)}</span> },

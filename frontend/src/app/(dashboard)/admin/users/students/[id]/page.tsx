@@ -7,7 +7,7 @@ import {
   MapPin, Clock, Award, ShieldCheck, ChevronRight, KeyRound, Smartphone
 } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassCard from "@/components/ui/GlassCard";
 import GlassButton from "@/components/ui/GlassButton";
@@ -16,10 +16,21 @@ import GlassBadge from "@/components/ui/GlassBadge";
 import GlassResetPasswordDialog from "@/components/ui/GlassResetPasswordDialog";
 import type { StudentResponse } from "@/types";
 
+const colorVariants: Record<string, string> = {
+  blue: "bg-blue-500/10 text-blue-400 group-hover:shadow-blue-500/20",
+  purple: "bg-purple-500/10 text-purple-400 group-hover:shadow-purple-500/20",
+  pink: "bg-pink-500/10 text-pink-400 group-hover:shadow-pink-500/20",
+  amber: "bg-amber-500/10 text-amber-400 group-hover:shadow-amber-500/20",
+  emerald: "bg-emerald-500/10 text-emerald-400 group-hover:shadow-emerald-500/20",
+  rose: "bg-rose-500/10 text-rose-400 group-hover:shadow-rose-500/20",
+  cyan: "bg-cyan-500/10 text-cyan-400 group-hover:shadow-cyan-500/20",
+  slate: "bg-slate-500/10 text-slate-400 group-hover:shadow-slate-500/20",
+};
+
 const InfoItem = ({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: string, color: string }) => (
   <div className="group flex items-center justify-between p-4 rounded-xl border border-transparent hover:border-white/5 hover:bg-white/[0.02] transition-all duration-300">
     <div className="flex items-center gap-4">
-      <div className={`p-3 rounded-2xl bg-${color}-500/10 text-${color}-400 group-hover:scale-110 transition-transform duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.5)] group-hover:shadow-${color}-500/20`}>
+      <div className={`p-3 rounded-2xl ${colorVariants[color] || colorVariants.slate} group-hover:scale-110 transition-transform duration-300 shadow-[0_4px_12px_rgba(0,0,0,0.5)]`}>
         <Icon size={20} />
       </div>
       <div>
@@ -41,10 +52,10 @@ export default function StudentDetailPage(): React.ReactElement {
   useEffect(() => {
     async function fetchStudent(): Promise<void> {
       try {
-        const { data } = await api.get<StudentResponse[]>("/admin/users/students");
-        const found = data.find((s) => s.id === id);
-        setStudent(found || null);
-      } catch {
+        const { data } = await api.get<StudentResponse>(`/admin/users/students/${id}`);
+        setStudent(data);
+      } catch (err: unknown) {
+        toast.error(getApiErrorMessage(err, "Failed to load student"));
         setStudent(null);
       } finally {
         setLoading(false);
@@ -60,8 +71,7 @@ export default function StudentDetailPage(): React.ReactElement {
       toast.success(`Password reset for ${student.email}`);
       setIsResetDialogOpen(false);
     } catch (err: unknown) {
-      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to reset password";
-      toast.error(message);
+      toast.error(getApiErrorMessage(err, "Failed to reset password"));
     }
   };
 
@@ -71,8 +81,7 @@ export default function StudentDetailPage(): React.ReactElement {
       await api.put(`/admin/users/students/${student.id}/reset-device`);
       toast.success(`Device binding reset for ${student.email}`);
     } catch (err: unknown) {
-      const message = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail || "Failed to reset device binding";
-      toast.error(message);
+      toast.error(getApiErrorMessage(err, "Failed to reset device binding"));
     }
   };
 

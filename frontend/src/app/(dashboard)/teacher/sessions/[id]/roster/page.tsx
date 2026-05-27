@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { RefreshCw, ClipboardList } from "lucide-react";
 import toast from "react-hot-toast";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import { getWebSocket } from "@/lib/websocket";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
@@ -13,6 +13,7 @@ import GlassBadge, { statusToBadgeVariant } from "@/components/ui/GlassBadge";
 import GlassButton from "@/components/ui/GlassButton";
 import GlassStatCard from "@/components/ui/GlassStatCard";
 import GlassLoader from "@/components/ui/GlassLoader";
+import GlassConfirmDialog from "@/components/ui/GlassConfirmDialog";
 import type { SessionAttendanceResponse, StudentRosterItem, BulkMarkRequest } from "@/types";
 
 export default function SessionRosterPage(): React.ReactElement {
@@ -21,6 +22,7 @@ export default function SessionRosterPage(): React.ReactElement {
   const [roster, setRoster] = useState<SessionAttendanceResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
+  const [showConfirmBulk, setShowConfirmBulk] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchRoster = useCallback(async (): Promise<void> => {
@@ -29,8 +31,8 @@ export default function SessionRosterPage(): React.ReactElement {
         `/teacher/sessions/${id}/attendance`
       );
       setRoster(data);
-    } catch {
-      
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Failed to load roster"));
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,6 @@ export default function SessionRosterPage(): React.ReactElement {
 
   async function handleMarkAllPresent(): Promise<void> {
     if (!roster) return;
-    
     const targets = roster.roster.filter(
       (r) => r.status === "Absent" && r.marked_at === null
     );
@@ -77,8 +78,15 @@ export default function SessionRosterPage(): React.ReactElement {
       toast("No unmarked absent students to mark present.", { icon: "ℹ️" });
       return;
     }
-    if (!confirm(`Mark ${targets.length} absent student(s) as Present?`)) return;
+    setShowConfirmBulk(true);
+  }
 
+  async function handleBulkMarkConfirm(): Promise<void> {
+    if (!roster) return;
+    setShowConfirmBulk(false);
+    const targets = roster.roster.filter(
+      (r) => r.status === "Absent" && r.marked_at === null
+    );
     setMarkingAll(true);
     try {
       const payload: BulkMarkRequest = {
@@ -97,11 +105,15 @@ export default function SessionRosterPage(): React.ReactElement {
   if (loading) return <GlassLoader text="Loading roster..." />;
   if (!roster) return <div className="text-center py-20 text-slate-500">Session not found</div>;
 
-  const presentCount = roster.roster.filter(
-    (r) => r.status === "Present" || r.status === "Approved"
-  ).length;
-  const flaggedCount = roster.roster.filter((r) => r.status === "Flagged").length;
-  const absentCount = roster.roster.filter((r) => r.status === "Absent").length;
+  const counts = roster.roster.reduce(
+    (acc, r) => {
+      if (r.status === "Present" || r.status === "Approved") acc.present++;
+      else if (r.status === "Flagged") acc.flagged++;
+      else if (r.status === "Absent") acc.absent++;
+      return acc;
+    },
+    { present: 0, flagged: 0, absent: 0 }
+  );
 
   const columns: TableColumn<StudentRosterItem & Record<string, unknown>>[] = [
     { key: "enrollment_number", header: "Enrollment #", sortable: true },
@@ -192,9 +204,9 @@ export default function SessionRosterPage(): React.ReactElement {
       />
 
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <GlassStatCard icon={<span className="text-lg">✅</span>} label="Present" value={presentCount} accentColor="emerald" />
-        <GlassStatCard icon={<span className="text-lg">⚠️</span>} label="Flagged" value={flaggedCount} accentColor="amber" />
-        <GlassStatCard icon={<span className="text-lg">❌</span>} label="Absent" value={absentCount} accentColor="rose" />
+        <GlassStatCard icon={<span className="text-lg">✅</span>} label="Present" value={counts.present} accentColor="emerald" />
+        <GlassStatCard icon={<span className="text-lg">⚠️</span>} label="Flagged" value={counts.flagged} accentColor="amber" />
+        <GlassStatCard icon={<span className="text-lg">❌</span>} label="Absent" value={counts.absent} accentColor="rose" />
       </div>
 
       <GlassTable
@@ -202,6 +214,16 @@ export default function SessionRosterPage(): React.ReactElement {
         data={roster.roster as (StudentRosterItem & Record<string, unknown>)[]}
         emptyMessage="No students in roster"
         pageSize={20}
+      />
+      <GlassConfirmDialog
+        isOpen={showConfirmBulk}
+        title="Mark All Absent as Present"
+        message={`Mark all unmarked absent students as Present?`}
+        confirmLabel="Mark All"
+        variant="primary"
+        onConfirm={handleBulkMarkConfirm}
+        onCancel={() => setShowConfirmBulk(false)}
+        loading={markingAll}
       />
     </div>
   );
