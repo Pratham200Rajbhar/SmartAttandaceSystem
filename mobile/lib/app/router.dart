@@ -10,6 +10,7 @@ import 'package:smart_attendance_app/features/auth/screens/splash_screen.dart';
 import 'package:smart_attendance_app/features/registration/screens/face_registration_screen.dart';
 import 'package:smart_attendance_app/features/home/screens/home_screen.dart';
 import 'package:smart_attendance_app/features/attendance/screens/verification_screen.dart';
+import 'package:smart_attendance_app/features/attendance/screens/location_test_screen.dart';
 import 'package:smart_attendance_app/features/attendance/screens/result_screen.dart';
 import 'package:smart_attendance_app/features/attendance/screens/flagged_detail_screen.dart';
 import 'package:smart_attendance_app/features/history/screens/history_screen.dart';
@@ -132,6 +133,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, state) => _slideRightPage(
           key: state.pageKey,
           child: const NotificationsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/location-test',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const LocationTestScreen(),
         ),
       ),
 

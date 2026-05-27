@@ -39,34 +39,99 @@ class LocationService {
     await ensurePermissionsGranted();
 
     try {
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: LocationSettings(
-          accuracy: LocationAccuracy.high,
-          timeLimit: Duration(seconds: kGpsTimeoutSeconds),
-        ),
-      );
-
-      if (pos.isMocked) {
+      final accuracyStatus = await Geolocator.getLocationAccuracy();
+      if (accuracyStatus == LocationAccuracyStatus.reduced) {
         throw const LocationException(
-          'Mocked location detected. Attendance blocked.',
+          'Precise location is disabled. Please enable "Precise Location" in your system settings for this app.',
         );
       }
+    } catch (_) {
+      // Ignore if not supported on this platform/version
+    }
 
-      if (pos.accuracy > kMinGpsAccuracyMeters) {
-        throw LocationException(
-          'GPS accuracy (${pos.accuracy.toStringAsFixed(0)}m) is too low. Required: < ${kMinGpsAccuracyMeters.toStringAsFixed(0)}m.',
-        );
+    final completer = Completer<Position>();
+    StreamSubscription<Position>? subscription;
+    Timer? timeoutTimer;
+    Position? bestPosition;
+
+    void cleanup() {
+      timeoutTimer?.cancel();
+      subscription?.cancel();
+    }
+
+    // Set a timeout based on app constants
+    final timeoutDuration = Duration(seconds: kGpsTimeoutSeconds);
+
+    timeoutTimer = Timer(timeoutDuration, () {
+      cleanup();
+      if (!completer.isCompleted) {
+        if (bestPosition != null) {
+          if (bestPosition!.accuracy > kMinGpsAccuracyMeters) {
+            completer.completeError(
+              LocationException(
+                'GPS signal accuracy (${bestPosition!.accuracy.toStringAsFixed(0)}m) is too low. Required: < ${kMinGpsAccuracyMeters.toStringAsFixed(0)}m. Please step outdoors or near a window to improve signal.',
+              ),
+            );
+          } else {
+            completer.complete(bestPosition!);
+          }
+        } else {
+          completer.completeError(
+            const LocationException(
+              'GPS request timed out. Please ensure your device location is turned on and has a clear view of the sky.',
+            ),
+          );
+        }
       }
+    });
 
-      return pos;
-    } on TimeoutException {
-      throw const LocationException(
-        'GPS request timed out. Please ensure you have a clear view of the sky.',
+    try {
+      subscription = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 0,
+        ),
+      ).listen(
+        (Position pos) {
+          if (pos.isMocked) {
+            cleanup();
+            if (!completer.isCompleted) {
+              completer.completeError(
+                const LocationException('Mocked location detected. Attendance blocked.'),
+              );
+            }
+            return;
+          }
+
+          // Track the best position received so far
+          if (bestPosition == null || pos.accuracy < bestPosition!.accuracy) {
+            bestPosition = pos;
+          }
+
+          // If we reach the required accuracy threshold, resolve immediately!
+          if (pos.accuracy <= kMinGpsAccuracyMeters) {
+            cleanup();
+            if (!completer.isCompleted) {
+              completer.complete(pos);
+            }
+          }
+        },
+        onError: (e) {
+          cleanup();
+          if (!completer.isCompleted) {
+            completer.completeError(LocationException('Failed to acquire location: $e'));
+          }
+        },
+        cancelOnError: true,
       );
     } catch (e) {
-      if (e is LocationException) rethrow;
-      throw LocationException('Failed to acquire location: $e');
+      cleanup();
+      if (!completer.isCompleted) {
+        completer.completeError(LocationException('Failed to start location stream: $e'));
+      }
     }
+
+    return completer.future;
   }
 
   Future<Position> getAveragedPosition({int samples = kGpsAveragingSamples}) async {
