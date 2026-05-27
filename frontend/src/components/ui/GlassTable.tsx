@@ -67,7 +67,7 @@ export default function GlassTable<T extends Record<string, unknown>>({
 
   return (
     <div className="glass-panel-static overflow-hidden">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-auto max-h-[420px]">
         <table className="glass-table">
           <thead>
             <tr>
@@ -75,7 +75,7 @@ export default function GlassTable<T extends Record<string, unknown>>({
                 <th
                   key={col.key}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
-                  className={col.sortable ? "cursor-pointer select-none hover:text-slate-300" : ""}
+                  className={`${col.sortable ? "cursor-pointer select-none hover:text-slate-300" : ""} sticky top-0 bg-[#080916]/95 backdrop-blur-md z-10`}
                 >
                   <span className="flex items-center gap-1">
                     {col.header}

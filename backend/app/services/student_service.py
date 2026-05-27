@@ -25,20 +25,44 @@ class StudentService:
                 }
             },
         )
-        return [
-            StudentClassResponse(
+        
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        
+        # Proactively deactivate expired sessions to sync database state
+        expired_session_ids = []
+        for e in enrollments:
+            for s in e.academicClass.sessions:
+                s_end = s.endTime.replace(tzinfo=timezone.utc) if s.endTime.tzinfo is None else s.endTime
+                if s.isActive and s_end <= now:
+                    expired_session_ids.append(s.id)
+                    
+        if expired_session_ids:
+            await db.session.update_many(
+                where={"id": {"in": expired_session_ids}},
+                data={"isActive": False}
+            )
+
+        res = []
+        for e in enrollments:
+            valid_sessions = [
+                s for s in e.academicClass.sessions 
+                if s.isActive and s.id not in expired_session_ids
+            ]
+            active_s = valid_sessions[0] if valid_sessions else None
+            
+            res.append(StudentClassResponse(
                 class_id=e.academicClass.id,
                 class_name=e.academicClass.name,
                 subject=e.academicClass.subject.name if e.academicClass.subject else "—",
                 teacher_name=f"{e.academicClass.teacher.firstName} {e.academicClass.teacher.lastName}" if e.academicClass.teacher else "—",
-                active_session_id=(s := e.academicClass.sessions)[0].id if e.academicClass.sessions else None,
-                session_end_time=s[0].endTime if e.academicClass.sessions else None,
+                active_session_id=active_s.id if active_s else None,
+                session_end_time=active_s.endTime if active_s else None,
                 latitude=e.academicClass.geofence.latitude if e.academicClass.geofence else None,
                 longitude=e.academicClass.geofence.longitude if e.academicClass.geofence else None,
                 radius_meters=e.academicClass.geofence.radiusMeters if e.academicClass.geofence else None,
-            )
-            for e in enrollments
-        ]
+            ))
+        return res
 
     async def get_student_attendance_history(self, user_id: str) -> StudentAttendanceHistoryResponse:
         student = await self.get_student_by_user_id(user_id)

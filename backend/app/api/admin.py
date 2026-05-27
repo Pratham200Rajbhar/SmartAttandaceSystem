@@ -348,3 +348,22 @@ async def scan_absentee_anomalies(
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Outlier pattern extraction failed: {str(err)}")
 
+
+# --- System Config ---
+from app.schemas.system_config import SystemConfigResponse, SystemConfigUpdate
+from app.services.system_config_service import SystemConfigService
+
+@router.get("/config", response_model=SystemConfigResponse)
+async def get_system_config(config_service: SystemConfigService = Depends()):
+    return await config_service.get_config()
+
+
+@router.patch("/config", response_model=SystemConfigResponse)
+async def update_system_config(data: SystemConfigUpdate, config_service: SystemConfigService = Depends()):
+    return await config_service.update_config(
+        is_face_recognition_enabled=data.is_face_recognition_enabled,
+        is_gps_verification_enabled=data.is_gps_verification_enabled,
+        is_ai_background_validation_enabled=data.is_ai_background_validation_enabled,
+    )
+
+

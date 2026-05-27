@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/domain/models/offline_payload.dart';
 import 'package:smart_attendance_app/domain/models/user.dart';
+import 'package:smart_attendance_app/domain/models/system_configuration.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final hiveServiceProvider = Provider<HiveService>((ref) {
@@ -14,6 +15,7 @@ final hiveServiceProvider = Provider<HiveService>((ref) {
 class HiveService {
   Box<OfflineAttendancePayload>? _offlineBox;
   Box<String>? _profileBox;
+  Box<String>? _configBox;
 
   Future<void> initialize() async {
     await Hive.initFlutter();
@@ -26,6 +28,7 @@ class HiveService {
       kHiveBoxOfflineQueue,
     );
     _profileBox = await Hive.openBox<String>(kHiveBoxProfile);
+    _configBox = await Hive.openBox<String>(kHiveBoxConfig);
   }
 
   Future<void> addToQueue(OfflineAttendancePayload payload) async {
@@ -54,8 +57,27 @@ class HiveService {
     );
   }
 
+  Future<void> cacheSystemConfig(SystemConfiguration config) async {
+    await _configBox?.put('system_config', jsonEncode(config.toJson()));
+  }
+
+  SystemConfiguration getSystemConfig() {
+    final raw = _configBox?.get('system_config');
+    if (raw == null) {
+      return SystemConfiguration(
+        isFaceRecognitionEnabled: true,
+        isGpsVerificationEnabled: true,
+        isAiBackgroundValidationEnabled: true,
+      );
+    }
+    return SystemConfiguration.fromJson(
+      jsonDecode(raw) as Map<String, dynamic>,
+    );
+  }
+
   Future<void> clearAll() async {
     await _offlineBox?.clear();
     await _profileBox?.clear();
+    await _configBox?.clear();
   }
 }

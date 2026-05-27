@@ -31,6 +31,7 @@ const setupLinks: NavItem[] = [
   { label: "Subjects", href: "/admin/setup/subjects", icon: <BookOpen size={16} /> },
   { label: "Classrooms", href: "/admin/setup/classrooms", icon: <Sliders size={16} /> },
   { label: "Designations", href: "/admin/setup/designations", icon: <Users size={16} /> },
+  { label: "Verification Settings", href: "/admin/setup/verification-settings", icon: <Shield size={16} /> },
 ];
 
 const teacherLinks: NavItem[] = [

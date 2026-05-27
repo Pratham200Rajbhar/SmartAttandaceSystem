@@ -15,6 +15,7 @@ import 'package:smart_attendance_app/utils/logger.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:smart_attendance_app/data/repositories/config_repository.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -153,6 +154,8 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
     super.initState();
     
     ref.read(offlineSyncServiceProvider).startListening();
+    
+    Future.microtask(() => ref.read(configRepositoryProvider).fetchAndCacheConfig());
     
     _initializeFcm();
   }

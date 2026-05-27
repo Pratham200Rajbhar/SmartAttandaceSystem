@@ -10,6 +10,7 @@ const String kApiBaseUrl = String.fromEnvironment(
 const String kHiveBoxProfile = 'sas_profile';
 const String kHiveBoxOfflineQueue = 'sas_offline_queue';
 const String kHiveBoxNotifications = 'sas_notifications';
+const String kHiveBoxConfig = 'sas_config';
 
 const String kSecureKeyJwt = 'sas_jwt_token';
 const String kSecureKeyDeviceUuid = 'sas_device_uuid';

@@ -85,12 +85,14 @@ async def mark_attendance(
     latitude: float = Form(...),
     longitude: float = Form(...),
     accuracy: float = Form(...),
-    image: UploadFile = File(...),
+    image: UploadFile | None = File(None),
     student: Student = Depends(get_current_student),
     attendance_service: AttendanceService = Depends(),
 ) -> AttendanceMarkResponse:
-    _validate_image(image)
-    image_path = _save_uploaded_image(image, "attendance")
+    image_path = None
+    if image:
+        _validate_image(image)
+        image_path = _save_uploaded_image(image, "attendance")
     submission = AttendanceSubmission(
         student_id=student.id, session_id=session_id,
         latitude=latitude, longitude=longitude, accuracy=accuracy, image_path=image_path,
@@ -99,7 +101,7 @@ async def mark_attendance(
         attendance = await attendance_service.mark_attendance(submission)
         return AttendanceMarkResponse.model_validate(attendance)
     except ValueError as err:
-        if os.path.exists(image_path):
+        if image_path and os.path.exists(image_path):
             os.remove(image_path)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
@@ -110,7 +112,7 @@ async def analyze_attendance(
     latitude: float = Form(...),
     longitude: float = Form(...),
     accuracy: float = Form(...),
-    image: UploadFile = File(...),
+    image: UploadFile | None = File(None),
     student: Student = Depends(get_current_student),
     attendance_service: AttendanceService = Depends(),
 ) -> AttendanceAnalyzeResponse:
@@ -119,8 +121,10 @@ async def analyze_attendance(
     Returns scores and a short-lived review_token (5 min) that the student
     can use to confirm submission via POST /attendance/confirm.
     """
-    _validate_image(image)
-    image_path = _save_uploaded_image(image, "attendance")
+    image_path = None
+    if image:
+        _validate_image(image)
+        image_path = _save_uploaded_image(image, "attendance")
     submission = AttendanceSubmission(
         student_id=student.id, session_id=session_id,
         latitude=latitude, longitude=longitude, accuracy=accuracy, image_path=image_path,
@@ -129,7 +133,7 @@ async def analyze_attendance(
         result = await attendance_service.analyze_attendance(submission)
         return AttendanceAnalyzeResponse(**result)
     except ValueError as err:
-        if os.path.exists(image_path):
+        if image_path and os.path.exists(image_path):
             os.remove(image_path)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 

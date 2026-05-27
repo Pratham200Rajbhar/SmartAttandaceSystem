@@ -1,4 +1,5 @@
 
+import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http_parser/http_parser.dart';
@@ -31,16 +32,21 @@ class StudentApi {
     required double accuracy,
     required String imagePath,
   }) async {
-    final formData = FormData.fromMap({
+    final Map<String, dynamic> formDataMap = {
       'session_id': sessionId,
       'latitude': latitude.toString(),
       'longitude': longitude.toString(),
       'accuracy': accuracy.toString(),
-      'image': await MultipartFile.fromFile(
+    };
+    
+    if (File(imagePath).existsSync()) {
+      formDataMap['image'] = await MultipartFile.fromFile(
         imagePath,
         contentType: MediaType('image', 'jpeg'),
-      ),
-    });
+      );
+    }
+    
+    final formData = FormData.fromMap(formDataMap);
     final response = await _dio.post<Map<String, dynamic>>(
       '/student/attendance/mark',
       data: formData,
@@ -55,16 +61,21 @@ class StudentApi {
     required double accuracy,
     required String imagePath,
   }) async {
-    final formData = FormData.fromMap({
+    final Map<String, dynamic> formDataMap = {
       'session_id': sessionId,
       'latitude': latitude.toString(),
       'longitude': longitude.toString(),
       'accuracy': accuracy.toString(),
-      'image': await MultipartFile.fromFile(
+    };
+    
+    if (File(imagePath).existsSync()) {
+      formDataMap['image'] = await MultipartFile.fromFile(
         imagePath,
         contentType: MediaType('image', 'jpeg'),
-      ),
-    });
+      );
+    }
+
+    final formData = FormData.fromMap(formDataMap);
     final response = await _dio.post<Map<String, dynamic>>(
       '/student/attendance/analyze',
       data: formData,

@@ -6,7 +6,7 @@ interface GlassCardProps {
   children: React.ReactNode;
   className?: string;
   hoverable?: boolean;
-  padding?: "sm" | "md" | "lg";
+  padding?: "none" | "sm" | "md" | "lg";
   onClick?: () => void;
   glowColor?: string;
 }
@@ -20,7 +20,7 @@ export default function GlassCard({
   glowColor,
 }: GlassCardProps): React.ReactElement {
   const [isHovered, setIsHovered] = useState(false);
-  const padMap = { sm: "p-4", md: "p-6", lg: "p-8" };
+  const padMap = { none: "p-0", sm: "p-4", md: "p-6", lg: "p-8" };
 
   const glowStyle =
     hoverable && isHovered && glowColor

@@ -14,6 +14,7 @@ from app.repositories.geofence_repo import GeofenceRepository
 from app.repositories.student_repo import StudentRepository
 from app.repositories.class_repo import ClassRepository
 from app.services.ai_orchestrator import AIOrchestrator
+from app.services.system_config_service import SystemConfigService
 from app.utils.geofencing import GPSCoordinate, calculate_haversine_distance, GEOFENCE_GRACE_METERS, is_within_geofence
 from app.api.ws import manager
 
@@ -35,7 +36,7 @@ class AttendanceSubmission:
     latitude: float
     longitude: float
     accuracy: float
-    image_path: str
+    image_path: str | None = None
 
 
 class AttendanceService:
@@ -68,7 +69,7 @@ class AttendanceService:
 
         if not session:
             session = await self.session_repo.get_by_id(submission.session_id)
-            if not session or not session.isActive:
+            if not session:
                 raise ValueError("Attendance session is not active or not found.")
 
             if redis_client:
@@ -84,43 +85,69 @@ class AttendanceService:
                 except Exception as e:
                     logger.warning("Redis session cache write failed: %s", e)
 
-        if not session.isActive:
+        now = datetime.now(timezone.utc)
+        session_end = session.endTime.replace(tzinfo=timezone.utc) if session.endTime.tzinfo is None else session.endTime
+        if not session.isActive or session_end <= now:
+            if session.isActive:
+                await self.session_repo.deactivate(session.id)
+                try:
+                    await get_redis().delete(f"session:{session.id}")
+                except Exception:
+                    pass
             raise ValueError("Attendance session is not active or not found.")
 
-        geofence = await self.geofence_repo.get_by_class_id(session.academicClassId)
+        config = await SystemConfigService().get_config()
+
         geofence_missing = False
         remarks = None
 
-        if not geofence:
-            logger.warning("Missing geofence for class %s (student %s)", session.academicClassId, submission.student_id)
-            geofence_missing = True
-            remarks = "Missing Geofence Data"
-        else:
-            student_coord = GPSCoordinate(submission.latitude, submission.longitude)
-            classroom_coord = GPSCoordinate(geofence.latitude, geofence.longitude)
-            is_inside = is_within_geofence(
-                student_coord=student_coord,
-                classroom_coord=classroom_coord,
-                base_radius=geofence.radiusMeters,
-                student_accuracy=submission.accuracy,
-            )
-            if not is_inside:
-                distance = calculate_haversine_distance(student_coord, classroom_coord)
-                effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
-                raise ValueError(
-                    f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
-                    f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
+        if config.isGpsVerificationEnabled:
+            geofence = await self.geofence_repo.get_by_class_id(session.academicClassId)
+            if not geofence:
+                logger.warning("Missing geofence for class %s (student %s)", session.academicClassId, submission.student_id)
+                geofence_missing = True
+                remarks = "Missing Geofence Data"
+            else:
+                student_coord = GPSCoordinate(submission.latitude, submission.longitude)
+                classroom_coord = GPSCoordinate(geofence.latitude, geofence.longitude)
+                is_inside = is_within_geofence(
+                    student_coord=student_coord,
+                    classroom_coord=classroom_coord,
+                    base_radius=geofence.radiusMeters,
+                    student_accuracy=submission.accuracy,
                 )
+                if not is_inside:
+                    distance = calculate_haversine_distance(student_coord, classroom_coord)
+                    effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
+                    raise ValueError(
+                        f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
+                        f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
+                    )
 
-        face_embedding = await self.student_repo.get_face_embedding(submission.student_id)
-        if not face_embedding:
-            raise ValueError("Student face embedding is not registered.")
+        if config.isFaceRecognitionEnabled:
+            face_embedding = await self.student_repo.get_face_embedding(submission.student_id)
+            if not face_embedding:
+                raise ValueError("Student face embedding is not registered.")
+        else:
+            face_embedding = []
 
         existing = await self.attendance_repo.get_by_student_and_session(submission.student_id, submission.session_id)
         if existing:
             raise ValueError("Attendance already submitted for this session.")
 
-        ai_results = await self.ai_orchestrator.analyze_attendance(submission.image_path, face_embedding)
+        if config.isFaceRecognitionEnabled or config.isAiBackgroundValidationEnabled:
+            if not submission.image_path:
+                raise ValueError("Image is required when verification is enabled.")
+            ai_results = await self.ai_orchestrator.analyze_attendance(submission.image_path, face_embedding)
+        else:
+            ai_results = {"face_score": 1.0, "liveness_score": 1.0, "background_score": 1.0}
+            
+        if not config.isFaceRecognitionEnabled:
+            ai_results["face_score"] = 1.0
+            ai_results["liveness_score"] = 1.0
+            
+        if not config.isAiBackgroundValidationEnabled:
+            ai_results["background_score"] = 1.0
         final_score = (
             settings.FACE_WEIGHT * ai_results["face_score"]
             + settings.LIVENESS_WEIGHT * ai_results["liveness_score"]
@@ -162,7 +189,7 @@ class AttendanceService:
         except Exception as e:
             logger.warning("Streak update failed: %s", e)
 
-        if status == "Present" and os.path.exists(submission.image_path):
+        if status == "Present" and submission.image_path and os.path.exists(submission.image_path):
             try:
                 os.remove(submission.image_path)
             except Exception as e:
@@ -200,39 +227,53 @@ class AttendanceService:
 
         if not session:
             session = await self.session_repo.get_by_id(submission.session_id)
-            if not session or not session.isActive:
+            if not session:
                 raise ValueError("Attendance session is not active or not found.")
 
-        if not session.isActive:
+        now = datetime.now(timezone.utc)
+        session_end = session.endTime.replace(tzinfo=timezone.utc) if session.endTime.tzinfo is None else session.endTime
+        if not session.isActive or session_end <= now:
+            if session.isActive:
+                await self.session_repo.deactivate(session.id)
+                try:
+                    await get_redis().delete(f"session:{session.id}")
+                except Exception:
+                    pass
             raise ValueError("Attendance session is not active or not found.")
 
+        config = await SystemConfigService().get_config()
+
         # ── Geofence check ──────────────────────────────────────────────────
-        geofence = await self.geofence_repo.get_by_class_id(session.academicClassId)
         geofence_missing = False
-        if not geofence:
-            logger.warning("Missing geofence for class %s (student %s)", session.academicClassId, submission.student_id)
-            geofence_missing = True
-        else:
-            student_coord = GPSCoordinate(submission.latitude, submission.longitude)
-            classroom_coord = GPSCoordinate(geofence.latitude, geofence.longitude)
-            is_inside = is_within_geofence(
-                student_coord=student_coord,
-                classroom_coord=classroom_coord,
-                base_radius=geofence.radiusMeters,
-                student_accuracy=submission.accuracy,
-            )
-            if not is_inside:
-                distance = calculate_haversine_distance(student_coord, classroom_coord)
-                effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
-                raise ValueError(
-                    f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
-                    f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
+        if config.isGpsVerificationEnabled:
+            geofence = await self.geofence_repo.get_by_class_id(session.academicClassId)
+            if not geofence:
+                logger.warning("Missing geofence for class %s (student %s)", session.academicClassId, submission.student_id)
+                geofence_missing = True
+            else:
+                student_coord = GPSCoordinate(submission.latitude, submission.longitude)
+                classroom_coord = GPSCoordinate(geofence.latitude, geofence.longitude)
+                is_inside = is_within_geofence(
+                    student_coord=student_coord,
+                    classroom_coord=classroom_coord,
+                    base_radius=geofence.radiusMeters,
+                    student_accuracy=submission.accuracy,
                 )
+                if not is_inside:
+                    distance = calculate_haversine_distance(student_coord, classroom_coord)
+                    effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
+                    raise ValueError(
+                        f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
+                        f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
+                    )
 
         # ── Face embedding ──────────────────────────────────────────────────
-        face_embedding = await self.student_repo.get_face_embedding(submission.student_id)
-        if not face_embedding:
-            raise ValueError("Student face embedding is not registered.")
+        if config.isFaceRecognitionEnabled:
+            face_embedding = await self.student_repo.get_face_embedding(submission.student_id)
+            if not face_embedding:
+                raise ValueError("Student face embedding is not registered.")
+        else:
+            face_embedding = []
 
         # ── Duplicate check ─────────────────────────────────────────────────
         existing = await self.attendance_repo.get_by_student_and_session(submission.student_id, submission.session_id)
@@ -240,7 +281,19 @@ class AttendanceService:
             raise ValueError("Attendance already submitted for this session.")
 
         # ── AI scoring ──────────────────────────────────────────────────────
-        ai_results = await self.ai_orchestrator.analyze_attendance(submission.image_path, face_embedding)
+        if config.isFaceRecognitionEnabled or config.isAiBackgroundValidationEnabled:
+            if not submission.image_path:
+                raise ValueError("Image is required when verification is enabled.")
+            ai_results = await self.ai_orchestrator.analyze_attendance(submission.image_path, face_embedding)
+        else:
+            ai_results = {"face_score": 1.0, "liveness_score": 1.0, "background_score": 1.0}
+            
+        if not config.isFaceRecognitionEnabled:
+            ai_results["face_score"] = 1.0
+            ai_results["liveness_score"] = 1.0
+            
+        if not config.isAiBackgroundValidationEnabled:
+            ai_results["background_score"] = 1.0
         final_score = (
             settings.FACE_WEIGHT * ai_results["face_score"]
             + settings.LIVENESS_WEIGHT * ai_results["liveness_score"]
@@ -300,7 +353,18 @@ class AttendanceService:
 
         # Re-check session still active
         session = await self.session_repo.get_by_id(session_id)
-        if not session or not session.isActive:
+        if not session:
+            raise ValueError("Attendance session is no longer active.")
+
+        now = datetime.now(timezone.utc)
+        session_end = session.endTime.replace(tzinfo=timezone.utc) if session.endTime.tzinfo is None else session.endTime
+        if not session.isActive or session_end <= now:
+            if session.isActive:
+                await self.session_repo.deactivate(session.id)
+                try:
+                    await get_redis().delete(f"session:{session.id}")
+                except Exception:
+                    pass
             raise ValueError("Attendance session is no longer active.")
 
         face_score = payload["face_score"]
@@ -352,7 +416,7 @@ class AttendanceService:
         except Exception as e:
             logger.warning("Streak update failed: %s", e)
 
-        if predicted_status == "Present" and os.path.exists(image_path):
+        if predicted_status == "Present" and image_path and os.path.exists(image_path):
             try:
                 os.remove(image_path)
             except Exception as e:

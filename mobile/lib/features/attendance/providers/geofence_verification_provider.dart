@@ -3,6 +3,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/data/local/location_service.dart';
 import 'package:smart_attendance_app/features/attendance/providers/location_provider.dart';
+import 'package:smart_attendance_app/data/local/hive_service.dart';
+import 'package:smart_attendance_app/data/repositories/config_repository.dart';
 
 enum GeofenceStatus {
   idle,
@@ -62,6 +64,33 @@ class GeofenceVerificationNotifier extends AutoDisposeNotifier<GeofenceVerificat
     state = state.copyWith(status: GeofenceStatus.scanning, clearError: true);
     
     try {
+      try {
+        await ref.read(configRepositoryProvider).fetchAndCacheConfig();
+      } catch (_) {}
+      final config = ref.read(hiveServiceProvider).getSystemConfig();
+      if (!config.isGpsVerificationEnabled) {
+        // Mock success when GPS is disabled
+        state = state.copyWith(
+          status: GeofenceStatus.success,
+          position: Position(
+            longitude: classLng,
+            latitude: classLat,
+            timestamp: DateTime.now(),
+            accuracy: 0.0,
+            altitude: 0.0,
+            heading: 0.0,
+            speed: 0.0,
+            speedAccuracy: 0.0,
+            altitudeAccuracy: 0.0,
+            headingAccuracy: 0.0,
+          ),
+          distanceMeters: 0.0,
+          radiusMeters: radius,
+          accuracy: 0.0,
+        );
+        return;
+      }
+
       final locationService = ref.read(locationServiceProvider);
       final pos = await locationService.getHighlyAccuratePosition();
       

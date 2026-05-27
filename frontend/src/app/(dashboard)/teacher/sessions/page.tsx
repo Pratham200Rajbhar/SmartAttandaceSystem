@@ -24,6 +24,7 @@ export default function SessionsPage(): React.ReactElement {
   const [starting, setStarting] = useState(false);
   const [activeSessions, setActiveSessions] = useState<SessionResponse[]>([]);
   const [pastSessions, setPastSessions] = useState<SessionWithClassResponse[]>([]);
+  const [classFilter, setClassFilter] = useState("");
 
   const fetchData = useCallback(async (): Promise<void> => {
     try {
@@ -33,14 +34,17 @@ export default function SessionsPage(): React.ReactElement {
       ]);
       setClasses(classesRes.data);
       
+      const now = new Date();
       setActiveSessions(
         allSessionsRes.data
-          .filter((s) => s.isActive)
+          .filter((s) => s.isActive && new Date(s.endTime) > now)
           .map(({ id, academicClassId, startTime, endTime, isActive }) => ({
             id, academicClassId, startTime, endTime, isActive,
           }))
       );
-      setPastSessions(allSessionsRes.data.filter((s) => !s.isActive));
+      setPastSessions(
+        allSessionsRes.data.filter((s) => !s.isActive || new Date(s.endTime) <= now)
+      );
     } catch {
       setClasses([]);
     } finally {
@@ -51,8 +55,32 @@ export default function SessionsPage(): React.ReactElement {
   useEffect(() => {
     void (async () => {
       await fetchData();
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const classId = params.get("classId");
+        if (classId) {
+          setClassFilter(classId);
+          setSelectedClass(classId);
+        }
+      }
     })();
   }, [fetchData]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const hasExpired = activeSessions.some((s) => new Date(s.endTime) <= now);
+      if (hasExpired) {
+        void fetchData();
+      }
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [activeSessions, fetchData]);
+
+  const handleClearFilter = useCallback((): void => {
+    setClassFilter("");
+    router.replace("/teacher/sessions");
+  }, [router]);
 
   async function handleStart(): Promise<void> {
     if (!selectedClass) { toast.error("Select a class first"); return; }
@@ -87,10 +115,36 @@ export default function SessionsPage(): React.ReactElement {
 
   if (loading) return <GlassLoader text="Loading sessions..." />;
 
+  const filteredActiveSessions = classFilter
+    ? activeSessions.filter((s) => s.academicClassId === classFilter)
+    : activeSessions;
+
+  const filteredPastSessions = classFilter
+    ? pastSessions.filter((s) => s.academicClassId === classFilter)
+    : pastSessions;
+
+  const filteredClass = classes.find((c) => c.id === classFilter);
+  const filterLabel = filteredClass ? `${filteredClass.name} — ${filteredClass.subject}` : "Selected Class";
+
   return (
     <div className="animate-fade-in-up">
       <GlassBreadcrumb items={[{ label: "Teacher", href: "/teacher/classes" }, { label: "Sessions" }]} />
       <GlassPageHeader title="Session Control" description="Start, manage, and review attendance sessions" />
+
+      {classFilter && (
+        <div className="glass-panel-static p-4 mb-6 flex items-center justify-between animate-fade-in text-sm border-indigo-500/20 bg-indigo-500/[0.02] rounded-xl">
+          <div className="flex items-center gap-2 text-indigo-300">
+            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            Showing sessions for class: <span className="font-semibold text-slate-200">{filterLabel}</span>
+          </div>
+          <button 
+            onClick={handleClearFilter}
+            className="text-xs text-slate-400 hover:text-white hover:underline transition-colors font-medium"
+          >
+            Clear Filter
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {}
@@ -131,11 +185,11 @@ export default function SessionsPage(): React.ReactElement {
         {}
         <GlassCard>
           <h3 className="text-lg font-semibold text-slate-200 mb-4">Active Sessions</h3>
-          {activeSessions.length === 0 ? (
+          {filteredActiveSessions.length === 0 ? (
             <p className="text-sm text-slate-500 text-center py-8">No active sessions</p>
           ) : (
             <div className="space-y-3">
-              {activeSessions.map((session) => (
+              {filteredActiveSessions.map((session) => (
                 <div
                   key={session.id}
                   className="glass-panel-static p-4 flex items-center justify-between"
@@ -183,17 +237,17 @@ export default function SessionsPage(): React.ReactElement {
       {}
       <GlassCard>
         <h3 className="text-lg font-semibold text-slate-200 mb-4">Past Sessions</h3>
-        {pastSessions.length === 0 ? (
+        {filteredPastSessions.length === 0 ? (
           <p className="text-sm text-slate-500 text-center py-8">No past sessions yet</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overflow-y-auto max-h-[420px]">
             <table className="w-full text-sm">
-              <thead>
+              <thead className="sticky top-0 bg-[#080916]/95 backdrop-blur-md z-10">
                 <tr className="border-b border-white/10">
                   {["Class", "Subject", "Date", "Start", "End", "Actions"].map((h) => (
                     <th
                       key={h}
-                      className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase tracking-wider"
+                      className="text-left py-3 px-4 text-slate-400 font-medium text-xs uppercase tracking-wider sticky top-0 bg-[#080916]/95 z-10"
                     >
                       {h}
                     </th>
@@ -201,7 +255,7 @@ export default function SessionsPage(): React.ReactElement {
                 </tr>
               </thead>
               <tbody>
-                {pastSessions.map((s, idx) => (
+                {filteredPastSessions.map((s, idx) => (
                   <tr
                     key={s.id}
                     className={`border-b border-white/5 transition-colors ${idx % 2 === 0 ? "" : "bg-white/[0.02]"}`}
@@ -218,14 +272,32 @@ export default function SessionsPage(): React.ReactElement {
                       {new Date(s.endTime).toLocaleTimeString()}
                     </td>
                     <td className="py-3 px-4">
-                      <GlassButton
-                        variant="ghost"
-                        size="sm"
-                        icon={<ClipboardList size={13} />}
-                        onClick={() => router.push(`/teacher/sessions/${s.id}/roster`)}
-                      >
-                        View Roster
-                      </GlassButton>
+                      <div className="flex gap-2">
+                        <GlassButton
+                          variant="ghost"
+                          size="sm"
+                          icon={<Radio size={13} className="text-emerald-400 animate-pulse" />}
+                          onClick={() => router.push(`/teacher/sessions/${s.id}/roster`)}
+                        >
+                          Live View
+                        </GlassButton>
+                        <GlassButton
+                          variant="ghost"
+                          size="sm"
+                          icon={<ClipboardList size={13} />}
+                          onClick={() => router.push(`/teacher/sessions/${s.id}/roster`)}
+                        >
+                          Roster
+                        </GlassButton>
+                        <GlassButton
+                          variant="ghost"
+                          size="sm"
+                          icon={<BookOpen size={13} />}
+                          onClick={() => router.push(`/teacher/sessions/${s.id}/manual`)}
+                        >
+                          Manual
+                        </GlassButton>
+                      </div>
                     </td>
                   </tr>
                 ))}

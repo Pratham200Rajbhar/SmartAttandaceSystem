@@ -21,15 +21,23 @@ class WebSocketClient {
     if (!token) return;
 
     const wsUrl = API_BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
-    this.ws = new WebSocket(`${wsUrl}/ws/connect`);
+    const socket = new WebSocket(`${wsUrl}/ws/connect`);
+    this.ws = socket;
 
-    this.ws.onopen = () => {
-      this.ws?.send(JSON.stringify({ type: "auth", token }));
-      this.reconnectAttempts = 0;
-      this.startPing();
+    socket.onopen = () => {
+      if (this.ws !== socket) {
+        socket.close();
+        return;
+      }
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "auth", token }));
+        this.reconnectAttempts = 0;
+        this.startPing();
+      }
     };
 
-    this.ws.onmessage = (event) => {
+    socket.onmessage = (event) => {
+      if (this.ws !== socket) return;
       try {
         const data = JSON.parse(event.data) as Record<string, unknown>;
         if (data.type === "pong") return;
@@ -40,13 +48,14 @@ class WebSocketClient {
       }
     };
 
-    this.ws.onclose = () => {
+    socket.onclose = () => {
+      if (this.ws !== socket) return;
       this.stopPing();
       this.scheduleReconnect();
     };
 
-    this.ws.onerror = () => {
-      this.ws?.close();
+    socket.onerror = () => {
+      socket.close();
     };
   }
 

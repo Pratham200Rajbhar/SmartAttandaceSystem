@@ -12,6 +12,8 @@ import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/attendance_constants.dart';
 import 'package:smart_attendance_app/core/attendance_utils.dart';
 import 'package:smart_attendance_app/data/local/preferences_service.dart';
+import 'package:smart_attendance_app/data/local/hive_service.dart';
+import 'package:smart_attendance_app/data/repositories/config_repository.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/features/attendance/providers/attendance_provider.dart';
 import 'package:smart_attendance_app/features/attendance/providers/geofence_verification_provider.dart';
@@ -90,6 +92,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   String? _cameraError;
   int _aiStepIndex = 0;
   Timer? _aiStepTimer;
+  Timer? _transitionTimer;
   bool _showTips = false;
 
   bool _isAnalyzingQuality = false;
@@ -109,6 +112,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _checkFirstUse();
+    Future.microtask(() => ref.read(configRepositoryProvider).fetchAndCacheConfig());
   }
 
   @override
@@ -116,6 +120,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     WidgetsBinding.instance.removeObserver(this);
     _camera?.dispose();
     _aiStepTimer?.cancel();
+    _transitionTimer?.cancel();
     super.dispose();
   }
 
@@ -319,14 +324,23 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
 
     ref.listen<GeofenceVerificationState>(geofenceVerificationProvider, (prev, next) {
       if (vState.step == VerificationStep.gps && next.status == GeofenceStatus.success && (prev?.status != GeofenceStatus.success)) {
-        Timer(const Duration(milliseconds: 1500), () {
+        _transitionTimer?.cancel();
+        _transitionTimer = Timer(const Duration(milliseconds: 1500), () {
           if (mounted) {
+            final config = ref.read(hiveServiceProvider).getSystemConfig();
+            
             ref.read(attendanceVerificationProvider.notifier).setGpsLocation(
               next.position!.latitude,
               next.position!.longitude,
               next.position!.accuracy,
             );
-            _initCamera();
+            
+            if (config.isFaceRecognitionEnabled) {
+              _initCamera();
+            } else {
+              ref.read(attendanceVerificationProvider.notifier).setImagePath('skipped_camera.jpg');
+              _analyzePhoto();
+            }
           }
         });
       }

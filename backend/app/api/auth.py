@@ -128,3 +128,13 @@ async def request_device_change(
     await _rate_limit(request)
     await device_change_service.request_device_change(data)
     return {"status": "success", "message": "Device change request submitted successfully."}
+
+
+# --- System Config (Public) ---
+from app.schemas.system_config import SystemConfigResponse
+from app.services.system_config_service import SystemConfigService
+
+@router.get("/config", response_model=SystemConfigResponse)
+async def get_public_system_config(config_service: SystemConfigService = Depends()):
+    return await config_service.get_config()
+

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Calendar, Search, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Calendar, Search, SlidersHorizontal, Trash2, ClipboardList, BookOpen, Download, Eye } from "lucide-react";
 import api from "@/lib/api";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassTable, { type TableColumn } from "@/components/ui/GlassTable";
@@ -36,9 +36,64 @@ export default function HistoryPage(): React.ReactElement {
   const [loading, setLoading] = useState(true);
 
   const [selectedClass, setSelectedClass] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [exportingId, setExportingId] = useState<string | null>(null);
+
+  const handleExportCSV = async (
+    sessionId: string,
+    className: string,
+    subjectName: string,
+    startTime: string
+  ): Promise<void> => {
+    setExportingId(sessionId);
+    try {
+      const { data } = await api.get<{ roster: { enrollment_number: string; full_name: string; email: string; status: string; final_score: number; marked_at: string | null }[] }>(
+        `/teacher/sessions/${sessionId}/attendance`
+      );
+      
+      if (!data.roster || data.roster.length === 0) {
+        toast.error("No student records found to export.");
+        return;
+      }
+
+      // Construct CSV
+      const headers = ["Enrollment Number", "Student Name", "Email", "Status", "AI Score", "Marked At"];
+      const rows = data.roster.map((s) => [
+        s.enrollment_number,
+        s.full_name,
+        s.email,
+        s.status,
+        s.final_score.toFixed(2),
+        s.marked_at ? new Date(s.marked_at).toLocaleString() : "N/A"
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(","))
+      ].join("\n");
+
+      // Trigger download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const sanitizedClass = className.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const dateStr = new Date(startTime).toISOString().slice(0, 10);
+      
+      link.setAttribute("href", url);
+      link.setAttribute("download", `attendance_${sanitizedClass}_${dateStr}.csv`);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast.success("CSV exported successfully!");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Failed to export CSV"));
+    } finally {
+      setExportingId(null);
+    }
+  };
 
   useEffect(() => {
     async function initPage(): Promise<void> {
@@ -60,7 +115,6 @@ export default function HistoryPage(): React.ReactElement {
 
   function handleResetFilters(): void {
     setSelectedClass("all");
-    setStatusFilter("all");
     setSearchTerm("");
     setDateFilter("");
   }
@@ -70,9 +124,6 @@ export default function HistoryPage(): React.ReactElement {
     if (selectedClass !== "all" && session.academicClassId !== selectedClass) {
       return false;
     }
-
-    if (statusFilter === "active" && !session.isActive) return false;
-    if (statusFilter === "closed" && session.isActive) return false;
 
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
@@ -122,24 +173,44 @@ export default function HistoryPage(): React.ReactElement {
       ),
     },
     {
-      key: "isActive",
-      header: "Status",
-      render: (row) => (
-        <GlassBadge variant={row.isActive ? "success" : "neutral"}>
-          {row.isActive ? "Active" : "Closed"}
-        </GlassBadge>
-      ),
-    },
-    {
       key: "actions",
-      header: "Action",
+      header: "Actions",
       render: (row) => (
-        <button
-          onClick={() => router.push(`/teacher/sessions/${row.id}/roster`)}
-          className="glass-btn glass-btn-ghost glass-btn-sm flex items-center gap-1.5 text-[12px]"
-        >
-          <Eye size={13} /> View Roster
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push(`/teacher/sessions/${row.id}/preview`)}
+            className="glass-btn glass-btn-ghost glass-btn-sm flex items-center gap-1.5 text-[12px] text-indigo-400 hover:text-indigo-300"
+            title="Preview Attendance Sheet"
+          >
+            <Eye size={13} />
+            Preview
+          </button>
+          <button
+            onClick={() => router.push(`/teacher/sessions/${row.id}/roster`)}
+            className="glass-btn glass-btn-ghost glass-btn-sm flex items-center gap-1.5 text-[12px]"
+            title="View Roster Details"
+          >
+            <ClipboardList size={13} className="text-slate-300" />
+            Roster
+          </button>
+          <button
+            onClick={() => router.push(`/teacher/sessions/${row.id}/manual`)}
+            className="glass-btn glass-btn-ghost glass-btn-sm flex items-center gap-1.5 text-[12px]"
+            title="Manual Attendance Override"
+          >
+            <BookOpen size={13} className="text-slate-300" />
+            Manual
+          </button>
+          <button
+            onClick={() => void handleExportCSV(row.id, row.class_name, row.subject, row.startTime)}
+            disabled={exportingId === row.id}
+            className="glass-btn glass-btn-ghost glass-btn-sm flex items-center gap-1.5 text-[12px]"
+            title="Export Attendance as CSV"
+          >
+            <Download size={13} className={exportingId === row.id ? "animate-bounce text-emerald-400" : "text-emerald-400"} />
+            {exportingId === row.id ? "Exporting..." : "Export"}
+          </button>
+        </div>
       ),
     },
   ];
@@ -151,15 +222,13 @@ export default function HistoryPage(): React.ReactElement {
         description="Historical archives and final student rosters of all closed classes"
       />
 
-      {}
       <div className="p-5 mb-6 rounded-2xl bg-white/[0.02] border border-white/5 shadow-inner">
         <div className="flex items-center gap-2 mb-4 text-xs font-semibold text-slate-400 uppercase tracking-widest">
           <SlidersHorizontal size={14} className="text-slate-300" />
           Filter Logs & Rosters
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 items-end">
-          {}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-400">Search Logs</label>
             <div className="relative flex items-center">
@@ -174,7 +243,6 @@ export default function HistoryPage(): React.ReactElement {
             </div>
           </div>
 
-          {}
           <div className="flex flex-col gap-1.5">
             <GlassSelect
               label="Class Filter"
@@ -187,21 +255,6 @@ export default function HistoryPage(): React.ReactElement {
             />
           </div>
 
-          {}
-          <div className="flex flex-col gap-1.5">
-            <GlassSelect
-              label="Session State"
-              options={[
-                { value: "all", label: "All States" },
-                { value: "closed", label: "Closed Sessions Only" },
-                { value: "active", label: "Active Live Sessions" }
-              ]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-            />
-          </div>
-
-          {}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-400">Filter By Date</label>
             <div className="relative flex items-center">
@@ -216,8 +269,7 @@ export default function HistoryPage(): React.ReactElement {
           </div>
         </div>
 
-        {}
-        {(selectedClass !== "all" || statusFilter !== "all" || searchTerm || dateFilter) && (
+        {(selectedClass !== "all" || searchTerm || dateFilter) && (
           <div className="mt-4 flex justify-end">
             <button
               onClick={handleResetFilters}
@@ -229,7 +281,6 @@ export default function HistoryPage(): React.ReactElement {
         )}
       </div>
 
-      {}
       {filteredSessions.length > 0 ? (
         <GlassTable
           columns={columns}
@@ -243,7 +294,7 @@ export default function HistoryPage(): React.ReactElement {
             title="No Sessions Match Filters"
             message="Try loosening your search terms or selecting a different class dropdown option."
           />
-          {(selectedClass !== "all" || statusFilter !== "all" || searchTerm || dateFilter) && (
+          {(selectedClass !== "all" || searchTerm || dateFilter) && (
             <button
               onClick={handleResetFilters}
               className="glass-btn glass-btn-primary mt-4 text-xs px-4 py-2"
