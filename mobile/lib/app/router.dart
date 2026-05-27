@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,7 +19,6 @@ import 'package:smart_attendance_app/features/analytics/screens/analytics_screen
 import 'package:smart_attendance_app/features/profile/screens/profile_screen.dart';
 import 'package:smart_attendance_app/features/settings/screens/goals_screen.dart';
 import 'package:smart_attendance_app/features/settings/screens/notification_prefs_screen.dart';
-import 'package:smart_attendance_app/features/settings/screens/device_screen.dart';
 import 'package:smart_attendance_app/features/settings/screens/help_screen.dart';
 import 'package:smart_attendance_app/features/settings/screens/sync_status_screen.dart';
 import 'package:smart_attendance_app/features/smart_pass/screens/smart_pass_screen.dart';
@@ -28,6 +26,7 @@ import 'package:smart_attendance_app/features/leave/screens/leave_requests_scree
 import 'package:smart_attendance_app/features/leave/screens/leave_history_screen.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_bottom_nav.dart';
 
+/// Notifies GoRouter when auth state changes to trigger redirect evaluation.
 final routerNotifierProvider = Provider<RouterNotifier>((ref) {
   final notifier = RouterNotifier();
   ref.listen(authProvider, (previous, next) {
@@ -75,47 +74,70 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // --- Auth flow (no bottom nav) ---
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),
       GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/register-face', builder: (_, __) => const FaceRegistrationScreen()),
+      GoRoute(
+        path: '/register-face',
+        builder: (_, __) => const FaceRegistrationScreen(),
+      ),
 
+      // --- Main app shell (bottom nav) ---
       ShellRoute(
         builder: (context, state, child) => _ShellScaffold(child: child),
         routes: [
           GoRoute(
             path: '/home',
-            pageBuilder: (_, __) => const NoTransitionPage(child: HomeScreen()),
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: HomeScreen()),
           ),
           GoRoute(
-            path: '/attendance',
-            pageBuilder: (_, __) => const NoTransitionPage(child: HistoryScreen()),
+            path: '/history',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: HistoryScreen()),
           ),
           GoRoute(
             path: '/analytics',
-            pageBuilder: (_, __) => const NoTransitionPage(child: AnalyticsScreen()),
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: AnalyticsScreen()),
           ),
           GoRoute(
-            path: '/profile',
-            pageBuilder: (_, __) => const NoTransitionPage(child: ProfileScreen()),
+            path: '/more',
+            pageBuilder: (_, __) =>
+                const NoTransitionPage(child: ProfileScreen()),
           ),
         ],
       ),
 
+      // --- Stack routes with slide transitions ---
       GoRoute(
         path: '/verify/:sessionId',
-        builder: (context, state) =>
-            VerificationScreen(sessionId: state.pathParameters['sessionId']!),
+        pageBuilder: (context, state) => _slideUpPage(
+          key: state.pageKey,
+          child: VerificationScreen(
+            sessionId: state.pathParameters['sessionId']!,
+          ),
+        ),
       ),
-      GoRoute(path: '/result', builder: (_, __) => const ResultScreen()),
+      GoRoute(
+        path: '/result',
+        pageBuilder: (_, state) => _slideUpPage(
+          key: state.pageKey,
+          child: const ResultScreen(),
+        ),
+      ),
 
       GoRoute(
         path: '/notifications',
-        builder: (_, __) => const NotificationsScreen(),
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const NotificationsScreen(),
+        ),
       ),
 
       GoRoute(
         path: '/flagged/:attendanceId',
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final item = state.extra;
           if (item is! AttendanceHistoryItem) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -123,44 +145,170 @@ final routerProvider = Provider<GoRouter>((ref) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Invalid route data')),
                 );
-                context.go('/attendance');
+                context.go('/history');
               }
             });
-            return const Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(color: SasColors.accentEmerald),
+            return CustomTransitionPage(
+              key: state.pageKey,
+              child: const Scaffold(
+                body: Center(
+                  child: CircularProgressIndicator(
+                    color: SasColors.accentEmerald,
+                  ),
+                ),
               ),
+              transitionsBuilder: _noTransition,
             );
           }
-          return FlaggedDetailScreen(item: item);
+          return _slideRightPage(
+            key: state.pageKey,
+            child: FlaggedDetailScreen(item: item),
+          );
         },
       ),
 
       GoRoute(
         path: '/subject/:classId',
-        builder: (context, state) =>
-            SubjectDetailScreen(classId: state.pathParameters['classId']!),
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: SubjectDetailScreen(
+            classId: state.pathParameters['classId']!,
+          ),
+        ),
       ),
 
-      GoRoute(path: '/settings/goals', builder: (_, __) => const GoalsScreen()),
-      GoRoute(path: '/settings/notifications', builder: (_, __) => const NotificationPrefsScreen()),
-      GoRoute(path: '/settings/device', builder: (_, __) => const DeviceScreen()),
-      GoRoute(path: '/settings/help', builder: (_, __) => const HelpScreen()),
-      GoRoute(path: '/settings/sync', builder: (_, __) => const SyncStatusScreen()),
-      
-      GoRoute(path: '/smart-pass', builder: (_, __) => const SmartPassScreen()),
-      
-      GoRoute(path: '/leave/request', builder: (_, __) => const LeaveRequestsScreen()),
-      GoRoute(path: '/leave/history', builder: (_, __) => const LeaveHistoryScreen()),
+      // --- Settings stack ---
+      GoRoute(
+        path: '/settings/goals',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const GoalsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/settings/notifications',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const NotificationPrefsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/settings/help',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const HelpScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/settings/sync',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const SyncStatusScreen(),
+        ),
+      ),
+
+      // --- Feature stack routes ---
+      GoRoute(
+        path: '/smart-pass',
+        pageBuilder: (_, state) => _slideUpPage(
+          key: state.pageKey,
+          child: const SmartPassScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/leave/request',
+        pageBuilder: (_, state) => _slideUpPage(
+          key: state.pageKey,
+          child: const LeaveRequestsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/leave/history',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const LeaveHistoryScreen(),
+        ),
+      ),
     ],
   );
 });
+
+// ---------------------------------------------------------------------------
+// Transition helpers
+// ---------------------------------------------------------------------------
+
+/// Slide-up transition for modal-style screens (verification, leave request, smart pass).
+CustomTransitionPage<void> _slideUpPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage(
+    key: key,
+    child: child,
+    transitionDuration: SasDurations.slow,
+    reverseTransitionDuration: SasDurations.slow,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.15),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(opacity: curved, child: child),
+      );
+    },
+  );
+}
+
+/// Slide-right transition for detail/settings screens.
+CustomTransitionPage<void> _slideRightPage({
+  required LocalKey key,
+  required Widget child,
+}) {
+  return CustomTransitionPage(
+    key: key,
+    child: child,
+    transitionDuration: SasDurations.slow,
+    reverseTransitionDuration: SasDurations.slow,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.25, 0),
+          end: Offset.zero,
+        ).animate(curved),
+        child: FadeTransition(opacity: curved, child: child),
+      );
+    },
+  );
+}
+
+/// No-op transition for error fallback pages.
+Widget _noTransition(
+  BuildContext context,
+  Animation<double> animation,
+  Animation<double> secondaryAnimation,
+  Widget child,
+) =>
+    child;
+
+// ---------------------------------------------------------------------------
+// Shell scaffold
+// ---------------------------------------------------------------------------
 
 class _ShellScaffold extends StatelessWidget {
   final Widget child;
   const _ShellScaffold({required this.child});
 
-  static const _tabPaths = ['/home', '/attendance', '/analytics', '/profile'];
+  static const _tabPaths = ['/home', '/history', '/analytics', '/more'];
 
   @override
   Widget build(BuildContext context) {

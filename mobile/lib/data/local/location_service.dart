@@ -38,45 +38,35 @@ class LocationService {
   Future<Position> getHighlyAccuratePosition() async {
     await ensurePermissionsGranted();
 
-    int attempts = 0;
-    List<String> errors = [];
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: LocationSettings(
+          accuracy: LocationAccuracy.high,
+          timeLimit: Duration(seconds: kGpsTimeoutSeconds),
+        ),
+      );
 
-    while (attempts < kGpsRetryAttempts) {
-      attempts++;
-      try {
-        final pos = await Geolocator.getCurrentPosition(
-          locationSettings: LocationSettings(
-            accuracy: LocationAccuracy.high,
-            timeLimit: Duration(seconds: kGpsTimeoutSeconds),
-          ),
+      if (pos.isMocked) {
+        throw const LocationException(
+          'Mocked location detected. Attendance blocked.',
         );
-
-        if (pos.isMocked) {
-          throw const LocationException(
-            'Mocked location detected. Attendance blocked.',
-          );
-        }
-
-        if (pos.accuracy > kMinGpsAccuracyMeters) {
-          errors.add('Attempt $attempts: GPS accuracy ${pos.accuracy.toStringAsFixed(0)}m exceeds limit ${kMinGpsAccuracyMeters.toStringAsFixed(0)}m');
-          if (attempts < kGpsRetryAttempts) {
-            await Future.delayed(const Duration(seconds: 5));
-          }
-          continue;
-        }
-
-        return pos;
-      } on TimeoutException {
-        errors.add('Attempt $attempts: GPS timed out after ${kGpsTimeoutSeconds}s');
-        if (attempts < kGpsRetryAttempts) {
-          await Future.delayed(const Duration(seconds: 5));
-        }
       }
-    }
 
-    throw LocationException(
-      'Failed to acquire accurate GPS position after $kGpsRetryAttempts attempts.\n${errors.join('\n')}',
-    );
+      if (pos.accuracy > kMinGpsAccuracyMeters) {
+        throw LocationException(
+          'GPS accuracy (${pos.accuracy.toStringAsFixed(0)}m) is too low. Required: < ${kMinGpsAccuracyMeters.toStringAsFixed(0)}m.',
+        );
+      }
+
+      return pos;
+    } on TimeoutException {
+      throw const LocationException(
+        'GPS request timed out. Please ensure you have a clear view of the sky.',
+      );
+    } catch (e) {
+      if (e is LocationException) rethrow;
+      throw LocationException('Failed to acquire location: $e');
+    }
   }
 
   Future<Position> getAveragedPosition({int samples = kGpsAveragingSamples}) async {

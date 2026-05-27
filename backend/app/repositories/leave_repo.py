@@ -7,7 +7,7 @@ from app.db.client import db
 
 class LeaveRepository:
     async def create(self, data: dict) -> LeaveRequest:
-        return await db.leaverequest.create(data=data)
+        return await db.leaverequest.create(data=data, include={"student": True})
 
     async def get_by_id(self, leave_id: str) -> Optional[LeaveRequest]:
         return await db.leaverequest.find_unique(where={"id": leave_id}, include={"student": True})

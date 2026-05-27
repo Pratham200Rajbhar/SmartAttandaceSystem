@@ -54,7 +54,6 @@ export interface StudentResponse {
   department_name?: string | null;
   semester?: number | null;
   batch?: string | null;
-  device_reset_requested?: boolean;
 }
 
 export interface TeacherCreate {

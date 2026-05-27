@@ -51,7 +51,6 @@ model Student {
   batch            String?   @map("batch")
   departmentId     String?   @map("department_id")
   deviceUuid       String?   @map("device_uuid")
-  deviceResetRequested Boolean @default(false) @map("device_reset_requested")
   fcmToken             String?  @map("fcm_token")
   faceEmbedding    Unsupported("vector(128)")? @map("face_embedding")
   currentStreak    Int       @default(0) @map("current_streak")

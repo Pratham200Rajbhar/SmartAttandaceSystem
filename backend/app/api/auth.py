@@ -103,14 +103,6 @@ async def get_me(current_user: User = Depends(get_current_user)) -> UserProfileR
     )
 
 
-@router.post("/request-device-reset", status_code=status.HTTP_200_OK)
-async def request_device_reset(current_user: User = Depends(get_current_user)) -> dict:
-    if current_user.role != "STUDENT":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only students can request device resets")
-    await db.student.update(where={"userId": current_user.id}, data={"deviceResetRequested": True})
-    logger.info("Device reset requested: %s", current_user.email)
-    return {"status": "success", "message": "Device reset request recorded successfully"}
-
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
 async def logout(token: str = Depends(reusable_oauth2)) -> dict:

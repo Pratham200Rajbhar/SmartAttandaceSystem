@@ -12,7 +12,7 @@ FIX 2: CORS Configuration
 FIX 3: Audit Logging
 - File: backend/app/services/admin_service.py
 - Add: _log_action(event_type, severity, actor, target, description, ip=None) static method
-- Wire into: create_student, create_teacher, create_class, update_student, update_teacher, update_class, reset_user_password, reset_student_device, assign_teacher, enroll_students, delete_department, delete_subject, delete_classroom, delete_designation
+- Wire into: create_student, create_teacher, create_class, update_student, update_teacher, update_class, reset_user_password, assign_teacher, enroll_students, delete_department, delete_subject, delete_classroom, delete_designation
 FIX 4: Mobile GPS Geofence Validation
 - File: mobile/lib/features/attendance/screens/verification_screen.dart
 - Add: After GPS acquisition, check if class has geofence data, call isWithinGeofence() before showing camera step

@@ -1,8 +1,9 @@
-
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 
+/// Glassmorphic bottom navigation bar with haptic feedback and subtle animations.
 class GlassBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -17,9 +18,9 @@ class GlassBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     const items = [
       ('Home', Icons.home_rounded),
-      ('Attendance', Icons.fact_check_rounded),
+      ('History', Icons.fact_check_rounded),
       ('Analytics', Icons.bar_chart_rounded),
-      ('Profile', Icons.person_rounded),
+      ('More', Icons.grid_view_rounded),
     ];
 
     return ClipRect(
@@ -28,54 +29,75 @@ class GlassBottomNav extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: SasColors.bgSurface.withValues(alpha: 0.7),
-            border: const Border(top: BorderSide(color: SasColors.glassBorder)),
+            border: const Border(
+              top: BorderSide(color: SasColors.glassBorder),
+            ),
           ),
           child: SafeArea(
             top: false,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: SasSpacing.sm,
+                vertical: SasSpacing.sm,
+              ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: List.generate(items.length, (i) {
-                  final sel = i == currentIndex;
+                  final selected = i == currentIndex;
                   return Expanded(
                     child: Semantics(
-                      label: '${items[i].$1} tab${sel ? ', selected' : ''}',
+                      label: '${items[i].$1} tab${selected ? ', selected' : ''}',
                       child: InkWell(
-                        onTap: () => onTap(i),
-                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          if (i != currentIndex) {
+                            HapticFeedback.selectionClick();
+                          }
+                          onTap(i);
+                        },
+                        borderRadius: SasRadius.mdAll,
                         child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: sel
+                          duration: SasDurations.normal,
+                          padding: const EdgeInsets.symmetric(
+                            vertical: SasSpacing.sm,
+                          ),
+                          decoration: selected
                               ? BoxDecoration(
                                   color: SasColors.accentEmerald
                                       .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(12),
+                                  borderRadius: SasRadius.mdAll,
                                   border: Border.all(
-                                      color: SasColors.accentEmerald
-                                          .withValues(alpha: 0.2)),
+                                    color: SasColors.accentEmerald
+                                        .withValues(alpha: 0.2),
+                                  ),
                                 )
                               : null,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(items[i].$2,
+                              AnimatedScale(
+                                scale: selected ? 1.15 : 1.0,
+                                duration: SasDurations.normal,
+                                child: Icon(
+                                  items[i].$2,
                                   size: 22,
-                                  color: sel
+                                  color: selected
                                       ? SasColors.accentEmerald
-                                      : SasColors.textMuted),
-                              const SizedBox(height: 4),
-                              Text(items[i].$1,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: sel
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: sel
-                                        ? SasColors.accentEmerald
-                                        : SasColors.textMuted,
-                                  )),
+                                      : SasColors.textMuted,
+                                ),
+                              ),
+                              const SizedBox(height: SasSpacing.xs),
+                              Text(
+                                items[i].$1,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: selected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? SasColors.accentEmerald
+                                      : SasColors.textMuted,
+                                ),
+                              ),
                             ],
                           ),
                         ),

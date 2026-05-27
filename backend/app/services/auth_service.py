@@ -33,7 +33,7 @@ class AuthService:
                 elif student.deviceUuid != login_data.device_uuid:
                     raise HTTPException(
                         status_code=status.HTTP_403_FORBIDDEN,
-                        detail="Account is bound to another device. Please request a device reset.",
+                        detail="Account is bound to another device.",
                     )
 
         token = create_access_token(subject=user.id, role=user.role)

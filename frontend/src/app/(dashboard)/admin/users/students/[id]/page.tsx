@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { 
   Pencil, Mail, Hash, User, Phone, GraduationCap, Building2, CalendarDays, 
-  MapPin, Clock, Award, ShieldCheck, ChevronRight, KeyRound, Smartphone
+  MapPin, Clock, Award, ShieldCheck, ChevronRight, KeyRound
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api, { getApiErrorMessage } from "@/lib/api";
@@ -75,16 +75,6 @@ export default function StudentDetailPage(): React.ReactElement {
     }
   };
 
-  const handleResetDevice = async () => {
-    if (!student) return;
-    try {
-      await api.put(`/admin/users/students/${student.id}/reset-device`);
-      toast.success(`Device binding reset for ${student.email}`);
-    } catch (err: unknown) {
-      toast.error(getApiErrorMessage(err, "Failed to reset device binding"));
-    }
-  };
-
   if (loading) return <GlassLoader text="Loading student details..." />;
   if (!student) return <div className="text-center py-20 text-slate-500">Student not found</div>;
 
@@ -132,9 +122,6 @@ export default function StudentDetailPage(): React.ReactElement {
                 <span className="text-sm text-slate-400 flex items-center gap-1.5 bg-white/5 px-3 py-1 rounded-full border border-white/5">
                   <Clock size={14} /> Enrolled
                 </span>
-                {student.device_reset_requested && (
-                  <GlassBadge variant="danger" className="animate-pulse">Device Reset Requested</GlassBadge>
-                )}
               </div>
             </div>
             
@@ -148,9 +135,6 @@ export default function StudentDetailPage(): React.ReactElement {
               </GlassButton>
               <GlassButton variant="ghost" className="text-warning hover:text-warning hover:bg-warning/10" icon={<KeyRound size={16} />} onClick={() => setIsResetDialogOpen(true)}>
                 Reset Password
-              </GlassButton>
-              <GlassButton variant={student.device_reset_requested ? "primary" : "ghost"} className={student.device_reset_requested ? "bg-danger hover:bg-danger-hover border-danger" : "text-info hover:text-info hover:bg-info/10"} icon={<Smartphone size={16} />} onClick={handleResetDevice}>
-                Reset Device
               </GlassButton>
             </div>
           </div>

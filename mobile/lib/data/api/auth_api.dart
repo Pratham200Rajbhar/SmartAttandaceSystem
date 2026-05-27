@@ -34,7 +34,4 @@ class AuthApi {
     await _dio.post<void>('/auth/logout');
   }
 
-  Future<void> requestDeviceReset() async {
-    await _dio.post<void>('/auth/request-device-reset');
-  }
 }

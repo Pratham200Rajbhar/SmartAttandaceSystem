@@ -55,12 +55,12 @@ def _validate_image(image: UploadFile) -> None:
         )
 
 
-def _make_leave_response(leave, student_name: str) -> LeaveRequestResponse:
+def _make_leave_response(leave, student_name: str, enrollment_number: str = None) -> LeaveRequestResponse:
     return LeaveRequestResponse(
         id=leave.id,
         student_id=leave.studentId,
         student_name=student_name or "Unknown",
-        enrollment_number=leave.student.enrollmentNumber,
+        enrollment_number=enrollment_number or (leave.student.enrollmentNumber if leave.student else "N/A"),
         start_date=leave.startDate,
         end_date=leave.endDate,
         reason=leave.reason,
@@ -74,6 +74,8 @@ def _make_leave_response(leave, student_name: str) -> LeaveRequestResponse:
 
 
 def _student_name(student: Student) -> str:
+    if not student:
+        return "Unknown"
     return f"{student.firstName or ''} {student.lastName or ''}".strip()
 
 
@@ -175,7 +177,7 @@ async def get_my_leaves(
     leave_repo: LeaveRepository = Depends(),
 ) -> LeaveRequestListResponse:
     leaves = await leave_repo.get_by_student_id(student.id)
-    leave_responses = [_make_leave_response(l, _student_name(l.student)) for l in leaves]
+    leave_responses = [_make_leave_response(req, _student_name(req.student)) for req in leaves]
     return LeaveRequestListResponse(
         leaves=leave_responses,
         total=len(leave_responses),
@@ -226,7 +228,7 @@ async def create_leave_request(
         "documentUrl": document_url,
         "status": "PENDING",
     })
-    return _make_leave_response(leave, _student_name(student))
+    return _make_leave_response(leave, _student_name(student), student.enrollmentNumber)
 
 
 @router.get("/smart-pass", response_model=dict)

@@ -96,6 +96,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   double? _blurScore;
 
   double? _gpsAccuracy;
+  double? _studentLatitude;
+  double? _studentLongitude;
   bool _gpsLocked = false;
   String? _geofenceErrorMessage;
   double? _geofenceDistance;
@@ -276,6 +278,9 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
               _geofenceErrorMessage = 'You are outside the class area';
               _geofenceDistance = distance;
               _geofenceRadius = classSession.radiusMeters ?? 100.0;
+              _studentLatitude = position.latitude;
+              _studentLongitude = position.longitude;
+              _gpsAccuracy = position.accuracy;
             });
             return;
           }
@@ -284,6 +289,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
         setState(() {
           _gpsLocked = true;
           _gpsAccuracy = position.accuracy;
+          _studentLatitude = position.latitude;
+          _studentLongitude = position.longitude;
         });
 
         _gpsTransitionTimer?.cancel();
@@ -297,6 +304,11 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
       });
     });
 
+    final sessionState = ref.watch(sessionProvider);
+    final classSession = sessionState.sessions.where(
+      (s) => s.sessionId == widget.sessionId,
+    ).firstOrNull;
+
     return Scaffold(
       body: AnimatedBackground(
         child: SafeArea(
@@ -309,6 +321,23 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
 
                 if (vState.step == VerificationStep.gps) ...[
                   const Spacer(),
+
+                  _LocationTelemetryCard(
+                    classLatitude: classSession?.latitude,
+                    classLongitude: classSession?.longitude,
+                    studentLatitude: _studentLatitude,
+                    studentLongitude: _studentLongitude,
+                    radiusMeters: classSession?.radiusMeters ?? 100.0,
+                    studentAccuracy: _gpsAccuracy,
+                    distanceMeters: _geofenceDistance ?? (
+                      _studentLatitude != null && _studentLongitude != null && classSession != null && classSession.latitude != null && classSession.longitude != null
+                          ? Geolocator.distanceBetween(_studentLatitude!, _studentLongitude!, classSession.latitude!, classSession.longitude!)
+                          : null
+                    ),
+                    isScanning: !_gpsLocked && _geofenceErrorMessage == null && !locationAsync.hasError,
+                  ),
+
+                  const SizedBox(height: 24),
 
                   if (_geofenceErrorMessage != null)
                     GlassCard(
@@ -338,6 +367,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                               _geofenceRadius = null;
                               _gpsLocked = false;
                               _gpsAccuracy = null;
+                              _studentLatitude = null;
+                              _studentLongitude = null;
                             });
                             ref.invalidate(currentLocationProvider);
                           },
@@ -407,14 +438,28 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
                                 icon: Icons.settings_rounded,
                                 onPressed: () async {
                                   await Geolocator.openAppSettings();
-                                  if (mounted) ref.invalidate(currentLocationProvider);
+                                  if (mounted) {
+                                    setState(() {
+                                      _studentLatitude = null;
+                                      _studentLongitude = null;
+                                      _gpsAccuracy = null;
+                                    });
+                                    ref.invalidate(currentLocationProvider);
+                                  }
                                 },
                               )
                             else
                               GlassButton(
                                 label: 'Retry',
                                 icon: Icons.refresh_rounded,
-                                onPressed: () => ref.invalidate(currentLocationProvider),
+                                onPressed: () {
+                                  setState(() {
+                                    _studentLatitude = null;
+                                    _studentLongitude = null;
+                                    _gpsAccuracy = null;
+                                  });
+                                  ref.invalidate(currentLocationProvider);
+                                },
                               ),
                             const SizedBox(height: 8),
                             GlassButton(
@@ -824,6 +869,247 @@ class _QualityBar extends StatelessWidget {
           valueColor: AlwaysStoppedAnimation<Color>(color),
           borderRadius: BorderRadius.circular(4),
           minHeight: 6,
+        ),
+      ],
+    );
+  }
+}
+
+class _LocationTelemetryCard extends StatelessWidget {
+  final double? classLatitude;
+  final double? classLongitude;
+  final double? studentLatitude;
+  final double? studentLongitude;
+  final double radiusMeters;
+  final double? studentAccuracy;
+  final double? distanceMeters;
+  final bool isScanning;
+
+  const _LocationTelemetryCard({
+    required this.classLatitude,
+    required this.classLongitude,
+    this.studentLatitude,
+    this.studentLongitude,
+    required this.radiusMeters,
+    this.studentAccuracy,
+    this.distanceMeters,
+    required this.isScanning,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasStudentLoc = studentLatitude != null && studentLongitude != null;
+    final bool isInside = distanceMeters != null && distanceMeters! <= (radiusMeters + 10.0);
+
+    Color statusColor = SasColors.info;
+    String statusText = 'Acquiring GPS Signal...';
+    IconData statusIcon = Icons.satellite_alt_rounded;
+
+    if (hasStudentLoc) {
+      if (isInside) {
+        statusColor = SasColors.success;
+        statusText = 'Inside Class Boundary';
+        statusIcon = Icons.task_alt_rounded;
+      } else {
+        statusColor = SasColors.danger;
+        statusText = 'Outside Class Boundary';
+        statusIcon = Icons.cancel_outlined;
+      }
+    }
+
+    return GlassCard(
+      borderColor: statusColor.withValues(alpha: 0.3),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Row
+            Row(
+              children: [
+                Icon(statusIcon, color: statusColor, size: 22),
+                const SizedBox(width: 10),
+                Text(
+                  'GPS TELEMETRY',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const Spacer(),
+                if (isScanning)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(SasColors.textMuted),
+                    ),
+                  )
+                else
+                  Text(
+                    statusText,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Main stats grid (2x2)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTelemetryItem(
+                    label: 'Classroom Hub',
+                    value: classLatitude != null && classLongitude != null
+                        ? '${classLatitude!.toStringAsFixed(5)}, ${classLongitude!.toStringAsFixed(5)}'
+                        : 'Not set',
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTelemetryItem(
+                    label: 'Your Coordinates',
+                    value: hasStudentLoc
+                        ? '${studentLatitude!.toStringAsFixed(5)}, ${studentLongitude!.toStringAsFixed(5)}'
+                        : 'Locating...',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTelemetryItem(
+                    label: 'Boundary Limit',
+                    value: '${radiusMeters.toStringAsFixed(0)} meters',
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _buildTelemetryItem(
+                    label: 'Signal Accuracy',
+                    value: studentAccuracy != null
+                        ? '± ${studentAccuracy!.toStringAsFixed(1)}m'
+                        : 'Awaiting Lock',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Distance Visual indicator
+            if (distanceMeters != null) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Calculated Proximity:',
+                    style: const TextStyle(
+                      color: SasColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    '${distanceMeters!.toStringAsFixed(1)}m / ${radiusMeters.toStringAsFixed(0)}m',
+                    style: TextStyle(
+                      color: isInside ? SasColors.success : SasColors.warning,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: radiusMeters > 0 ? (distanceMeters! / radiusMeters).clamp(0.0, 1.0) : 0.0,
+                  backgroundColor: SasColors.glassBorder.withValues(alpha: 0.1),
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (!isInside)
+                const Text(
+                  'You are too far from the classroom geofence. Please move closer.',
+                  style: TextStyle(
+                    color: SasColors.danger,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                )
+              else
+                const Text(
+                  'You are safely inside the geofence range. Preparing verification.',
+                  style: TextStyle(
+                    color: SasColors.success,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Acquiring distance metrics...',
+                    style: const TextStyle(
+                      color: SasColors.textMuted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  backgroundColor: SasColors.glassBorder.withValues(alpha: 0.1),
+                  valueColor: AlwaysStoppedAnimation<Color>(SasColors.accentEmerald.withValues(alpha: 0.3)),
+                  minHeight: 6,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTelemetryItem({required String label, required String value}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: SasColors.textMuted,
+            fontSize: 9,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ],
     );

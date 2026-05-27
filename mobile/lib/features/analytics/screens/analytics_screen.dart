@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
 import 'package:smart_attendance_app/core/attendance_utils.dart';
@@ -15,6 +14,9 @@ import 'package:smart_attendance_app/features/history/providers/history_provider
 import 'package:smart_attendance_app/features/settings/providers/preferences_provider.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
+import 'package:smart_attendance_app/shared/widgets/legend_dot.dart';
+import 'package:smart_attendance_app/shared/widgets/shimmer_placeholder.dart';
+import 'package:smart_attendance_app/shared/widgets/stat_tile.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -25,7 +27,6 @@ class AnalyticsScreen extends ConsumerStatefulWidget {
 
 class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   StudentStats? _stats;
-  bool _statsLoading = true;
 
   @override
   void initState() {
@@ -44,11 +45,10 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
       if (mounted) {
         setState(() {
           _stats = StudentStats.fromJson(statsData);
-          _statsLoading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _statsLoading = false);
+      // Ignored: failure handled by fallback or cached states
     }
   }
 
@@ -83,7 +83,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               const SizedBox(height: 20),
 
               if (hState.isLoading && hState.data == null)
-                _ShimmerAnalytics()
+                const ShimmerPlaceholder(itemCount: 4, itemHeight: 100)
               else if (hState.data == null)
                 GlassCard(
                   child: Column(
@@ -138,23 +138,23 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
         Row(
           children: [
             Expanded(
-                child: _StatCard(
+                child: StatTile(
                     label: 'Total', value: '$total', color: SasColors.info)),
             const SizedBox(width: 8),
             Expanded(
-                child: _StatCard(
+                child: StatTile(
                     label: 'Present',
                     value: '$present',
                     color: SasColors.success)),
             const SizedBox(width: 8),
             Expanded(
-                child: _StatCard(
+                child: StatTile(
                     label: 'Absent',
                     value: '$absent',
                     color: SasColors.danger)),
             const SizedBox(width: 8),
             Expanded(
-                child: _StatCard(
+                child: StatTile(
                     label: 'Flagged',
                     value: '$flagged',
                     color: SasColors.warning)),
@@ -258,9 +258,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           const SizedBox(height: 4),
           Row(
             children: [
-              _LegendDot(color: SasColors.accentEmerald, label: 'Present'),
+              LegendDot(color: SasColors.accentEmerald, label: 'Present', isCircle: false),
               const SizedBox(width: 12),
-              _LegendDot(color: SasColors.glassBgHover, label: 'Total'),
+              LegendDot(color: SasColors.glassBgHover, label: 'Total', isCircle: false),
             ],
           ),
           const SizedBox(height: 16),
@@ -693,17 +693,17 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  _LegendDot(
+                  LegendDot(
                       color: SasColors.success.withValues(alpha: 0.3),
-                      label: '≥75%'),
+                      label: '≥75%', isCircle: false),
                   const SizedBox(width: 8),
-                  _LegendDot(
+                  LegendDot(
                       color: SasColors.warning.withValues(alpha: 0.3),
-                      label: '50–74%'),
+                      label: '50–74%', isCircle: false),
                   const SizedBox(width: 8),
-                  _LegendDot(
+                  LegendDot(
                       color: SasColors.danger.withValues(alpha: 0.3),
-                      label: '<50%'),
+                      label: '<50%', isCircle: false),
                 ],
               ),
             ],
@@ -744,85 +744,5 @@ class _SubjectAnalyticsStat {
   _SubjectAnalyticsStat({required this.subject, required this.className});
 }
 
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _StatCard(
-      {required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      child: Column(
-        children: [
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(value,
-                style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 20)),
-          ),
-          const SizedBox(height: 2),
-          Text(label,
-              style: const TextStyle(
-                  color: SasColors.textMuted, fontSize: 11)),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-        const SizedBox(width: 4),
-        Text(label,
-            style: const TextStyle(
-                color: SasColors.textMuted, fontSize: 10)),
-      ],
-    );
-  }
-}
-
-class _ShimmerAnalytics extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: SasColors.glassBg,
-      highlightColor: SasColors.glassBgHover,
-      child: Column(
-        children: List.generate(
-          4,
-          (_) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: SasColors.glassBg,
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+// _StatCard, _LegendDot, _ShimmerAnalytics replaced by shared widgets:
+// StatTile, LegendDot, ShimmerPlaceholder from shared/widgets/

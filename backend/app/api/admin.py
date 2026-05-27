@@ -102,7 +102,6 @@ async def get_student_by_id(id: str, admin_service: AdminService = Depends()):
         date_of_birth=student.dateOfBirth, department_id=student.departmentId,
         department_name=student.department.name if student.department else None,
         semester=student.semester, batch=student.batch,
-        device_reset_requested=student.deviceResetRequested,
     )
 
 
@@ -111,20 +110,6 @@ async def get_student_by_id(id: str, admin_service: AdminService = Depends()):
 async def update_student(id: str, data: StudentUpdate, request: Request, current_user: User = Depends(get_current_user), admin_service: AdminService = Depends()):
     return await admin_service.update_student(id, data.model_dump(exclude_unset=True), actor=current_user.email, ip=_get_client_ip(request))
 
-
-@router.put("/users/students/{id}/reset-device")
-async def reset_student_device(id: str, request: Request, current_user: User = Depends(get_current_user), admin_service: AdminService = Depends()):
-    try:
-        student = await db.student.find_unique(where={"id": id})
-        if not student:
-            raise ValueError("Student not found")
-        await db.student.update(where={"id": id}, data={"deviceUuid": None, "deviceResetRequested": False})
-        await AdminService._log_action("RESET_DEVICE", "WARNING", current_user.email, id, f"Reset device binding for student {student.enrollmentNumber}", _get_client_ip(request))
-        return {"status": "success", "message": "Device binding reset successfully"}
-    except ValueError as err:
-        raise HTTPException(status_code=404, detail=str(err))
-    except Exception as err:
-        raise HTTPException(status_code=400, detail=str(err))
 
 
 @router.get("/users/teachers", response_model=list[TeacherResponse])

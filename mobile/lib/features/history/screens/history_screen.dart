@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/extensions.dart';
 import 'package:smart_attendance_app/core/attendance_utils.dart';
@@ -12,6 +11,10 @@ import 'package:smart_attendance_app/features/history/providers/history_provider
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
+import 'package:smart_attendance_app/shared/widgets/legend_dot.dart';
+import 'package:smart_attendance_app/shared/widgets/shimmer_placeholder.dart';
+import 'package:smart_attendance_app/shared/widgets/status_chip.dart';
+import 'package:smart_attendance_app/shared/widgets/stat_tile.dart';
 
 enum _HistoryTab { calendar, list }
 enum _ListFilter { all, present, absent, flagged }
@@ -134,7 +137,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   ]),
                 )
               else if (hState.isLoading && hState.data == null)
-                _ShimmerCalendar()
+                const ShimmerCalendarPlaceholder()
               else if (_tab == _HistoryTab.calendar)
                 _buildCalendarView(hState)
               else
@@ -177,11 +180,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _LegendDot(color: SasColors.success, label: 'Present'),
+                  LegendDot(color: SasColors.success, label: 'Present'),
                   const SizedBox(width: 12),
-                  _LegendDot(color: SasColors.warning, label: 'Flagged'),
+                  LegendDot(color: SasColors.warning, label: 'Flagged'),
                   const SizedBox(width: 12),
-                  _LegendDot(color: SasColors.danger, label: 'Absent'),
+                  LegendDot(color: SasColors.danger, label: 'Absent'),
                 ],
               ),
               const SizedBox(height: 12),
@@ -190,14 +193,14 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: SasColors.glassBg,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: SasRadius.mdAll,
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _MonthStat(label: 'Present', value: '$mPresent', color: SasColors.success),
-                    _MonthStat(label: 'Absent', value: '$mAbsent', color: SasColors.danger),
-                    _MonthStat(label: 'Flagged', value: '$mFlagged', color: SasColors.warning),
+                    StatTile(label: 'Present', value: '$mPresent', color: SasColors.success, variant: StatTileVariant.minimal),
+                    StatTile(label: 'Absent', value: '$mAbsent', color: SasColors.danger, variant: StatTileVariant.minimal),
+                    StatTile(label: 'Flagged', value: '$mFlagged', color: SasColors.warning, variant: StatTileVariant.minimal),
                   ],
                 ),
               ),
@@ -247,13 +250,13 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         
         Row(
           children: [
-            Expanded(child: _StatChip(label: 'Total', value: '$total', color: SasColors.info)),
+            Expanded(child: StatTile(label: 'Total', value: '$total', color: SasColors.info, variant: StatTileVariant.pill)),
             const SizedBox(width: 6),
-            Expanded(child: _StatChip(label: 'Present', value: '$present', color: SasColors.success)),
+            Expanded(child: StatTile(label: 'Present', value: '$present', color: SasColors.success, variant: StatTileVariant.pill)),
             const SizedBox(width: 6),
-            Expanded(child: _StatChip(label: 'Absent', value: '$absent', color: SasColors.danger)),
+            Expanded(child: StatTile(label: 'Absent', value: '$absent', color: SasColors.danger, variant: StatTileVariant.pill)),
             const SizedBox(width: 6),
-            Expanded(child: _StatChip(label: 'Flagged', value: '$flagged', color: SasColors.warning)),
+            Expanded(child: StatTile(label: 'Flagged', value: '$flagged', color: SasColors.warning, variant: StatTileVariant.pill)),
           ],
         ),
         const SizedBox(height: 12),
@@ -281,10 +284,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             children: [
               ..._ListFilter.values.map((f) => Padding(
                 padding: const EdgeInsets.only(right: 6),
-                child: _FilterChip(
+                child: StatusChip(
                   label: f.name[0].toUpperCase() + f.name.substring(1),
-                  selected: _filter == f,
+                  color: SasColors.accentEmerald,
+                  isSelected: _filter == f,
                   onTap: () => setState(() => _filter = f),
+                  variant: StatusChipVariant.outlined,
                 ),
               )),
               if (subjects.isNotEmpty) ...[
@@ -293,11 +298,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 const SizedBox(width: 4),
                 ...subjects.map((s) => Padding(
                   padding: const EdgeInsets.only(right: 6),
-                  child: _FilterChip(
+                  child: StatusChip(
                     label: s.length > 12 ? '${s.substring(0, 12)}…' : s,
-                    selected: _subjectFilter == s,
-                    onTap: () => setState(() => _subjectFilter = _subjectFilter == s ? null : s),
                     color: SasColors.accentTeal,
+                    isSelected: _subjectFilter == s,
+                    onTap: () => setState(() => _subjectFilter = _subjectFilter == s ? null : s),
+                    variant: StatusChipVariant.outlined,
                   ),
                 )),
               ],
@@ -469,94 +475,8 @@ class _TabButton extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  final Color? color;
-  const _FilterChip({required this.label, required this.selected, required this.onTap, this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = color ?? SasColors.accentEmerald;
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? c.withValues(alpha: 0.15) : SasColors.glassBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? c.withValues(alpha: 0.4) : SasColors.glassBorder),
-        ),
-        child: Text(label, style: TextStyle(
-          fontSize: 12, fontWeight: FontWeight.w600,
-          color: selected ? c : SasColors.textMuted,
-        )),
-      ),
-    );
-  }
-}
-
-class _StatChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _StatChip({required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 16)),
-          Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 10)),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthStat extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
-  const _MonthStat({required this.label, required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 16)),
-        Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
-      ],
-    );
-  }
-}
-
-class _LegendDot extends StatelessWidget {
-  final Color color;
-  final String label;
-  const _LegendDot({required this.color, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(shape: BoxShape.circle, color: color)),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: SasColors.textMuted, fontSize: 11)),
-      ],
-    );
-  }
-}
+// _FilterChip, _StatChip, _MonthStat, _LegendDot replaced by shared widgets:
+// StatusChip, StatTile, LegendDot from shared/widgets/
 
 class _ListItemCard extends StatelessWidget {
   final AttendanceHistoryItem item;
@@ -792,24 +712,4 @@ class _SubjectStat {
   _SubjectStat({required this.name, required this.className});
 }
 
-class _ShimmerCalendar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: SasColors.glassBg,
-      highlightColor: SasColors.glassBgHover,
-      child: Column(
-        children: [
-          Container(height: 300, decoration: BoxDecoration(
-              color: SasColors.glassBg, borderRadius: BorderRadius.circular(20))),
-          const SizedBox(height: 16),
-          ...List.generate(2, (_) => Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Container(height: 60, decoration: BoxDecoration(
-                color: SasColors.glassBg, borderRadius: BorderRadius.circular(20))),
-          )),
-        ],
-      ),
-    );
-  }
-}
+// _ShimmerCalendar replaced by shared ShimmerCalendarPlaceholder

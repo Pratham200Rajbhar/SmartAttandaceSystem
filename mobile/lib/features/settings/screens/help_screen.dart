@@ -25,11 +25,6 @@ class HelpScreen extends StatelessWidget {
           'GPS verifies that you are physically inside the classroom geofence set by your teacher. Without location verification, attendance could be marked from anywhere. If GPS accuracy is too low, move to an open area and retry.',
     ),
     (
-      q: 'How do I fix a wrong device binding?',
-      a:
-          'Go to Profile → Device & Security and submit a device reset request. An administrator will review and unbind your old device, allowing you to register a new one. Expected resolution: 1–2 business days.',
-    ),
-    (
       q: 'What happens to my attendance if I am offline?',
       a:
           'Your submission is saved locally and will sync automatically when you reconnect to the internet. The submission timestamp is preserved. Submissions expire after 2 hours if not synced, so reconnect as soon as possible.',
@@ -57,7 +52,7 @@ class HelpScreen extends StatelessWidget {
     (
       q: 'How do I contact support?',
       a:
-          'Contact your institution\'s IT department or the system administrator. For device reset requests, use the Device & Security screen in your profile.',
+          'Contact your institution\'s IT department or the system administrator.',
     ),
   ];
 

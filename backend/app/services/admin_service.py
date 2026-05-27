@@ -1,7 +1,5 @@
-from datetime import datetime, timezone
 from typing import List, Optional
 
-from fastapi import Request
 from prisma.models import Department, AuditLog, Subject, Classroom, Designation
 
 from app.core.security import hash_password
@@ -62,7 +60,6 @@ class AdminService:
             department_id=student.departmentId,
             department_name=student.department.name if student.department else None,
             semester=student.semester, batch=student.batch,
-            device_reset_requested=student.deviceResetRequested,
         )
 
     async def get_all_students(self) -> List[StudentResponse]:
@@ -75,7 +72,6 @@ class AdminService:
                 date_of_birth=s.dateOfBirth, department_id=s.departmentId,
                 department_name=s.department.name if s.department else None,
                 semester=s.semester, batch=s.batch,
-                device_reset_requested=s.deviceResetRequested,
             )
             for s in students
         ]
@@ -96,7 +92,6 @@ class AdminService:
             date_of_birth=student.dateOfBirth, department_id=student.departmentId,
             department_name=student.department.name if student.department else None,
             semester=student.semester, batch=student.batch,
-            device_reset_requested=student.deviceResetRequested,
         )
 
     # --- Teachers ---

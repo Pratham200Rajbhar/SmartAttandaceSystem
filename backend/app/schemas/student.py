@@ -46,7 +46,6 @@ class StudentResponse(BaseModel):
     department_name: Optional[str] = Field(None, description="Resolved department name")
     semester: Optional[int] = Field(None, description="Current semester")
     batch: Optional[str] = Field(None, description="Batch year range")
-    device_reset_requested: bool = Field(False, description="Whether the student requested a device reset")
 
 
 class StudentAttendanceItem(BaseModel):
