@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Search, Users, AlertCircle, Check, X, RotateCcw } from "lucide-react";
+import { Search, Users, AlertCircle, Check, X } from "lucide-react";
 import toast from "react-hot-toast";
 import api, { getApiErrorMessage } from "@/lib/api";
 import GlassBreadcrumb from "@/components/ui/GlassBreadcrumb";
@@ -115,20 +115,25 @@ export default function ManualAttendancePage(): React.ReactElement {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (presentPercent / 100) * circumference;
 
-  const filteredStudents = roster
-    ? roster.roster.filter(
-        (s) =>
-          s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          s.enrollment_number.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
+  const filteredStudents = useMemo(() => {
+    return roster
+      ? roster.roster.filter(
+          (s) =>
+            s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            s.enrollment_number.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : [];
+  }, [roster, searchQuery]);
 
   // Clamp focused index
   useEffect(() => {
-    setFocusedIndex((prev) => {
-      if (filteredStudents.length === 0) return 0;
-      return Math.min(prev, filteredStudents.length - 1);
-    });
+    const timer = setTimeout(() => {
+      setFocusedIndex((prev) => {
+        if (filteredStudents.length === 0) return 0;
+        return Math.min(prev, filteredStudents.length - 1);
+      });
+    }, 0);
+    return () => clearTimeout(timer);
   }, [filteredStudents]);
 
   // Scroll focused item

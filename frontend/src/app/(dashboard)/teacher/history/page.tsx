@@ -6,7 +6,7 @@ import { Calendar, Search, SlidersHorizontal, Trash2, ClipboardList, BookOpen, D
 import api from "@/lib/api";
 import GlassPageHeader from "@/components/ui/GlassPageHeader";
 import GlassTable, { type TableColumn } from "@/components/ui/GlassTable";
-import GlassBadge from "@/components/ui/GlassBadge";
+
 import GlassLoader from "@/components/ui/GlassLoader";
 import GlassEmptyState from "@/components/ui/GlassEmptyState";
 import toast from "react-hot-toast";

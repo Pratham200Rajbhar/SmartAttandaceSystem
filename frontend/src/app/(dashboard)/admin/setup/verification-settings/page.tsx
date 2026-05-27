@@ -21,11 +21,7 @@ export default function VerificationSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchConfig();
-  }, []);
-
-  const fetchConfig = async () => {
+  async function fetchConfig() {
     try {
       setLoading(true);
       setError(null);
@@ -36,7 +32,14 @@ export default function VerificationSettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetchConfig();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleToggle = (key: keyof SystemConfig) => {
     if (!config) return;
