@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { CheckCircle2, XCircle, Smartphone, AlertCircle } from "lucide-react";
 import GlassTable, { TableColumn } from "@/components/ui/GlassTable";
-import api from "@/lib/api";
+import api, { getApiErrorMessage } from "@/lib/api";
 import { toast } from "react-hot-toast";
 
 interface DeviceChangeRequest {
@@ -22,35 +22,35 @@ interface DeviceChangeTableProps {
   onActionComplete: () => void;
 }
 
-export default function DeviceChangeTable({ requests, onActionComplete }: DeviceChangeTableProps) {
+export default function DeviceChangeTable({ requests, onActionComplete }: DeviceChangeTableProps): React.ReactElement {
   const [processing, setProcessing] = useState<string | null>(null);
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string): string => {
     try {
       const date = new Date(dateStr);
       return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    } catch (e) {
+    } catch {
       return dateStr;
     }
   };
 
-  const formatTime = (dateStr: string) => {
+  const formatTime = (dateStr: string): string => {
     try {
       const date = new Date(dateStr);
       return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-    } catch (e) {
+    } catch {
       return "";
     }
   };
 
-  const handleAction = async (id: string, status: "APPROVED" | "REJECTED") => {
+  const handleAction = async (id: string, status: "APPROVED" | "REJECTED"): Promise<void> => {
     try {
       setProcessing(id);
       await api.put(`/teacher/device-changes/${id}/approve`, { status });
       toast.success(`Request ${status.toLowerCase()} successfully`);
       onActionComplete();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Action failed");
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, "Action failed"));
     } finally {
       setProcessing(null);
     }

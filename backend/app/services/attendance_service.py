@@ -170,6 +170,196 @@ class AttendanceService:
 
         return attendance_record
 
+    async def analyze_attendance(self, submission: AttendanceSubmission) -> dict:
+        """Run all validation + AI scoring but do NOT save the record.
+
+        Returns a dict with scores, predicted status, and a short-lived
+        review_token that can be passed to mark_attendance to skip re-running AI.
+        """
+        from datetime import timedelta
+        from app.core.security import create_access_token
+
+        # ── Session validation ──────────────────────────────────────────────
+        session = None
+        redis_client = None
+        cache_key = f"session:{submission.session_id}"
+
+        try:
+            redis_client = get_redis()
+            cached = await redis_client.get(cache_key)
+            if cached:
+                data = json.loads(cached)
+                end_time_str = data["endTime"].replace("Z", "+00:00")
+                session = CachedSession(
+                    id=data["id"], is_active=data["isActive"],
+                    academic_class_id=data["academicClassId"],
+                    end_time=datetime.fromisoformat(end_time_str),
+                )
+        except Exception:
+            logger.warning("Redis session cache read failed. Falling back to DB.")
+
+        if not session:
+            session = await self.session_repo.get_by_id(submission.session_id)
+            if not session or not session.isActive:
+                raise ValueError("Attendance session is not active or not found.")
+
+        if not session.isActive:
+            raise ValueError("Attendance session is not active or not found.")
+
+        # ── Geofence check ──────────────────────────────────────────────────
+        geofence = await self.geofence_repo.get_by_class_id(session.academicClassId)
+        geofence_missing = False
+        if not geofence:
+            logger.warning("Missing geofence for class %s (student %s)", session.academicClassId, submission.student_id)
+            geofence_missing = True
+        else:
+            student_coord = GPSCoordinate(submission.latitude, submission.longitude)
+            classroom_coord = GPSCoordinate(geofence.latitude, geofence.longitude)
+            is_inside = is_within_geofence(
+                student_coord=student_coord,
+                classroom_coord=classroom_coord,
+                base_radius=geofence.radiusMeters,
+                student_accuracy=submission.accuracy,
+            )
+            if not is_inside:
+                distance = calculate_haversine_distance(student_coord, classroom_coord)
+                effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
+                raise ValueError(
+                    f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
+                    f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
+                )
+
+        # ── Face embedding ──────────────────────────────────────────────────
+        face_embedding = await self.student_repo.get_face_embedding(submission.student_id)
+        if not face_embedding:
+            raise ValueError("Student face embedding is not registered.")
+
+        # ── Duplicate check ─────────────────────────────────────────────────
+        existing = await self.attendance_repo.get_by_student_and_session(submission.student_id, submission.session_id)
+        if existing:
+            raise ValueError("Attendance already submitted for this session.")
+
+        # ── AI scoring ──────────────────────────────────────────────────────
+        ai_results = await self.ai_orchestrator.analyze_attendance(submission.image_path, face_embedding)
+        final_score = (
+            settings.FACE_WEIGHT * ai_results["face_score"]
+            + settings.LIVENESS_WEIGHT * ai_results["liveness_score"]
+            + settings.BACKGROUND_WEIGHT * ai_results["background_score"]
+        )
+        predicted_status = "Flagged" if geofence_missing else ("Present" if final_score >= settings.PASS_THRESHOLD else "Flagged")
+
+        # ── Build review token (5-minute TTL) ───────────────────────────────
+        review_token = create_access_token(
+            subject=submission.student_id,
+            role="STUDENT",
+            expires_delta=timedelta(minutes=5),
+            extra_data={
+                "type": "attendance_review",
+                "session_id": submission.session_id,
+                "face_score": ai_results["face_score"],
+                "liveness_score": ai_results["liveness_score"],
+                "background_score": ai_results["background_score"],
+                "final_ai_score": final_score,
+                "predicted_status": predicted_status,
+                "geofence_missing": geofence_missing,
+                "image_path": submission.image_path,
+                "latitude": submission.latitude,
+                "longitude": submission.longitude,
+            },
+        )
+
+        return {
+            "face_score": ai_results["face_score"],
+            "liveness_score": ai_results["liveness_score"],
+            "background_score": ai_results["background_score"],
+            "final_ai_score": final_score,
+            "predicted_status": predicted_status,
+            "review_token": review_token,
+        }
+
+    async def confirm_attendance(self, student_id: str, review_token: str) -> "Attendance":
+        """Confirm a previously analyzed submission using its review token.
+
+        Decodes the token, validates it, and saves the attendance record
+        without re-running AI inference.
+        """
+        from app.core.security import decode_access_token
+
+        payload = decode_access_token(review_token)
+        if not payload or payload.get("type") != "attendance_review":
+            raise ValueError("Invalid or expired review token.")
+        if payload.get("sub") != student_id:
+            raise ValueError("Review token does not belong to this student.")
+
+        session_id = payload["session_id"]
+
+        # Re-check duplicate (student might have confirmed twice)
+        existing = await self.attendance_repo.get_by_student_and_session(student_id, session_id)
+        if existing:
+            raise ValueError("Attendance already submitted for this session.")
+
+        # Re-check session still active
+        session = await self.session_repo.get_by_id(session_id)
+        if not session or not session.isActive:
+            raise ValueError("Attendance session is no longer active.")
+
+        face_score = payload["face_score"]
+        liveness_score = payload["liveness_score"]
+        background_score = payload["background_score"]
+        final_score = payload["final_ai_score"]
+        predicted_status = payload["predicted_status"]
+        geofence_missing = payload.get("geofence_missing", False)
+        image_path = payload["image_path"]
+        latitude = payload["latitude"]
+        longitude = payload["longitude"]
+        remarks = "Missing Geofence Data" if geofence_missing else None
+
+        attendance_record = await self.attendance_repo.create({
+            "studentId": student_id,
+            "sessionId": session_id,
+            "status": predicted_status,
+            "faceScore": face_score,
+            "livenessScore": liveness_score,
+            "backgroundScore": background_score,
+            "finalAiScore": final_score,
+            "gpsLatitude": latitude,
+            "gpsLongitude": longitude,
+            "remarks": remarks,
+        })
+
+        try:
+            msg = {"type": "attendance_updated", "session_id": session_id, "status": predicted_status}
+            await manager.send_personal_message(msg, student_id=student_id)
+            msg["student_id"] = student_id
+            await manager.broadcast_to_teachers(msg)
+        except Exception as e:
+            logger.warning("WebSocket broadcast failed: %s", e)
+
+        if predicted_status == "Flagged":
+            try:
+                from app.services.notification_service import notify_student_attendance_flagged
+                student = await self.student_repo.get_by_id(student_id)
+                if student and student.fcmToken:
+                    ac = await self.class_repo.get_by_id(session.academicClassId)
+                    class_name = ac.name if ac else "your class"
+                    await notify_student_attendance_flagged(student.fcmToken, student.firstName or "Student", class_name)
+            except Exception as e:
+                logger.warning("FCM notification failed: %s", e)
+
+        try:
+            from app.services.gamification_service import GamificationService
+            await GamificationService().update_streak(student_id, predicted_status)
+        except Exception as e:
+            logger.warning("Streak update failed: %s", e)
+
+        if predicted_status == "Present" and os.path.exists(image_path):
+            try:
+                os.remove(image_path)
+            except Exception as e:
+                logger.error("Failed to remove temp image %s: %s", image_path, e, exc_info=True)
+
+        return attendance_record
+
     async def register_face(self, student_id: str, image_path: str) -> bool:
         embedding = await self.ai_orchestrator.extract_face_embedding(image_path)
         if not embedding:

@@ -3,7 +3,8 @@ library;
 
 const String kApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://192.168.31.18:8000/api/v1',
+  defaultValue: 'http://192.168.31.239:8000/api/v1',
+  // defaultValue: 'http://10.0.2.2:8000/api/v1',
 );
 
 const String kHiveBoxProfile = 'sas_profile';

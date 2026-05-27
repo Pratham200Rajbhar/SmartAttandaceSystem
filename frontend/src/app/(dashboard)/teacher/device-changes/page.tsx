@@ -6,12 +6,11 @@ import api from "@/lib/api";
 import DeviceChangeTable from "@/components/teacher/DeviceChangeTable";
 import { toast } from "react-hot-toast";
 
-export default function DeviceChangesPage() {
+export default function DeviceChangesPage(): React.ReactElement {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchRequests = useCallback(async () => {
-    setLoading(true);
+  const fetchRequests = useCallback(async (): Promise<void> => {
     try {
       const { data } = await api.get("/teacher/device-changes/pending");
       setRequests(data);
@@ -24,8 +23,29 @@ export default function DeviceChangesPage() {
   }, []);
 
   useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
+    let active = true;
+    async function loadRequests(): Promise<void> {
+      try {
+        const { data } = await api.get("/teacher/device-changes/pending");
+        if (active) {
+          setRequests(data);
+        }
+      } catch (err) {
+        if (active) {
+          toast.error("Failed to load device change requests");
+          console.error(err);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+    void loadRequests();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-8 animate-fade-in-up">
@@ -43,7 +63,10 @@ export default function DeviceChangesPage() {
           </p>
         </div>
         <button
-          onClick={fetchRequests}
+          onClick={() => {
+            setLoading(true);
+            void fetchRequests();
+          }}
           disabled={loading}
           className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-colors border border-white/10"
         >

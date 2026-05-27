@@ -1,4 +1,35 @@
 
+class AttendanceAnalysisResult {
+  final double faceScore;
+  final double livenessScore;
+  final double backgroundScore;
+  final double finalAiScore;
+  final String predictedStatus;
+  final String reviewToken;
+
+  const AttendanceAnalysisResult({
+    required this.faceScore,
+    required this.livenessScore,
+    required this.backgroundScore,
+    required this.finalAiScore,
+    required this.predictedStatus,
+    required this.reviewToken,
+  });
+
+  bool get wouldBePresent => predictedStatus == 'Present';
+  bool get wouldBeFlagged => predictedStatus == 'Flagged';
+
+  factory AttendanceAnalysisResult.fromJson(Map<String, dynamic> json) =>
+      AttendanceAnalysisResult(
+        faceScore: (json['face_score'] as num).toDouble(),
+        livenessScore: (json['liveness_score'] as num).toDouble(),
+        backgroundScore: (json['background_score'] as num).toDouble(),
+        finalAiScore: (json['final_ai_score'] as num).toDouble(),
+        predictedStatus: json['predicted_status'] as String,
+        reviewToken: json['review_token'] as String,
+      );
+}
+
 class AttendanceResult {
   final String id;
   final String studentId;

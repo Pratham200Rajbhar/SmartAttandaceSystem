@@ -48,6 +48,43 @@ class StudentApi {
     return AttendanceResult.fromJson(response.data!);
   }
 
+  Future<AttendanceAnalysisResult> analyzeAttendance({
+    required String sessionId,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    required String imagePath,
+  }) async {
+    final formData = FormData.fromMap({
+      'session_id': sessionId,
+      'latitude': latitude.toString(),
+      'longitude': longitude.toString(),
+      'accuracy': accuracy.toString(),
+      'image': await MultipartFile.fromFile(
+        imagePath,
+        contentType: MediaType('image', 'jpeg'),
+      ),
+    });
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/student/attendance/analyze',
+      data: formData,
+    );
+    return AttendanceAnalysisResult.fromJson(response.data!);
+  }
+
+  Future<AttendanceResult> confirmAttendance({
+    required String reviewToken,
+  }) async {
+    final formData = FormData.fromMap({
+      'review_token': reviewToken,
+    });
+    final response = await _dio.post<Map<String, dynamic>>(
+      '/student/attendance/confirm',
+      data: formData,
+    );
+    return AttendanceResult.fromJson(response.data!);
+  }
+
   Future<AttendanceHistoryResponse> getMyAttendance() async {
     final response =
         await _dio.get<Map<String, dynamic>>('/student/my-attendance');

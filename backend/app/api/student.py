@@ -13,7 +13,7 @@ from app.core.security import create_access_token
 from app.db.client import db
 from app.repositories.leave_repo import LeaveRepository
 
-from app.schemas.attendance import AttendanceMarkResponse
+from app.schemas.attendance import AttendanceMarkResponse, AttendanceAnalyzeResponse
 from app.schemas.student import StudentAttendanceHistoryResponse, StudentClassResponse
 from app.schemas.leave import LeaveRequestResponse, LeaveRequestListResponse
 from app.services.attendance_service import AttendanceService, AttendanceSubmission
@@ -101,6 +101,54 @@ async def mark_attendance(
     except ValueError as err:
         if os.path.exists(image_path):
             os.remove(image_path)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@router.post("/attendance/analyze", response_model=AttendanceAnalyzeResponse)
+async def analyze_attendance(
+    session_id: str = Form(...),
+    latitude: float = Form(...),
+    longitude: float = Form(...),
+    accuracy: float = Form(...),
+    image: UploadFile = File(...),
+    student: Student = Depends(get_current_student),
+    attendance_service: AttendanceService = Depends(),
+) -> AttendanceAnalyzeResponse:
+    """Run AI scoring and validation without saving the attendance record.
+
+    Returns scores and a short-lived review_token (5 min) that the student
+    can use to confirm submission via POST /attendance/confirm.
+    """
+    _validate_image(image)
+    image_path = _save_uploaded_image(image, "attendance")
+    submission = AttendanceSubmission(
+        student_id=student.id, session_id=session_id,
+        latitude=latitude, longitude=longitude, accuracy=accuracy, image_path=image_path,
+    )
+    try:
+        result = await attendance_service.analyze_attendance(submission)
+        return AttendanceAnalyzeResponse(**result)
+    except ValueError as err:
+        if os.path.exists(image_path):
+            os.remove(image_path)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
+
+
+@router.post("/attendance/confirm", response_model=AttendanceMarkResponse)
+async def confirm_attendance(
+    review_token: str = Form(...),
+    student: Student = Depends(get_current_student),
+    attendance_service: AttendanceService = Depends(),
+) -> AttendanceMarkResponse:
+    """Confirm a previously analyzed attendance submission.
+
+    Accepts the review_token returned by POST /attendance/analyze and saves
+    the attendance record without re-running AI inference.
+    """
+    try:
+        attendance = await attendance_service.confirm_attendance(student.id, review_token)
+        return AttendanceMarkResponse.model_validate(attendance)
+    except ValueError as err:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err))
 
 

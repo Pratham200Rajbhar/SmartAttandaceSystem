@@ -102,6 +102,77 @@ class AttendanceRepository {
     return OfflineQueued(_hive.pendingCount);
   }
 
+  /// Analyze attendance (AI scoring) without saving the record.
+  /// Returns scores + a review token for confirmation.
+  Future<AttendanceAnalysisResult> analyzeAttendance({
+    required String sessionId,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    required String imagePath,
+  }) async {
+    final savedImagePath = await _saveImageToAppDocs(imagePath);
+    try {
+      return await _studentApi.analyzeAttendance(
+        sessionId: sessionId,
+        latitude: latitude,
+        longitude: longitude,
+        accuracy: accuracy,
+        imagePath: savedImagePath,
+      );
+    } on DioException catch (e) {
+      throw mapDioError(e);
+    }
+  }
+
+  /// Confirm a previously analyzed attendance using its review token.
+  Future<AttendanceSubmitResult> confirmAttendance({
+    required String reviewToken,
+    required String sessionId,
+    required double latitude,
+    required double longitude,
+    required double accuracy,
+    required String imagePath,
+    String? className,
+  }) async {
+    final savedImagePath = await _saveImageToAppDocs(imagePath);
+
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOnline = connectivity.any((c) => c != ConnectivityResult.none);
+
+    if (isOnline) {
+      try {
+        final result = await _studentApi.confirmAttendance(reviewToken: reviewToken);
+        return OnlineResult(result);
+      } on DioException catch (e) {
+        final isNetworkError = [
+          DioExceptionType.connectionTimeout,
+          DioExceptionType.sendTimeout,
+          DioExceptionType.receiveTimeout,
+          DioExceptionType.connectionError,
+        ].contains(e.type);
+        final isServerError = e.response != null && e.response!.statusCode! >= 500;
+        if (!isNetworkError && !isServerError) {
+          throw mapDioError(e);
+        }
+      }
+    }
+
+    // Offline fallback — queue the original payload
+    final payload = OfflineAttendancePayload(
+      sessionId: sessionId,
+      latitude: latitude,
+      longitude: longitude,
+      accuracy: accuracy,
+      imagePath: savedImagePath,
+      capturedAt: DateTime.now(),
+      className: className,
+    );
+    await _hive.addToQueue(payload);
+    _ref.read(pendingCountProvider.notifier).refresh();
+    return OfflineQueued(_hive.pendingCount);
+  }
+
   Future<String> _saveImageToAppDocs(String tempPath) async {
     try {
       final file = File(tempPath);
