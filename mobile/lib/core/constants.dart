@@ -22,7 +22,7 @@ const Duration kSessionPollMaxInterval = Duration(seconds: 60);
 
 const int kMaxImageSizeBytes = 5 * 1024 * 1024;
 
-const double kMinGpsAccuracyMeters = 100.0;
+const double kMinGpsAccuracyMeters = 60.0;
 const double kGeofenceGraceMeters = 10.0;
 
 const int kGpsRetryAttempts = 3;

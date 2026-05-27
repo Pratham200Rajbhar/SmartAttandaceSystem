@@ -136,18 +136,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   const Spacer(),
                   Row(
                     children: [
-                      IconButton(
-                        icon: const Icon(
-                          Icons.satellite_alt_rounded,
-                          size: 16,
-                          color: SasColors.accentEmerald,
-                        ),
-                        tooltip: 'Test GPS',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () => context.push('/location-test'),
-                      ),
-                      const SizedBox(width: 8),
+
                       Text(
                         DateTime.now().shortDate,
                         style: const TextStyle(

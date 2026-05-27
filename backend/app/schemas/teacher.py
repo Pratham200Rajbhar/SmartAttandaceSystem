@@ -157,3 +157,20 @@ class AbsentStudentItem(BaseModel):
     full_name: str = Field(..., description="Student full name")
     email: str = Field(..., description="Student email address")
 
+
+class DeviceChangeResponse(BaseModel):
+    id: str = Field(..., description="Device Change Request UUID")
+    student_id: str = Field(..., description="Student UUID")
+    student_name: str = Field(..., description="Student full name")
+    enrollment_number: str = Field(..., description="Student enrollment number")
+    new_device_uuid: str = Field(..., description="New device UUID requested")
+    reason: Optional[str] = Field(None, description="Reason for device change")
+    status: str = Field(..., description="Request status (PENDING, APPROVED, REJECTED)")
+    approved_by: Optional[str] = Field(None, description="UUID of approver")
+    created_at: datetime = Field(..., description="Creation timestamp")
+    updated_at: datetime = Field(..., description="Last update timestamp")
+
+
+class DeviceChangeApprove(BaseModel):
+    status: Literal["APPROVED", "REJECTED"] = Field(..., description="Approval status decision")
+

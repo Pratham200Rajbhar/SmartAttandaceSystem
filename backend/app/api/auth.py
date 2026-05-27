@@ -10,10 +10,11 @@ from app.core.security import decode_access_token
 from app.db.client import db
 from app.db.redis import get_redis
 from app.repositories.student_repo import StudentRepository
-from app.schemas.auth import Token, UserLogin, UserProfileResponse
+from app.schemas.auth import Token, UserLogin, UserProfileResponse, DeviceChangeRequestCreate
 from app.schemas.student import StudentCreate, StudentResponse
 from app.schemas.teacher import TeacherCreate, TeacherResponse
 from app.services.auth_service import AuthService
+from app.services.device_change_service import DeviceChangeService
 
 logger = get_logger("app.api.auth")
 
@@ -118,4 +119,12 @@ async def logout(token: str = Depends(reusable_oauth2)) -> dict:
                 except Exception as cache_err:
                     logger.warning("Failed to add token to Redis denylist: %s", cache_err)
     return {"status": "success", "message": "Successfully logged out."}
-
+@router.post("/request-device-change", status_code=status.HTTP_200_OK)
+async def request_device_change(
+    data: DeviceChangeRequestCreate,
+    request: Request,
+    device_change_service: DeviceChangeService = Depends(),
+) -> dict:
+    await _rate_limit(request)
+    await device_change_service.request_device_change(data)
+    return {"status": "success", "message": "Device change request submitted successfully."}

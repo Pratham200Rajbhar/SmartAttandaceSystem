@@ -10,6 +10,7 @@ class AttendanceVerificationState {
   final VerificationStep step;
   final double? latitude;
   final double? longitude;
+  final double? accuracy;
   final String? imagePath;
   final AttendanceSubmitResult? result;
   final String? errorMessage;
@@ -19,6 +20,7 @@ class AttendanceVerificationState {
     this.step = VerificationStep.gps,
     this.latitude,
     this.longitude,
+    this.accuracy,
     this.imagePath,
     this.result,
     this.errorMessage,
@@ -29,6 +31,7 @@ class AttendanceVerificationState {
     VerificationStep? step,
     double? latitude,
     double? longitude,
+    double? accuracy,
     String? imagePath,
     AttendanceSubmitResult? result,
     String? errorMessage,
@@ -38,6 +41,7 @@ class AttendanceVerificationState {
       step: step ?? this.step,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      accuracy: accuracy ?? this.accuracy,
       imagePath: imagePath ?? this.imagePath,
       result: result ?? this.result,
       errorMessage: errorMessage,
@@ -54,9 +58,12 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
 
   AttendanceNotifier(this._repo) : super(const AttendanceVerificationState());
 
-  void setGpsLocation(double lat, double lng) {
+  void setGpsLocation(double lat, double lng, double accuracy) {
     state = state.copyWith(
-        latitude: lat, longitude: lng, step: VerificationStep.camera);
+        latitude: lat,
+        longitude: lng,
+        accuracy: accuracy,
+        step: VerificationStep.camera);
   }
 
   void setImagePath(String path) {
@@ -70,6 +77,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
   Future<void> submit(String sessionId) async {
     if (state.latitude == null ||
         state.longitude == null ||
+        state.accuracy == null ||
         state.imagePath == null) {
       state = state.copyWith(
         errorMessage: 'Missing GPS or image data',
@@ -83,6 +91,7 @@ class AttendanceNotifier extends StateNotifier<AttendanceVerificationState> {
         sessionId: sessionId,
         latitude: state.latitude!,
         longitude: state.longitude!,
+        accuracy: state.accuracy!,
         imagePath: state.imagePath!,
       );
       _lastSubmittedSessionId = sessionId;

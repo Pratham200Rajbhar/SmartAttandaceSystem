@@ -126,6 +126,7 @@ class OfflineSyncService {
         sessionId: payload.sessionId,
         latitude: payload.latitude,
         longitude: payload.longitude,
+        accuracy: payload.accuracy ?? 0.0,
         imagePath: payload.imagePath,
       );
       await _removePayload(payload);

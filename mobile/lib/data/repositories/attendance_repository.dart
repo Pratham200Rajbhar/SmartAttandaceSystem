@@ -51,6 +51,7 @@ class AttendanceRepository {
     required String sessionId,
     required double latitude,
     required double longitude,
+    required double accuracy,
     required String imagePath,
     String? className,
   }) async {
@@ -66,6 +67,7 @@ class AttendanceRepository {
           sessionId: sessionId,
           latitude: latitude,
           longitude: longitude,
+          accuracy: accuracy,
           imagePath: savedImagePath,
         );
         return OnlineResult(result);
@@ -90,6 +92,7 @@ class AttendanceRepository {
       sessionId: sessionId,
       latitude: latitude,
       longitude: longitude,
+      accuracy: accuracy,
       imagePath: savedImagePath,
       capturedAt: DateTime.now(),
       className: className,

@@ -23,6 +23,9 @@ class OfflineAttendancePayload extends HiveObject {
   @HiveField(5)
   final String? className;
 
+  @HiveField(6)
+  final double? accuracy;
+
   OfflineAttendancePayload({
     required this.sessionId,
     required this.latitude,
@@ -30,5 +33,6 @@ class OfflineAttendancePayload extends HiveObject {
     required this.imagePath,
     required this.capturedAt,
     this.className,
+    this.accuracy,
   });
 }

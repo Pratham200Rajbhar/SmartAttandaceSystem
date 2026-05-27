@@ -28,12 +28,14 @@ class StudentApi {
     required String sessionId,
     required double latitude,
     required double longitude,
+    required double accuracy,
     required String imagePath,
   }) async {
     final formData = FormData.fromMap({
       'session_id': sessionId,
       'latitude': latitude.toString(),
       'longitude': longitude.toString(),
+      'accuracy': accuracy.toString(),
       'image': await MultipartFile.fromFile(
         imagePath,
         contentType: MediaType('image', 'jpeg'),

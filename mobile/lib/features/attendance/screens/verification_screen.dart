@@ -93,6 +93,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   bool _isAnalyzingQuality = false;
   double? _brightnessScore;
   double? _blurScore;
+  bool _isInitializing = false;
 
   static const _aiStepLabels = [
     'Checking face identity...',
@@ -128,34 +129,76 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final cam = _camera;
-    if (cam == null || !cam.value.isInitialized) return;
+    if (cam == null) return;
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
-      setState(() => _cameraReady = false);
-      cam.dispose();
+      if (mounted) {
+        setState(() => _cameraReady = false);
+      }
       _camera = null;
+      cam.dispose().catchError((e) {
+        AppLogger.error('Error disposing camera: $e');
+      });
     } else if (state == AppLifecycleState.resumed) {
       _initCamera();
     }
   }
 
   Future<void> _initCamera() async {
+    if (_isInitializing) return;
+    if (_camera != null && _camera!.value.isInitialized) return;
+
+    _isInitializing = true;
     try {
+      if (_camera != null) {
+        final oldCam = _camera;
+        _camera = null;
+        await oldCam!.dispose().catchError((e) => null);
+      }
+
+      if (!mounted) {
+        _isInitializing = false;
+        return;
+      }
+
       final cameras = await availableCameras();
-      if (cameras.isEmpty) { setState(() => _cameraError = 'No cameras found'); return; }
+      if (!mounted) {
+        _isInitializing = false;
+        return;
+      }
+
+      if (cameras.isEmpty) {
+        setState(() => _cameraError = 'No cameras found');
+        _isInitializing = false;
+        return;
+      }
+
       final front = cameras.firstWhere(
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => cameras.first,
       );
-      _camera = CameraController(front, ResolutionPreset.high, enableAudio: false);
-      await _camera!.initialize();
-      if (mounted) {
-        setState(() => _cameraReady = true);
+
+      final controller = CameraController(front, ResolutionPreset.high, enableAudio: false);
+      _camera = controller;
+
+      await controller.initialize();
+
+      if (mounted && _camera == controller) {
+        setState(() {
+          _cameraReady = true;
+          _cameraError = null;
+        });
+      } else {
+        await controller.dispose().catchError((e) => null);
       }
     } catch (e) {
       AppLogger.error('Camera init failed: $e');
-      if (mounted) setState(() => _cameraError = 'Camera initialization failed');
+      if (mounted) {
+        setState(() => _cameraError = 'Camera initialization failed');
+      }
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -164,6 +207,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
     try {
       final file = await _camera!.takePicture();
       HapticFeedback.mediumImpact();
+      if (!mounted) return;
       ref.read(attendanceVerificationProvider.notifier).setImagePath(file.path);
       
       setState(() {
@@ -199,10 +243,19 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
   }
 
   void _retakePhoto() {
-    _camera?.dispose();
+    final cam = _camera;
     _camera = null;
-    _cameraReady = false;
-    _cameraError = null;
+    if (mounted) {
+      setState(() {
+        _cameraReady = false;
+        _cameraError = null;
+      });
+    }
+    if (cam != null) {
+      cam.dispose().catchError((e) {
+        AppLogger.error('Error disposing camera in retake: $e');
+      });
+    }
     ref.read(attendanceVerificationProvider.notifier).reset();
     ref.read(geofenceVerificationProvider.notifier).reset();
   }
@@ -261,6 +314,7 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen>
             ref.read(attendanceVerificationProvider.notifier).setGpsLocation(
               next.position!.latitude,
               next.position!.longitude,
+              next.position!.accuracy,
             );
             _initCamera();
           }

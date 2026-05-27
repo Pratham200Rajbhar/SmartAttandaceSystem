@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Users, GraduationCap, BookOpen, Building2, ScanSearch,
   ScrollText, Radio, ClipboardCheck, BarChart3, Shield, Sliders, ChevronDown, ChevronRight,
-  FileText
+  FileText, Smartphone
 } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import api from "@/lib/api";
@@ -39,6 +39,7 @@ const teacherLinks: NavItem[] = [
   { label: "Sessions", href: "/teacher/sessions", icon: <Radio size={18} /> },
   { label: "Review Queue", href: "/teacher/review", icon: <ClipboardCheck size={18} /> },
   { label: "Leave Requests", href: "/teacher/leaves", icon: <FileText size={18} /> },
+  { label: "Device Changes", href: "/teacher/device-changes", icon: <Smartphone size={18} /> },
 ];
 
 const teacherReportLinks: NavItem[] = [

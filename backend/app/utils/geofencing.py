@@ -25,3 +25,21 @@ def calculate_haversine_distance(coord_a: GPSCoordinate, coord_b: GPSCoordinate)
     angular_distance = 2.0 * math.atan2(math.sqrt(haversine_term), math.sqrt(1.0 - haversine_term))
     return EARTH_RADIUS_M * angular_distance
 
+
+def is_within_geofence(
+    student_coord: GPSCoordinate,
+    classroom_coord: GPSCoordinate,
+    base_radius: float,
+    student_accuracy: float,
+) -> bool:
+    """Validates if student is within the classroom geofence, accounting for GPS drift.
+
+    The effective radius is the base classroom radius plus student accuracy,
+    capped at a maximum of 100.0 meters.
+    """
+    distance = calculate_haversine_distance(student_coord, classroom_coord)
+    effective_radius = base_radius + student_accuracy
+    if effective_radius > 100.0:
+        effective_radius = 100.0
+    return distance <= effective_radius
+

@@ -23,6 +23,12 @@ enum LeaveStatus {
   REJECTED
 }
 
+enum DeviceChangeStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id             String   @id @default(uuid())
   email          String   @unique
@@ -63,6 +69,7 @@ model Student {
   attendance   Attendance[]
   enrollments  Enrollment[]
   leaveRequests LeaveRequest[]
+  deviceChangeRequests DeviceChangeRequest[]
 
   @@map("students")
 }
@@ -262,4 +269,19 @@ model AuditLog {
   metadata    Json?
 
   @@map("audit_logs")
+}
+
+model DeviceChangeRequest {
+  id            String             @id @default(uuid())
+  studentId     String             @map("student_id")
+  status        DeviceChangeStatus @default(PENDING)
+  reason        String?
+  newDeviceUuid String             @map("new_device_uuid")
+  approvedBy    String?            @map("approved_by")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@map("device_change_requests")
 }

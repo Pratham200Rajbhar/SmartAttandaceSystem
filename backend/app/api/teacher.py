@@ -12,7 +12,7 @@ from app.schemas.teacher import (
     SessionResponse, SessionStart, GeofenceUpsert, GeofenceResponse,
     AcademicClassWithGeofenceResponse, SessionAttendanceResponse,
     ClassStatsResponse, AttendanceManualOverride, SessionWithClassResponse,
-    BulkMarkRequest, AbsentStudentItem,
+    BulkMarkRequest, AbsentStudentItem, DeviceChangeResponse, DeviceChangeApprove
 )
 from app.schemas.attendance import AttendanceReview, FlaggedAttendanceResponse
 from app.schemas.leave import LeaveRequestResponse, LeaveRequestApprove
@@ -20,6 +20,7 @@ from app.services.session_service import SessionService
 from app.services.attendance_service import AttendanceService
 from app.services.teacher_service import TeacherService
 from app.services.leave_service import LeaveService
+from app.services.device_change_service import DeviceChangeService
 
 router = APIRouter(prefix="/teacher", tags=["Teacher Features"])
 
@@ -223,4 +224,24 @@ async def approve_leave(
     if not result:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Leave request not found.")
     return {"status": "success", "message": f"Leave request {data.status.lower()} successfully."}
+
+
+@router.get("/device-changes/pending", response_model=list[DeviceChangeResponse])
+async def get_pending_device_changes(
+    teacher: Teacher = Depends(get_current_teacher),
+    device_change_service: DeviceChangeService = Depends(),
+) -> list[DeviceChangeResponse]:
+    return await device_change_service.get_pending_requests(teacher_id=teacher.id)
+
+
+@router.put("/device-changes/{request_id}/approve", status_code=status.HTTP_200_OK)
+async def approve_device_change(
+    request_id: str, data: DeviceChangeApprove,
+    teacher: Teacher = Depends(get_current_teacher),
+    device_change_service: DeviceChangeService = Depends(),
+) -> dict:
+    result = await device_change_service.approve_request(request_id=request_id, teacher_id=teacher.id, new_status=data.status)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Device change request not found or not pending.")
+    return {"status": "success", "message": f"Device change request {data.status.lower()} successfully."}
 

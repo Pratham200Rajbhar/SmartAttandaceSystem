@@ -22,3 +22,10 @@ class UserProfileResponse(BaseModel):
     is_active: bool = Field(..., description="System status flag")
     student_profile: Optional[dict] = Field(None, description="Detailed student profile if role is STUDENT")
     teacher_profile: Optional[dict] = Field(None, description="Detailed teacher profile if role is TEACHER")
+
+
+class DeviceChangeRequestCreate(BaseModel):
+    email: EmailStr = Field(..., description="Unique email address of the user")
+    password: str = Field(..., min_length=8, max_length=100, description="Plaintext password")
+    new_device_uuid: str = Field(..., description="The new hardware device UUID")
+    reason: Optional[str] = Field(None, description="Optional reason for changing the device")

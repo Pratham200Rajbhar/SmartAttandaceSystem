@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:smart_attendance_app/core/exceptions.dart';
 import 'package:smart_attendance_app/core/events.dart';
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/data/local/device_service.dart';
@@ -68,6 +69,12 @@ class AuthNotifier extends StateNotifier<AuthStateData> {
       final deviceUuid = await _deviceService.getDeviceUUID();
       final result = await _repo.login(email, password, deviceUuid);
       state = AuthStateData(status: result.status, user: result.profile);
+    } on AppException catch (e) {
+      AppLogger.error('Login failed: $e');
+      state = AuthStateData(
+        status: AuthStatus.unauthenticated,
+        errorMessage: e.message,
+      );
     } on DioException catch (e) {
       AppLogger.error('Login failed: $e');
       final mapped = mapDioError(e);

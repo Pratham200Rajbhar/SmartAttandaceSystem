@@ -68,8 +68,8 @@ class LocationService {
         if (bestPosition != null) {
           if (bestPosition!.accuracy > kMinGpsAccuracyMeters) {
             completer.completeError(
-              LocationException(
-                'GPS signal accuracy (${bestPosition!.accuracy.toStringAsFixed(0)}m) is too low. Required: < ${kMinGpsAccuracyMeters.toStringAsFixed(0)}m. Please step outdoors or near a window to improve signal.',
+              const LocationException(
+                'GPS signal too weak. Please move near a window.',
               ),
             );
           } else {
@@ -88,7 +88,7 @@ class LocationService {
     try {
       subscription = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
+          accuracy: LocationAccuracy.best,
           distanceFilter: 0,
         ),
       ).listen(
@@ -131,7 +131,14 @@ class LocationService {
       }
     }
 
-    return completer.future;
+    final finalPos = await completer.future;
+    if (finalPos.isMocked) {
+      throw const LocationException('Mocked location detected. Attendance blocked.');
+    }
+    if (finalPos.accuracy > 60.0) {
+      throw const LocationException('GPS signal too weak. Please move near a window.');
+    }
+    return finalPos;
   }
 
   Future<Position> getAveragedPosition({int samples = kGpsAveragingSamples}) async {

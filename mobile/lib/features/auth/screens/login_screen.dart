@@ -5,6 +5,7 @@ import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/constants.dart';
 import 'package:smart_attendance_app/domain/enums/auth_state.dart';
 import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
+import 'package:smart_attendance_app/features/auth/widgets/device_change_dialog.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
@@ -154,18 +155,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       color: SasColors.accentPink.withValues(alpha: 0.3),
                                     ),
                                   ),
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
-                                      const Icon(Icons.error_outline,
-                                          color: SasColors.danger, size: 18),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          authState.errorMessage!,
-                                          style: const TextStyle(
-                                              color: SasColors.danger, fontSize: 13),
-                                        ),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.error_outline,
+                                              color: SasColors.danger, size: 18),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              authState.errorMessage!,
+                                              style: const TextStyle(
+                                                  color: SasColors.danger, fontSize: 13),
+                                            ),
+                                          ),
+                                        ],
                                       ),
+                                      if (authState.errorMessage == 'Access forbidden' || authState.errorMessage!.contains('bound')) ...[
+                                        const SizedBox(height: 12),
+                                        ElevatedButton.icon(
+                                          onPressed: () async {
+                                            if (!_formKey.currentState!.validate()) return;
+                                            final success = await showDialog<bool>(
+                                              context: context,
+                                              builder: (context) => DeviceChangeDialog(
+                                                email: _emailController.text.trim(),
+                                                password: _passwordController.text,
+                                              ),
+                                            );
+                                            if (success == true && context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(
+                                                  content: Text('Request sent! Please ask your teacher to approve your new device.'),
+                                                  backgroundColor: SasColors.accentEmerald,
+                                                ),
+                                              );
+                                            }
+                                          },
+                                          icon: const Icon(Icons.smartphone, size: 16),
+                                          label: const Text('Request Device Change'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: SasColors.bgSurface,
+                                            foregroundColor: SasColors.accentEmerald,
+                                            side: const BorderSide(color: SasColors.accentEmerald),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                 ),

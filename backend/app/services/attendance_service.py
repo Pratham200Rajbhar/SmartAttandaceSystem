@@ -14,7 +14,7 @@ from app.repositories.geofence_repo import GeofenceRepository
 from app.repositories.student_repo import StudentRepository
 from app.repositories.class_repo import ClassRepository
 from app.services.ai_orchestrator import AIOrchestrator
-from app.utils.geofencing import GPSCoordinate, calculate_haversine_distance, GEOFENCE_GRACE_METERS
+from app.utils.geofencing import GPSCoordinate, calculate_haversine_distance, GEOFENCE_GRACE_METERS, is_within_geofence
 from app.api.ws import manager
 
 logger = get_logger("app.attendance")
@@ -34,6 +34,7 @@ class AttendanceSubmission:
     session_id: str
     latitude: float
     longitude: float
+    accuracy: float
     image_path: str
 
 
@@ -95,15 +96,20 @@ class AttendanceService:
             geofence_missing = True
             remarks = "Missing Geofence Data"
         else:
-            distance = calculate_haversine_distance(
-                GPSCoordinate(submission.latitude, submission.longitude),
-                GPSCoordinate(geofence.latitude, geofence.longitude),
+            student_coord = GPSCoordinate(submission.latitude, submission.longitude)
+            classroom_coord = GPSCoordinate(geofence.latitude, geofence.longitude)
+            is_inside = is_within_geofence(
+                student_coord=student_coord,
+                classroom_coord=classroom_coord,
+                base_radius=geofence.radiusMeters,
+                student_accuracy=submission.accuracy,
             )
-            if distance > geofence.radiusMeters + GEOFENCE_GRACE_METERS:
-                effective_radius = geofence.radiusMeters + GEOFENCE_GRACE_METERS
+            if not is_inside:
+                distance = calculate_haversine_distance(student_coord, classroom_coord)
+                effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
                 raise ValueError(
                     f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
-                    f"(Distance: {distance:.1f}m, Allowed Radius: {effective_radius:.1f}m)"
+                    f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
                 )
 
         face_embedding = await self.student_repo.get_face_embedding(submission.student_id)

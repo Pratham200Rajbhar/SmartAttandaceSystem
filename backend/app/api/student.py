@@ -84,6 +84,7 @@ async def mark_attendance(
     session_id: str = Form(...),
     latitude: float = Form(...),
     longitude: float = Form(...),
+    accuracy: float = Form(...),
     image: UploadFile = File(...),
     student: Student = Depends(get_current_student),
     attendance_service: AttendanceService = Depends(),
@@ -92,7 +93,7 @@ async def mark_attendance(
     image_path = _save_uploaded_image(image, "attendance")
     submission = AttendanceSubmission(
         student_id=student.id, session_id=session_id,
-        latitude=latitude, longitude=longitude, image_path=image_path,
+        latitude=latitude, longitude=longitude, accuracy=accuracy, image_path=image_path,
     )
     try:
         attendance = await attendance_service.mark_attendance(submission)
