@@ -16,6 +16,8 @@ import 'package:workmanager/workmanager.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:smart_attendance_app/data/repositories/config_repository.dart';
+import 'package:smart_attendance_app/domain/enums/auth_state.dart';
+import 'package:smart_attendance_app/features/auth/providers/auth_provider.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -149,6 +151,8 @@ class SmartAttendanceApp extends ConsumerStatefulWidget {
 }
 
 class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
+  String? _pendingRoute;
+
   @override
   void initState() {
     super.initState();
@@ -158,6 +162,26 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
     Future.microtask(() => ref.read(configRepositoryProvider).fetchAndCacheConfig());
     
     _initializeFcm();
+  }
+
+  Future<void> _handleNotificationClick(RemoteMessage message) async {
+    final data = message.data;
+    final route = data['route'] as String?;
+    final attendanceId = data['attendance_id'] as String?;
+    if (route != null) {
+      String targetRoute = route;
+      if (route == '/flagged_detail' || route.startsWith('/flagged')) {
+        if (attendanceId != null) {
+          targetRoute = '/flagged/$attendanceId';
+        }
+      }
+      final authStatus = ref.read(authProvider).status;
+      if (authStatus == AuthStatus.authenticated) {
+        ref.read(routerProvider).push(targetRoute);
+      } else {
+        _pendingRoute = targetRoute;
+      }
+    }
   }
 
   Future<void> _initializeFcm() async {
@@ -191,6 +215,15 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
         
         await ref.read(notificationsProvider.notifier).load();
       });
+
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        _handleNotificationClick(message);
+      });
+
+      final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+      if (initialMessage != null) {
+        _handleNotificationClick(initialMessage);
+      }
     } catch (e) {
       AppLogger.error('FCM listener setup failed: $e');
     }
@@ -204,6 +237,16 @@ class _SmartAttendanceAppState extends ConsumerState<SmartAttendanceApp> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthStateData>(authProvider, (previous, next) {
+      if (next.status == AuthStatus.authenticated && _pendingRoute != null) {
+        final route = _pendingRoute!;
+        _pendingRoute = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(routerProvider).push(route);
+        });
+      }
+    });
+
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(

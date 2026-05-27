@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:smart_attendance_app/data/api/dio_client.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
+import 'package:smart_attendance_app/domain/models/leaderboard.dart';
 
 final studentApiProvider = Provider<StudentApi>((ref) {
   return StudentApi(ref.read(dioProvider));
@@ -159,5 +160,10 @@ class StudentApi {
   Future<Map<String, dynamic>> getMyStats() async {
     final response = await _dio.get<Map<String, dynamic>>('/student/stats');
     return response.data!;
+  }
+
+  Future<LeaderboardResponse> getLeaderboard() async {
+    final response = await _dio.get<Map<String, dynamic>>('/student/leaderboard');
+    return LeaderboardResponse.fromJson(response.data!);
   }
 }

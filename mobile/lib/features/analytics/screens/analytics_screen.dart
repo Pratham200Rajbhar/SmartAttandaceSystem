@@ -17,6 +17,7 @@ import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 import 'package:smart_attendance_app/shared/widgets/legend_dot.dart';
 import 'package:smart_attendance_app/shared/widgets/shimmer_placeholder.dart';
 import 'package:smart_attendance_app/shared/widgets/stat_tile.dart';
+import 'package:smart_attendance_app/features/analytics/providers/leaderboard_provider.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
   const AnalyticsScreen({super.key});
@@ -108,6 +109,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                 _buildSubjectGoals(hState.data!, target),
                 const SizedBox(height: 16),
                 _buildStreakCard(hState.data!),
+                const SizedBox(height: 16),
+                _buildLeaderboardCard(),
                 const SizedBox(height: 16),
                 _buildSubjectHeatmap(hState.data!),
               ],
@@ -454,6 +457,63 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
           );
         }),
       ],
+    );
+  }
+
+  Widget _buildLeaderboardCard() {
+    final lbState = ref.watch(leaderboardProvider);
+    final userPoints = lbState.data?.userPoints ?? 0;
+    final userRank = lbState.data?.userRank;
+
+    return GlassCard(
+      onTap: () => context.push('/leaderboard'),
+      borderColor: SasColors.accentAmber.withValues(alpha: 0.3),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: SasColors.accentAmber.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.emoji_events_rounded,
+              color: SasColors.accentAmber,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Leaderboard & Points',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    color: SasColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  userRank != null
+                      ? 'Rank: #$userRank · $userPoints pts'
+                      : '$userPoints pts · Tap to view leaderboard',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: SasColors.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            color: SasColors.textMuted,
+          ),
+        ],
+      ),
     );
   }
 

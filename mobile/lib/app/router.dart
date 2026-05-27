@@ -17,6 +17,7 @@ import 'package:smart_attendance_app/features/history/screens/history_screen.dar
 import 'package:smart_attendance_app/features/history/screens/subject_detail_screen.dart';
 import 'package:smart_attendance_app/features/notifications/screens/notifications_screen.dart';
 import 'package:smart_attendance_app/features/analytics/screens/analytics_screen.dart';
+import 'package:smart_attendance_app/features/analytics/screens/leaderboard_screen.dart';
 import 'package:smart_attendance_app/features/profile/screens/profile_screen.dart';
 import 'package:smart_attendance_app/features/settings/screens/goals_screen.dart';
 import 'package:smart_attendance_app/features/settings/screens/notification_prefs_screen.dart';
@@ -140,33 +141,24 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/flagged/:attendanceId',
         pageBuilder: (context, state) {
-          final item = state.extra;
-          if (item is! AttendanceHistoryItem) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Invalid route data')),
-                );
-                context.go('/history');
-              }
-            });
-            return CustomTransitionPage(
-              key: state.pageKey,
-              child: const Scaffold(
-                body: Center(
-                  child: CircularProgressIndicator(
-                    color: SasColors.accentEmerald,
-                  ),
-                ),
-              ),
-              transitionsBuilder: _noTransition,
-            );
-          }
+          final attendanceId = state.pathParameters['attendanceId']!;
+          final item = state.extra as AttendanceHistoryItem?;
           return _slideRightPage(
             key: state.pageKey,
-            child: FlaggedDetailScreen(item: item),
+            child: FlaggedDetailScreen(
+              item: item,
+              attendanceId: attendanceId,
+            ),
           );
         },
+      ),
+
+      GoRoute(
+        path: '/leaderboard',
+        pageBuilder: (_, state) => _slideRightPage(
+          key: state.pageKey,
+          child: const LeaderboardScreen(),
+        ),
       ),
 
       GoRoute(
@@ -292,15 +284,6 @@ CustomTransitionPage<void> _slideRightPage({
     },
   );
 }
-
-/// No-op transition for error fallback pages.
-Widget _noTransition(
-  BuildContext context,
-  Animation<double> animation,
-  Animation<double> secondaryAnimation,
-  Widget child,
-) =>
-    child;
 
 // ---------------------------------------------------------------------------
 // Shell scaffold

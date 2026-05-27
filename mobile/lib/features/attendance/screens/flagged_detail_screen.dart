@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:smart_attendance_app/app/theme.dart';
 import 'package:smart_attendance_app/core/attendance_utils.dart';
 import 'package:smart_attendance_app/data/api/student_api.dart';
+import 'package:smart_attendance_app/data/repositories/attendance_repository.dart';
 import 'package:smart_attendance_app/domain/models/attendance.dart';
 import 'package:smart_attendance_app/shared/widgets/animated_background.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_app_bar.dart';
@@ -12,8 +13,9 @@ import 'package:smart_attendance_app/shared/widgets/glass_button.dart';
 import 'package:smart_attendance_app/shared/widgets/glass_card.dart';
 
 class FlaggedDetailScreen extends ConsumerStatefulWidget {
-  final AttendanceHistoryItem item;
-  const FlaggedDetailScreen({super.key, required this.item});
+  final AttendanceHistoryItem? item;
+  final String? attendanceId;
+  const FlaggedDetailScreen({super.key, this.item, this.attendanceId});
 
   @override
   ConsumerState<FlaggedDetailScreen> createState() =>
@@ -25,6 +27,46 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
   bool _isSubmitting = false;
   bool _noteSubmitted = false;
 
+  AttendanceHistoryItem? _item;
+  bool _isLoadingItem = false;
+  String? _errorLoadingItem;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.item != null) {
+      _item = widget.item;
+    } else if (widget.attendanceId != null) {
+      _loadItem();
+    }
+  }
+
+  Future<void> _loadItem() async {
+    setState(() {
+      _isLoadingItem = true;
+      _errorLoadingItem = null;
+    });
+    try {
+      final historyRes = await ref.read(attendanceRepositoryProvider).getHistory();
+      final found = historyRes.history.firstWhere(
+        (element) => element.attendanceId == widget.attendanceId,
+      );
+      if (mounted) {
+        setState(() {
+          _item = found;
+          _isLoadingItem = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorLoadingItem = 'Failed to load details: $e';
+          _isLoadingItem = false;
+        });
+      }
+    }
+  }
+
   @override
   void dispose() {
     _noteController.dispose();
@@ -33,11 +75,51 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
+    if (_isLoadingItem) {
+      return const Scaffold(
+        appBar: GlassAppBar(title: 'Flagged Submission', showBack: true),
+        body: AnimatedBackground(
+          child: Center(
+            child: CircularProgressIndicator(color: SasColors.accentEmerald),
+          ),
+        ),
+      );
+    }
+
+    if (_item == null) {
+      return Scaffold(
+        appBar: const GlassAppBar(title: 'Flagged Submission', showBack: true),
+        body: AnimatedBackground(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    _errorLoadingItem ?? 'Submission not found.',
+                    style: const TextStyle(color: SasColors.textPrimary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  if (_errorLoadingItem != null)
+                    ElevatedButton(
+                      onPressed: _loadItem,
+                      child: const Text('Retry'),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final item = _item!;
     final itemColor = statusColor(item.status);
 
     return Scaffold(
-      appBar: const GlassAppBar(title: 'Flagged Submission'),
+      appBar: const GlassAppBar(title: 'Flagged Submission', showBack: true),
       body: AnimatedBackground(
         child: SafeArea(
           child: ListView(
@@ -306,7 +388,7 @@ class _FlaggedDetailScreenState extends ConsumerState<FlaggedDetailScreen> {
     try {
       await ref
           .read(studentApiProvider)
-          .submitFlaggedNote(widget.item.attendanceId, note);
+          .submitFlaggedNote(_item!.attendanceId, note);
       if (mounted) setState(() => _noteSubmitted = true);
     } catch (e) {
       if (mounted) {

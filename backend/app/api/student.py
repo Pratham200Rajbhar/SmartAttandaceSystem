@@ -304,3 +304,8 @@ async def get_smart_pass(student: Student = Depends(get_current_student)) -> dic
 async def get_my_stats(student: Student = Depends(get_current_student)) -> dict:
     return await GamificationService().get_student_stats(student.id)
 
+
+@router.get("/leaderboard", response_model=dict)
+async def get_leaderboard(student: Student = Depends(get_current_student)) -> dict:
+    return await GamificationService().get_leaderboard(student.id)
+

@@ -15,7 +15,7 @@ from app.repositories.student_repo import StudentRepository
 from app.repositories.class_repo import ClassRepository
 from app.services.ai_orchestrator import AIOrchestrator
 from app.services.system_config_service import SystemConfigService
-from app.utils.geofencing import GPSCoordinate, calculate_haversine_distance, GEOFENCE_GRACE_METERS, is_within_geofence
+from app.utils.geofencing import GPSCoordinate, calculate_haversine_distance, is_within_geofence
 from app.api.ws import manager
 
 logger = get_logger("app.attendance")
@@ -179,7 +179,7 @@ class AttendanceService:
                 if student and student.fcmToken:
                     ac = await self.class_repo.get_by_id(session.academicClassId)
                     class_name = ac.name if ac else "your class"
-                    await notify_student_attendance_flagged(student.fcmToken, student.firstName or "Student", class_name)
+                    await notify_student_attendance_flagged(student.fcmToken, student.firstName or "Student", class_name, attendance_record.id)
             except Exception as e:
                 logger.warning("FCM notification failed: %s", e)
 
@@ -406,7 +406,7 @@ class AttendanceService:
                 if student and student.fcmToken:
                     ac = await self.class_repo.get_by_id(session.academicClassId)
                     class_name = ac.name if ac else "your class"
-                    await notify_student_attendance_flagged(student.fcmToken, student.firstName or "Student", class_name)
+                    await notify_student_attendance_flagged(student.fcmToken, student.firstName or "Student", class_name, attendance_record.id)
             except Exception as e:
                 logger.warning("FCM notification failed: %s", e)
 

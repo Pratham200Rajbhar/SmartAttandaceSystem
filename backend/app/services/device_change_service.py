@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import List
 from fastapi import HTTPException, status
 from app.db.client import db
 from app.core.security import verify_password

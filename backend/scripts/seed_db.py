@@ -1,218 +1,1075 @@
+"""
+Smart Attendance System — Database Seed Script
+================================================
+
+Generates realistic Indian college data:
+  • 1  Admin account
+  • 50 Teachers with realistic profiles
+  • 300+ Students with enrollment numbers, departments, batches
+  • 9  Academic Departments
+  • 7  Designations
+  • 30+ Subjects across departments & semesters
+  • 20 Classrooms across multiple buildings
+  • 80+ Academic Classes with geofences
+  • ~1 month of Sessions (+Attendance records)
+  • Enrollments, Leaves, Device Change Requests, Audit Logs
+
+Idempotent: safe to re-run (clears all existing data first).
+
+Usage
+-----
+    cd backend
+    python prisma/seed.py
+
+    # or directly:
+    python -c "from scripts.seed_db import seed_all; import asyncio; asyncio.run(seed_all())"
+
+Pre-requisites
+--------------
+    pip install -r requirements.txt
+    prisma generate
+    Ensure DATABASE_URL in .env is pointing to the target PostgreSQL instance.
+    The `vector` extension must be enabled on the database:
+        CREATE EXTENSION IF NOT EXISTS vector;
+"""
+
+from __future__ import annotations
+
 import asyncio
-import logging
-import sys
-import os
-from datetime import datetime, timedelta, timezone
+import json
+import random
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, TypeVar
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+T = TypeVar("T")
 
-from app.db.client import db, connect_db, disconnect_db  # noqa: E402
-from app.core.security import hash_password  # noqa: E402
+import bcrypt
+from prisma import Prisma, Json
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("seed")
+# ==============================================================================
+# PASSWORD HASHING (mirrors app/core/security.py to avoid app import)
+# ==============================================================================
+
+def _hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
+
+# ==============================================================================
+# REALISTIC INDIAN DATA POOLS
+# ==============================================================================
+
+MALE_FIRST_NAMES = [
+    "Aarav", "Vihaan", "Vivaan", "Advik", "Kabir", "Arjun", "Rohan", "Ishaan",
+    "Ayaan", "Dhruv", "Krish", "Reyansh", "Shiv", "Yash", "Dev", "Pranav",
+    "Manav", "Karan", "Vikram", "Rahul", "Amit", "Suresh", "Ravi", "Deepak",
+    "Sanjay", "Vijay", "Rajesh", "Nikhil", "Abhishek", "Harsh", "Varun",
+    "Aditya", "Saurabh", "Akash", "Sachin", "Pradeep", "Ganesh", "Mahesh",
+    "Naresh", "Rakesh", "Dinesh", "Sagar", "Lokesh", "Ajay", "Anil", "Sunil",
+    "Manoj", "Ashish", "Tushar", "Kunal", "Chetan", "Rishabh", "Siddharth",
+    "Ankur", "Pankaj", "Gaurav", "Vishal", "Shubham", "Mohit", "Rohit",
+    "Sumit", "Manish", "Alok", "Chandan", "Jatin", "Hitesh", "Vinod",
+    "Mukesh", "Rajat", "Vivek", "Lalit", "Akshay", "Sandeep", "Nitin",
+    "Amitabh", "Hemant", "Tarun", "Umesh", "Nilesh", "Kamlesh", "Gopal",
+    "Harish", "Kishore", "Mohan", "Navneet", "Om", "Prakash", "Ramesh",
+    "Shekhar", "Tejas", "Uday", "Vimal", "Wasim", "Yogesh", "Zubin",
+    "Amol", "Bhavesh", "Chirag", "Darshan", "Eknath", "Faisal", "Girish",
+    "Himanshu", "Iqbal", "Jagdish", "Kaushik", "Laxman", "Mithun", "Neeraj",
+    "Omprakash", "Parag", "Quasim", "Ranjit", "Sameer", "Tanmay", "Utkarsh",
+    "Vaibhav", "Waman", "Yashwant", "Anurag", "Bharat", "Chandrashekhar",
+    "Dhananjay", "Eshwar", "Fateh", "Gautam", "Harshad", "Ishwar", "Jitendra",
+    "Kartik", "Lalit", "Madhav", "Nandkishore", "Ojas", "Parth", "Raghav",
+]
+
+FEMALE_FIRST_NAMES = [
+    "Ananya", "Priya", "Aditi", "Aisha", "Diya", "Kavya", "Anjali", "Shreya",
+    "Neha", "Pooja", "Riya", "Meera", "Ishita", "Nandini", "Tanvi", "Sakshi",
+    "Vaishali", "Swati", "Divya", "Pallavi", "Shweta", "Aparna", "Deepa",
+    "Kavita", "Sunita", "Rekha", "Asha", "Usha", "Geeta", "Radha", "Laxmi",
+    "Jyoti", "Madhu", "Nidhi", "Poonam", "Rashmi", "Shilpa", "Ritu", "Anju",
+    "Suman", "Archana", "Bhavna", "Chitra", "Ekta", "Garima", "Hema",
+    "Kamala", "Lata", "Manju", "Namrata", "Pratibha", "Rajni", "Sarita",
+    "Tripti", "Uma", "Vandana", "Yamini", "Zara", "Aparajita", "Bindiya",
+    "Charulata", "Damini", "Gargi", "Harini", "Jaya", "Kirti", "Lavanya",
+    "Mala", "Navya", "Ojal", "Parvati", "Rukmini", "Savitri", "Tanushree",
+    "Ankita", "Bhavika", "Chaitali", "Devika", "Gauri", "Hansika", "Ira",
+    "Jhanvi", "Kiara", "Lipika", "Mitali", "Nayana", "Parnika", "Rupali",
+    "Samiksha", "Tulika", "Varsha", "Aarushi", "Barkha", "Charvi", "Disha",
+    "Esha", "Falguni", "Gomati", "Harshita", "Ipsita", "Jyotsna", "Kritika",
+    "Lopamudra", "Moushumi", "Nirmala", "Oindrila", "Pragya", "Roshni",
+    "Shikha", "Trisha", "Upasana", "Vidya", "Yoshita", "Zeenat",
+]
+
+LAST_NAMES = [
+    "Sharma", "Verma", "Patel", "Singh", "Gupta", "Reddy", "Nair", "Joshi",
+    "Kumar", "Das", "Sen", "Bose", "Mukherjee", "Banerjee", "Chatterjee",
+    "Ganguly", "Iyer", "Menon", "Pillai", "Rao", "Naidu", "Prasad", "Mishra",
+    "Tiwari", "Dubey", "Pandey", "Chauhan", "Yadav", "Rajput", "Thakur",
+    "Solanki", "Rathore", "Shekhawat", "Mehta", "Shah", "Desai", "Trivedi",
+    "Acharya", "Bhat", "Hegde", "Shetty", "Pai", "Nayak", "Swain", "Behera",
+    "Mahapatra", "Kaur", "Gill", "Dhillon", "Bedi", "Kapoor", "Khanna",
+    "Malhotra", "Chopra", "Bhatia", "Sethi", "Aggarwal", "Jain", "Saxena",
+    "Srivastava", "Sinha", "Mathur", "Bajaj", "Rana", "Biswas", "Ghosh",
+    "Dutta", "Majumdar", "Saha", "Acharya", "Krishnan", "Bharadwaj", "Mani",
+    "Subramaniam", "Venkatesh", "Kulkarni", "Deshpande", "Gokhale", "Tendulkar",
+    "Rajan", "Varma", "Philip", "George", "Thomas", "Jacob", "Mathew", "Cherian",
+]
+
+# ==============================================================================
+# INSTITUTIONAL DATA
+# ==============================================================================
+
+DEPARTMENTS = [
+    ("Computer Science & Engineering", "CSE", "Dr. Rajesh Sharma", "Focus on computing, algorithms, AI, and software engineering"),
+    ("Information Technology", "IT", "Dr. Sunita Verma", "Focus on IT infrastructure, networking, and cybersecurity"),
+    ("Electronics & Communication Engineering", "ECE", "Dr. Anil Kumar", "Focus on electronics, communications, and signal processing"),
+    ("Mechanical Engineering", "ME", "Dr. Vikram Singh", "Focus on mechanics, thermodynamics, and manufacturing"),
+    ("Civil Engineering", "CE", "Dr. Priya Patel", "Focus on structures, construction, and environmental engineering"),
+    ("Electrical Engineering", "EE", "Dr. Suresh Reddy", "Focus on power systems, machines, and renewable energy"),
+    ("Business Administration", "MBA", "Dr. Meera Nair", "Focus on management, finance, and organizational behavior"),
+    ("Pharmacy", "PHARM", "Dr. Anjali Joshi", "Focus on pharmaceutical sciences and drug discovery"),
+    ("Biotechnology", "BT", "Dr. Ravi Gupta", "Focus on molecular biology, genetics, and bioinformatics"),
+]
+
+DESIGNATIONS = [
+    ("Professor", "PROF", "Senior-most faculty with extensive research and teaching experience"),
+    ("Associate Professor", "APROF", "Mid-career faculty with significant academic contributions"),
+    ("Assistant Professor", "ASPROF", "Early-career faculty building their academic portfolio"),
+    ("Senior Lecturer", "SLECT", "Experienced lecturer with specialized domain expertise"),
+    ("Lecturer", "LECT", "Teaching-focused faculty member"),
+    ("Head of Department", "HOD", "Department head overseeing academic and administrative functions"),
+    ("Dean", "DEAN", "Dean of the faculty overseeing multiple departments"),
+]
+
+# Subject definitions: department_key -> list of (name, code, semester)
+SUBJECT_DEFS: dict[str, list[tuple[str, str, int]]] = {
+    "CSE": [
+        ("Programming in C", "CSE201", 2),
+        ("Discrete Mathematics", "CSE202", 2),
+        ("Digital Logic Design", "CSE203", 2),
+        ("Data Structures", "CSE301", 4),
+        ("Database Management Systems", "CSE302", 4),
+        ("Computer Organization & Architecture", "CSE303", 4),
+        ("Operating Systems", "CSE304", 4),
+        ("Computer Networks", "CSE401", 6),
+        ("Software Engineering", "CSE402", 6),
+        ("Web Technologies", "CSE403", 6),
+        ("Design & Analysis of Algorithms", "CSE404", 6),
+        ("Machine Learning", "CSE501", 8),
+        ("Cloud Computing", "CSE502", 8),
+        ("Cyber Security", "CSE503", 8),
+    ],
+    "IT": [
+        ("Fundamentals of IT", "IT201", 2),
+        ("Web Development Basics", "IT202", 2),
+        ("Database Systems", "IT301", 4),
+        ("Data Communication & Networking", "IT302", 4),
+        ("Object-Oriented Programming", "IT303", 4),
+        ("Network Security", "IT401", 6),
+        ("Cloud Infrastructure", "IT402", 6),
+        ("Mobile Application Development", "IT403", 6),
+        ("Big Data Analytics", "IT501", 8),
+        ("Blockchain Technology", "IT502", 8),
+    ],
+    "ECE": [
+        ("Basic Electronics", "ECE201", 2),
+        ("Network Analysis & Synthesis", "ECE202", 2),
+        ("Analog Electronics", "ECE301", 4),
+        ("Digital Electronics", "ECE302", 4),
+        ("Signals & Systems", "ECE303", 4),
+        ("Analog Communication", "ECE304", 4),
+        ("Microprocessors & Microcontrollers", "ECE401", 6),
+        ("Digital Signal Processing", "ECE402", 6),
+        ("VLSI Design", "ECE403", 6),
+        ("Wireless Communication", "ECE501", 8),
+        ("Embedded Systems", "ECE502", 8),
+        ("Internet of Things", "ECE503", 8),
+    ],
+    "ME": [
+        ("Engineering Mechanics", "ME201", 2),
+        ("Thermodynamics", "ME202", 2),
+        ("Fluid Mechanics & Hydraulic Machines", "ME301", 4),
+        ("Strength of Materials", "ME302", 4),
+        ("Manufacturing Processes", "ME303", 4),
+        ("Heat & Mass Transfer", "ME401", 6),
+        ("Machine Design", "ME402", 6),
+        ("CAD / CAM", "ME403", 6),
+        ("Robotics & Automation", "ME501", 8),
+        ("Automobile Engineering", "ME502", 8),
+        ("Power Plant Engineering", "ME503", 8),
+    ],
+    "CE": [
+        ("Building Materials & Construction", "CE201", 2),
+        ("Surveying & Levelling", "CE202", 2),
+        ("Structural Analysis", "CE301", 4),
+        ("Fluid Mechanics", "CE302", 4),
+        ("Geotechnical Engineering", "CE303", 4),
+        ("Design of Steel Structures", "CE401", 6),
+        ("Transportation Engineering", "CE402", 6),
+        ("Environmental Engineering", "CE403", 6),
+        ("Earthquake Resistant Structures", "CE501", 8),
+        ("Construction Project Management", "CE502", 8),
+    ],
+    "EE": [
+        ("Basic Electrical Engineering", "EE201", 2),
+        ("Network Theory", "EE202", 2),
+        ("Electrical Machines", "EE301", 4),
+        ("Power Systems", "EE302", 4),
+        ("Control Systems", "EE303", 4),
+        ("Power Electronics", "EE401", 6),
+        ("Renewable Energy Systems", "EE402", 6),
+        ("Switchgear & Protection", "EE403", 6),
+        ("Smart Grid Technology", "EE501", 8),
+        ("Electric Vehicle Engineering", "EE502", 8),
+    ],
+    "MBA": [
+        ("Principles of Management", "MBA201", 2),
+        ("Financial Accounting", "MBA202", 2),
+        ("Marketing Management", "MBA301", 4),
+        ("Human Resource Management", "MBA302", 4),
+        ("Operations Research", "MBA303", 4),
+        ("Corporate Finance", "MBA401", 6),
+        ("Business Analytics", "MBA402", 6),
+        ("Organizational Behavior", "MBA403", 6),
+        ("Strategic Management", "MBA501", 8),
+        ("Entrepreneurship & Innovation", "MBA502", 8),
+    ],
+    "PHARM": [
+        ("Pharmaceutical Chemistry", "PH201", 2),
+        ("Pharmacology I", "PH202", 2),
+        ("Pharmaceutics I", "PH301", 4),
+        ("Pharmacognosy", "PH302", 4),
+        ("Pharmaceutical Biochemistry", "PH303", 4),
+        ("Pharmaceutical Analysis", "PH401", 6),
+        ("Pharmacology II", "PH402", 6),
+        ("Medicinal Chemistry", "PH403", 6),
+        ("Drug Regulatory Affairs", "PH501", 8),
+        ("Clinical Pharmacy", "PH502", 8),
+    ],
+    "BT": [
+        ("Cell Biology", "BT201", 2),
+        ("Biochemistry", "BT202", 2),
+        ("Molecular Biology", "BT301", 4),
+        ("Genetic Engineering", "BT302", 4),
+        ("Bioprocess Engineering", "BT303", 4),
+        ("Immunology", "BT401", 6),
+        ("Bioinformatics", "BT402", 6),
+        ("Environmental Biotechnology", "BT403", 6),
+        ("Pharmaceutical Biotechnology", "BT501", 8),
+        ("Nanobiotechnology", "BT502", 8),
+    ],
+}
+
+CLASSROOMS = [
+    ("A-101", "A-Block", 60),
+    ("A-102", "A-Block", 60),
+    ("A-201", "A-Block", 50),
+    ("A-202", "A-Block", 50),
+    ("B-101", "B-Block", 80),
+    ("B-102", "B-Block", 80),
+    ("B-201", "B-Block", 40),
+    ("B-202", "B-Block", 40),
+    ("C-101", "C-Block", 70),
+    ("C-102", "C-Block", 70),
+    ("C-201", "C-Block", 45),
+    ("C-301", "C-Block", 45),
+    ("D-101", "D-Block", 90),
+    ("D-102", "D-Block", 90),
+    ("D-201", "D-Block", 55),
+    ("Engineering Lab 1", "Engineering Block", 30),
+    ("Engineering Lab 2", "Engineering Block", 30),
+    ("Computer Lab 1", "IT Block", 40),
+    ("Computer Lab 2", "IT Block", 40),
+    ("Seminar Hall", "Admin Block", 120),
+]
+
+# Teacher distribution: (dept_code, count, designation_indices)
+TEACHER_DEPT_DIST: list[tuple[str, int]] = [
+    ("CSE", 8),
+    ("IT", 5),
+    ("ECE", 7),
+    ("ME", 6),
+    ("CE", 5),
+    ("EE", 5),
+    ("MBA", 5),
+    ("PHARM", 5),
+    ("BT", 4),
+]
+
+DESIGNATION_WEIGHTS = [0.10, 0.20, 0.35, 0.10, 0.15, 0.05, 0.05]  # must sum to 1.0
+
+# Student distribution per department per batch
+# (dept_code, sem_2_count, sem_4_count, sem_6_count, sem_8_count)
+STUDENT_DEPT_DIST: list[tuple[str, int, int, int, int]] = [
+    ("CSE", 18, 17, 16, 14),     # 65
+    ("IT", 12, 11, 10, 9),       # 42
+    ("ECE", 14, 13, 12, 11),     # 50
+    ("ME", 12, 11, 10, 9),       # 42
+    ("CE", 9, 8, 8, 7),          # 32
+    ("EE", 9, 8, 8, 7),          # 32
+    ("MBA", 8, 7, 7, 6),         # 28
+    ("PHARM", 5, 4, 4, 4),       # 17
+    ("BT", 3, 3, 3, 3),          # 12
+]
+
+BATCH_MAP: dict[int, str] = {2: "2025-2029", 4: "2024-2028", 6: "2023-2027", 8: "2022-2026"}
+
+# Campus GPS (approximate centre of IIT Bombay campus)
+CAMPUS_LAT = 19.1334
+CAMPUS_LNG = 72.9133
+
+# Attendance scoring weights (mirroring app config)
+FACE_WEIGHT = 0.50
+LIVENESS_WEIGHT = 0.30
+BACKGROUND_WEIGHT = 0.20
+PASS_THRESHOLD = 0.75
+
+# ==============================================================================
+# HELPERS
+# ==============================================================================
+
+def random_date(start_dt: date, end_dt: date) -> datetime:
+    delta = end_dt - start_dt
+    offset_days = random.random() * delta.days
+    offset_seconds = random.random() * 86400.0
+    result = datetime.combine(start_dt, datetime.min.time()) + timedelta(days=offset_days, seconds=offset_seconds)
+    return result.replace(tzinfo=timezone.utc)
 
 
-async def clear_database() -> None:
-    logger.info("Clearing database...")
-    tables = [
-        db.attendance, db.enrollment, db.session, db.geofence,
-        db.academicclass, db.teacher, db.student, db.leaverequest,
-        db.auditlog, db.user, db.department, db.subject, db.classroom, db.designation,
-    ]
-    for table in tables:
-        try:
-            await table.delete_many()
-        except Exception as err:
-            logger.error("Failed to clear table %s: %s", table.__class__.__name__, err, exc_info=True)
+def _to_datetime(d: date | datetime) -> datetime:
+    if isinstance(d, datetime):
+        return d
+    return datetime.combine(d, datetime.min.time()).replace(tzinfo=timezone.utc)
 
 
-async def seed_admin() -> None:
-    await db.user.create(data={
-        "email": "admin@example.com", "hashedPassword": hash_password("admin123"),
-        "role": "ADMIN", "isActive": True,
-    })
+def _pick(items: list[T]) -> T:
+    return random.choice(items)
 
 
-async def seed_from_list(table, items: list[dict]) -> dict:
-    result = {}
-    for item in items:
-        try:
-            record = await table.create(data={k: v for k, v in item.items() if k != "_key"})
-            result[item.get("_key", item.get("code") or item.get("name"))] = record
-        except Exception as err:
-            logger.error("Failed to seed %s: %s", item.get("name", item), err, exc_info=True)
-            raise
-    return result
+def _pick_n(items: list[T], n: int) -> list[T]:
+    return random.sample(items, min(n, len(items)))
 
 
-async def seed_departments() -> dict:
-    return await seed_from_list(db.department, [
-        {"name": "Computer Science & Engineering", "code": "CSE", "head": "Dr. Ramesh Sharma", "description": "Department of CSE"},
-        {"name": "Information Technology", "code": "IT", "head": "Dr. Anita Roy", "description": "Department of IT"},
-        {"name": "Electronics & Communication Engineering", "code": "ECE", "head": "Dr. Sunil Verma", "description": "Department of ECE"},
-    ])
+def _weighted_choice(items: list[Any], weights: list[float]) -> Any:
+    return random.choices(items, weights=weights, k=1)[0]
 
 
-async def seed_designations() -> dict:
-    return await seed_from_list(db.designation, [
-        {"name": "Professor", "code": "PROF", "description": "Senior faculty head position"},
-        {"name": "Assistant Professor", "code": "ASST", "description": "Tenure-track faculty"},
-        {"name": "Lecturer", "code": "LECT", "description": "Contractual/entry teaching position"},
-    ])
+def jitter_gps(base_lat: float, base_lng: float, radius_deg: float = 0.002) -> tuple[float, float]:
+    lat = base_lat + random.uniform(-radius_deg, radius_deg)
+    lng = base_lng + random.uniform(-radius_deg, radius_deg)
+    return (round(lat, 6), round(lng, 6))
 
 
-async def seed_subjects() -> dict:
-    return await seed_from_list(db.subject, [
-        {"name": "Data Structures & Algorithms", "code": "CS101", "description": "Fundamental course on data structures"},
-        {"name": "Web Development", "code": "CS102", "description": "Full stack web development basics"},
-        {"name": "Digital Electronics", "code": "EC101", "description": "Fundamentals of logic gates and circuits"},
-    ])
+def compute_final_score(face: float, liveness: float, background: float) -> float:
+    return round(face * FACE_WEIGHT + liveness * LIVENESS_WEIGHT + background * BACKGROUND_WEIGHT, 4)
 
 
-async def seed_classrooms() -> dict:
-    return await seed_from_list(db.classroom, [
-        {"name": "Lab 1", "building": "Block A", "capacity": 40, "_key": "Lab 1"},
-        {"name": "Seminar Hall 1", "building": "Block B", "capacity": 120, "_key": "Seminar Hall 1"},
-        {"name": "Room 301", "building": "Block C", "capacity": 60, "_key": "Room 301"},
-    ])
+def generate_present_scores() -> dict[str, float]:
+    face = round(random.uniform(0.82, 0.99), 4)
+    liveness = round(random.uniform(0.80, 0.99), 4)
+    background = round(random.uniform(0.78, 0.99), 4)
+    final = compute_final_score(face, liveness, background)
+    return {"face_score": face, "liveness_score": liveness, "background_score": background, "final_ai_score": final}
 
 
-async def seed_teachers(depts: dict, desigs: dict) -> dict:
-    teachers_data = [
-        {"email": "rajesh.kumar@example.com", "password": "teacher123", "firstName": "Rajesh", "lastName": "Kumar", "employeeId": "T001", "dept_code": "CSE", "desig_code": "PROF"},
-        {"email": "sunita.rao@example.com", "password": "teacher123", "firstName": "Sunita", "lastName": "Rao", "employeeId": "T002", "dept_code": "CSE", "desig_code": "ASST"},
-        {"email": "anil.deshmukh@example.com", "password": "teacher123", "firstName": "Anil", "lastName": "Deshmukh", "employeeId": "T003", "dept_code": "IT", "desig_code": "PROF"},
-        {"email": "meera.nair@example.com", "password": "teacher123", "firstName": "Meera", "lastName": "Nair", "employeeId": "T004", "dept_code": "IT", "desig_code": "ASST"},
-        {"email": "vikram.singh@example.com", "password": "teacher123", "firstName": "Vikram", "lastName": "Singh", "employeeId": "T005", "dept_code": "ECE", "desig_code": "LECT"},
-    ]
-    teachers = {}
-    for t in teachers_data:
-        try:
-            user = await db.user.create(data={
-                "email": t["email"], "hashedPassword": hash_password(t["password"]),
-                "role": "TEACHER", "isActive": True,
-            })
-            teacher = await db.teacher.create(data={
-                "userId": user.id, "firstName": t["firstName"], "lastName": t["lastName"],
-                "employeeId": t["employeeId"], "departmentId": depts[t["dept_code"]].id,
-                "designationId": desigs[t["desig_code"]].id,
-            })
-            teachers[t["employeeId"]] = teacher
-        except Exception as err:
-            logger.error("Failed to seed teacher %s: %s", t["email"], err, exc_info=True)
-            raise
-    return teachers
+def generate_flagged_scores() -> dict[str, float]:
+    face = round(random.uniform(0.30, 0.70), 4)
+    liveness = round(random.uniform(0.25, 0.68), 4)
+    background = round(random.uniform(0.20, 0.65), 4)
+    final = compute_final_score(face, liveness, background)
+    return {"face_score": face, "liveness_score": liveness, "background_score": background, "final_ai_score": final}
 
 
-async def seed_students(depts: dict) -> dict:
-    students_data = [
-        {"email": "aarav.patel@example.com", "firstName": "Aarav", "lastName": "Patel", "enroll": "S001", "dept_code": "CSE", "gender": "MALE"},
-        {"email": "priya.sharma@example.com", "firstName": "Priya", "lastName": "Sharma", "enroll": "S002", "dept_code": "CSE", "gender": "FEMALE"},
-        {"email": "rohan.verma@example.com", "firstName": "Rohan", "lastName": "Verma", "enroll": "S003", "dept_code": "IT", "gender": "MALE"},
-        {"email": "ananya.gupta@example.com", "firstName": "Ananya", "lastName": "Gupta", "enroll": "S004", "dept_code": "IT", "gender": "FEMALE"},
-        {"email": "arjun.reddy@example.com", "firstName": "Arjun", "lastName": "Reddy", "enroll": "S005", "dept_code": "ECE", "gender": "MALE"},
-    ]
-    students = {}
-    for s in students_data:
-        try:
-            user = await db.user.create(data={
-                "email": s["email"], "hashedPassword": hash_password("student123"),
-                "role": "STUDENT", "isActive": True,
-            })
-            student = await db.student.create(data={
-                "userId": user.id, "enrollmentNumber": s["enroll"],
-                "firstName": s["firstName"], "lastName": s["lastName"],
-                "semester": 4, "batch": "2026", "gender": s["gender"],
-                "departmentId": depts[s["dept_code"]].id,
-            })
-            students[s["enroll"]] = student
-        except Exception as err:
-            logger.error("Failed to seed student %s: %s", s["email"], err, exc_info=True)
-            raise
-    return students
+def make_name_pool() -> list[tuple[str, str, str]]:
+    """Returns list of (first_name, last_name, gender) tuples."""
+    pool: list[tuple[str, str, str]] = []
+    for name in MALE_FIRST_NAMES:
+        pool.append((name, _pick(LAST_NAMES), "Male"))
+    for name in FEMALE_FIRST_NAMES:
+        pool.append((name, _pick(LAST_NAMES), "Female"))
+    random.shuffle(pool)
+    return pool
 
 
-async def seed_academic_classes(subs: dict, rooms: dict, teachers: dict) -> dict:
-    classes_data = [
-        {"name": "CSE-DSA-4A", "sub_code": "CS101", "room_name": "Lab 1", "teacher_emp": "T001", "semester": 4, "batch": "2026"},
-        {"name": "IT-WEBDEV-4B", "sub_code": "CS102", "room_name": "Seminar Hall 1", "teacher_emp": "T003", "semester": 4, "batch": "2026"},
-        {"name": "ECE-DE-4C", "sub_code": "EC101", "room_name": "Room 301", "teacher_emp": "T005", "semester": 4, "batch": "2026"},
-    ]
-    classes = {}
-    for c in classes_data:
-        try:
-            cls = await db.academicclass.create(data={
-                "name": c["name"], "subjectId": subs[c["sub_code"]].id,
-                "classroomId": rooms[c["room_name"]].id, "teacherId": teachers[c["teacher_emp"]].id,
-                "semester": c["semester"], "batch": c["batch"], "maxStudents": 40,
-            })
-            classes[c["name"]] = cls
-        except Exception as err:
-            logger.error("Failed to seed class %s: %s", c["name"], err, exc_info=True)
-            raise
-    return classes
+def make_phone() -> str:
+    return f"+91{random.randint(7000000000, 9999999999)}"
 
 
-async def seed_geofences(classes: dict) -> None:
-    for name, cls in classes.items():
-        try:
-            await db.geofence.create(data={
-                "academicClassId": cls.id, "latitude": 19.0760, "longitude": 72.8777, "radiusMeters": 100.0,
-            })
-        except Exception as err:
-            logger.error("Failed to seed geofence for %s: %s", name, err, exc_info=True)
-            raise
+def make_dob_for_semester(semester: int) -> date:
+    if semester <= 2:
+        return date(random.randint(2003, 2006), random.randint(1, 12), random.randint(1, 28))
+    elif semester <= 4:
+        return date(random.randint(2002, 2005), random.randint(1, 12), random.randint(1, 28))
+    elif semester <= 6:
+        return date(random.randint(2001, 2004), random.randint(1, 12), random.randint(1, 28))
+    else:
+        return date(random.randint(2000, 2003), random.randint(1, 12), random.randint(1, 28))
 
-
-async def seed_enrollments(students: dict, classes: dict) -> None:
-    try:
-        for enroll_no in ["S001", "S002"]:
-            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": classes["CSE-DSA-4A"].id})
-            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": classes["IT-WEBDEV-4B"].id})
-        for enroll_no in ["S003", "S004"]:
-            await db.enrollment.create(data={"studentId": students[enroll_no].id, "academicClassId": classes["IT-WEBDEV-4B"].id})
-        await db.enrollment.create(data={"studentId": students["S005"].id, "academicClassId": classes["ECE-DE-4C"].id})
-    except Exception as err:
-        logger.error("Failed to seed enrollments: %s", err, exc_info=True)
-        raise
-
-
-async def seed_active_sessions(classes: dict) -> None:
-    now = datetime.now(timezone.utc)
-    end = now + timedelta(hours=1)
-    for name, cls in classes.items():
-        try:
-            await db.session.create(data={
-                "academicClassId": cls.id, "startTime": now, "endTime": end, "isActive": True,
-            })
-        except Exception as err:
-            logger.error("Failed to seed session for %s: %s", name, err, exc_info=True)
-            raise
-
+# ==============================================================================
+# MAIN SEED FUNCTION
+# ==============================================================================
 
 async def seed_all() -> None:
-    await connect_db()
-    try:
-        await clear_database()
-        await seed_admin()
-        depts = await seed_departments()
-        desigs = await seed_designations()
-        subs = await seed_subjects()
-        rooms = await seed_classrooms()
-        teachers = await seed_teachers(depts, desigs)
-        students = await seed_students(depts)
-        classes = await seed_academic_classes(subs, rooms, teachers)
-        await seed_geofences(classes)
-        await seed_enrollments(students, classes)
-        await seed_active_sessions(classes)
-        logger.info("Database seeded successfully")
-    except Exception as err:
-        logger.error("Seeding failed: %s", err, exc_info=True)
-        raise
-    finally:
-        await disconnect_db()
+    db = Prisma(auto_register=True)
+    await db.connect()
+    print("=" * 72)
+    print("  SMART ATTENDANCE SYSTEM — DATABASE SEED")
+    print("=" * 72)
 
+    try:
+        # ------------------------------------------------------------------
+        # 1. CLEAR ALL EXISTING DATA (reverse FK dependency order)
+        # ------------------------------------------------------------------
+        print("\n[1/16] Clearing existing data …")
+        await db.attendance.delete_many()
+        await db.devicechangerequest.delete_many()
+        await db.leaverequest.delete_many()
+        await db.enrollment.delete_many()
+        await db.geofence.delete_many()
+        await db.session.delete_many()
+        await db.academicclass.delete_many()
+        await db.teacher.delete_many()
+        await db.student.delete_many()
+        await db.user.delete_many()
+        await db.subject.delete_many()
+        await db.classroom.delete_many()
+        await db.designation.delete_many()
+        await db.department.delete_many()
+        await db.auditlog.delete_many()
+        await db.systemconfiguration.delete_many()
+        print("  ✓ All tables cleared")
+
+        # ------------------------------------------------------------------
+        # 2. SYSTEM CONFIGURATION
+        # ------------------------------------------------------------------
+        print("\n[2/16] Seeding System Configuration …")
+        sys_cfg = await db.systemconfiguration.create(data={
+            "isFaceRecognitionEnabled": True,
+            "isGpsVerificationEnabled": True,
+            "isAiBackgroundValidationEnabled": True,
+        })
+        print(f"  ✓ System configuration (id={sys_cfg.id[:8]}…)")
+
+        # ------------------------------------------------------------------
+        # 3. DEPARTMENTS
+        # ------------------------------------------------------------------
+        print("\n[3/16] Seeding Departments …")
+        dept_map: dict[str, str] = {}  # code -> id
+        for name, code, head, desc in DEPARTMENTS:
+            dept = await db.department.create(data={
+                "name": name,
+                "code": code,
+                "head": head,
+                "description": desc,
+            })
+            dept_map[code] = dept.id
+        print(f"  ✓ {len(DEPARTMENTS)} departments created")
+
+        # ------------------------------------------------------------------
+        # 4. DESIGNATIONS
+        # ------------------------------------------------------------------
+        print("\n[4/16] Seeding Designations …")
+        desig_map: dict[str, str] = {}  # code -> id
+        for name, code, desc in DESIGNATIONS:
+            desig = await db.designation.create(data={
+                "name": name,
+                "code": code,
+                "description": desc,
+            })
+            desig_map[code] = desig.id
+        print(f"  ✓ {len(DESIGNATIONS)} designations created")
+
+        # ------------------------------------------------------------------
+        # 5. SUBJECTS
+        # ------------------------------------------------------------------
+        print("\n[5/16] Seeding Subjects …")
+        subject_map: dict[str, str] = {}  # code -> id
+        for dept_code, subjects in SUBJECT_DEFS.items():
+            for name, code, sem in subjects:
+                subj = await db.subject.create(data={
+                    "name": name,
+                    "code": code,
+                    "description": f"{name} — {dept_code} Semester {sem}",
+                })
+                subject_map[code] = subj.id
+        print(f"  ✓ {len(subject_map)} subjects created")
+
+        # ------------------------------------------------------------------
+        # 6. CLASSROOMS
+        # ------------------------------------------------------------------
+        print("\n[6/16] Seeding Classrooms …")
+        classroom_map: dict[str, str] = {}  # name -> id
+        for name, building, capacity in CLASSROOMS:
+            cr = await db.classroom.create(data={
+                "name": name,
+                "building": building,
+                "capacity": capacity,
+            })
+            classroom_map[name] = cr.id
+        print(f"  ✓ {len(CLASSROOMS)} classrooms created")
+
+        # ------------------------------------------------------------------
+        # 7. USERS & PROFILES
+        # ------------------------------------------------------------------
+        print("\n[7/16] Creating user accounts …")
+
+        admin_user = await db.user.create(data={
+            "email": "admin@smartattendance.edu.in",
+            "hashedPassword": _hash_password("Admin@123"),
+            "role": "ADMIN",
+        })
+        print(f"  ✓ Admin user created (admin@smartattendance.edu.in / Admin@123)")
+
+        # Generate name pools
+        random.seed(42)
+        name_pool = make_name_pool()
+        random.shuffle(name_pool)
+
+        # ----- Teachers -----
+        print("\n[8/16] Seeding Teachers …")
+        teacher_name_pool = name_pool[:60]  # extra names for teachers
+        teacher_ids: list[str] = []
+        teacher_user_ids: list[str] = []
+        teacher_dept_map: dict[str, list[dict]] = {code: [] for code, _ in TEACHER_DEPT_DIST}
+        teacher_counter: dict[str, int] = {}
+
+        emp_serial = 1
+        for dept_code, count in TEACHER_DEPT_DIST:
+            teacher_counter[dept_code] = 0
+            for i in range(count):
+                first, last, gender = teacher_name_pool.pop(0)
+                emp_id = f"EMP{emp_serial:03d}"
+                emp_serial += 1
+                email = f"{emp_id.lower()}@smartattendance.edu.in"
+
+                user = await db.user.create(data={
+                    "email": email,
+                    "hashedPassword": _hash_password("Teacher@123"),
+                    "role": "TEACHER",
+                })
+                teacher_user_ids.append(user.id)
+
+                # Pick a realistic designation (weighted)
+                desig_code = _weighted_choice(
+                    [d[1] for d in DESIGNATIONS],
+                    DESIGNATION_WEIGHTS,
+                )
+                # HOD / Dean only for senior faculty (1 per dept)
+                if i == 0 and count >= 3:
+                    desig_code = "HOD"
+                elif i == 1 and dept_code == "CSE":
+                    desig_code = "DEAN"
+
+                desig_id = desig_map[desig_code]
+                phone = make_phone()
+                qual_options = ["Ph.D.", "M.Tech", "M.Sc.", "M.E.", "B.Tech + M.Tech (Dual)"]
+                spec = f"{_pick(['Advanced ', 'Applied ', '', 'Industrial '])}{SUBJECT_DEFS[dept_code][i % len(SUBJECT_DEFS[dept_code])][0]}"
+                exp = random.randint(3, 28)
+                join_year = 2026 - exp
+                join_dt = date(join_year, random.randint(6, 8), random.randint(1, 28))
+
+                teacher = await db.teacher.create(data={
+                    "userId": user.id,
+                    "employeeId": emp_id,
+                    "firstName": first,
+                    "lastName": last,
+                    "phone": phone,
+                    "qualification": _pick(qual_options),
+                    "specialization": spec,
+                    "experienceYears": exp,
+                    "joiningDate": _to_datetime(join_dt),
+                    "departmentId": dept_map[dept_code],
+                    "designationId": desig_id,
+                })
+                teacher_ids.append(teacher.id)
+                teacher_counter[dept_code] += 1
+                teacher_dept_map[dept_code].append({
+                    "id": teacher.id,
+                    "first_name": first,
+                    "last_name": last,
+                    "email": email,
+                    "dept_code": dept_code,
+                })
+
+        print(f"  ✓ {len(teacher_ids)} teachers created")
+
+        # ----- Students -----
+        # Update name pool: add back any unused teacher names + remaining pool
+        remaining_names = name_pool[60:]
+        # If we need more names, generate additional ones
+        total_students_needed = sum(s2 + s4 + s6 + s8 for _, s2, s4, s6, s8 in STUDENT_DEPT_DIST)
+        while len(remaining_names) < total_students_needed:
+            remaining_names.append((
+                _pick(MALE_FIRST_NAMES + FEMALE_FIRST_NAMES),
+                _pick(LAST_NAMES),
+                _pick(["Male", "Female"]),
+            ))
+
+        print(f"\n[9/16] Seeding {total_students_needed} Students …")
+        student_ids: list[str] = []
+        student_info: list[dict] = []  # for use in enrollments & attendance
+
+        enrollment_serial: dict[str, int] = {}
+        for code, _, _, _, _ in STUDENT_DEPT_DIST:
+            enrollment_serial[code] = 1
+
+        def make_enrollment(dept_code: str, batch_start: str) -> str:
+            serial = enrollment_serial[dept_code]
+            enrollment_serial[dept_code] += 1
+            return f"{dept_code}{batch_start}{serial:03d}"
+
+        for dept_code, sem_2, sem_4, sem_6, sem_8 in STUDENT_DEPT_DIST:
+            dept_id = dept_map[dept_code]
+            for sem, count in [(2, sem_2), (4, sem_4), (6, sem_6), (8, sem_8)]:
+                batch_str = BATCH_MAP[sem]
+                batch_start = batch_str.split("-")[0]
+                for _ in range(count):
+                    first, last, gender = remaining_names.pop(0)
+                    enroll_no = make_enrollment(dept_code, batch_start)
+                    email = f"{enroll_no.lower()}@smartattendance.edu.in"
+
+                    user = await db.user.create(data={
+                        "email": email,
+                        "hashedPassword": _hash_password("Student@123"),
+                        "role": "STUDENT",
+                    })
+                    dob = make_dob_for_semester(sem)
+                    phone = make_phone()
+                    device_uuid = str(uuid.uuid4())
+
+                    student = await db.student.create(data={
+                        "userId": user.id,
+                        "enrollmentNumber": enroll_no,
+                        "firstName": first,
+                        "lastName": last,
+                        "phone": phone,
+                        "gender": gender,
+                        "dateOfBirth": _to_datetime(dob),
+                        "semester": sem,
+                        "batch": batch_str,
+                        "departmentId": dept_id,
+                        "deviceUuid": device_uuid,
+                        "currentStreak": random.choices([0, 1, 2, 3, 5, 7, 10, 14], weights=[30, 20, 15, 10, 10, 8, 5, 2])[0],
+                        "highestStreak": 0,  # will update below or leave as is
+                    })
+                    student_ids.append(student.id)
+                    student_info.append({
+                        "id": student.id,
+                        "dept_code": dept_code,
+                        "semester": sem,
+                        "batch": batch_str,
+                        "first_name": first,
+                        "last_name": last,
+                        "email": email,
+                        "enroll_no": enroll_no,
+                    })
+
+        # Set highest streak for some students
+        for s_info in random.sample(student_info, min(50, len(student_info))):
+            sid = s_info["id"]
+            hs = random.randint(3, 20)
+            await db.student.update(where={"id": sid}, data={"highestStreak": hs})
+
+        print(f"  ✓ {len(student_ids)} students created")
+
+        # ------------------------------------------------------------------
+        # 10. ACADEMIC CLASSES
+        # ------------------------------------------------------------------
+        print(f"\n[10/16] Seeding Academic Classes …")
+        class_ids: list[str] = []
+        class_info: list[dict] = []
+
+        # Build a map: (dept_code, semester) -> list of subject codes
+        dept_sem_subjects: dict[tuple[str, int], list[str]] = {}
+        for dept_code, subjects in SUBJECT_DEFS.items():
+            for name, code, sem in subjects:
+                dept_sem_subjects.setdefault((dept_code, sem), []).append(code)
+
+        classroom_names = [c[0] for c in CLASSROOMS]
+        class_serial = 0
+
+        for t_info in [item for sublist in teacher_dept_map.values() for item in sublist]:
+            t_dept = t_info["dept_code"]
+            # Find available subjects for this teacher's department
+            # Teacher teaches across 2 semesters (pick 2 subjects from 2 different semesters)
+            available_sems = sorted(set(sem for _, _, sem in SUBJECT_DEFS[t_dept]))
+            if len(available_sems) < 2:
+                continue
+
+            sem1, sem2 = _pick_n(available_sems, 2)
+            subs_for_sem1 = dept_sem_subjects.get((t_dept, sem1), [])
+            subs_for_sem2 = dept_sem_subjects.get((t_dept, sem2), [])
+
+            chosen_subs = []
+            if subs_for_sem1:
+                chosen_subs.append((_pick(subs_for_sem1), sem1))
+            if subs_for_sem2:
+                chosen_subs.append((_pick(subs_for_sem2), sem2))
+
+            for sub_code, sem in chosen_subs:
+                class_serial += 1
+                sub_id = subject_map[sub_code]
+                sub_name = next(n for n, c, _ in SUBJECT_DEFS[t_dept] if c == sub_code)
+                cr_name = _pick(classroom_names)
+                cr_id = classroom_map[cr_name]
+                batch_str = BATCH_MAP[sem]
+                class_name = f"{sub_name} ({batch_str})"
+
+                cls = await db.academicclass.create(data={
+                    "name": class_name,
+                    "subjectId": sub_id,
+                    "classroomId": cr_id,
+                    "teacherId": t_info["id"],
+                    "semester": sem,
+                    "batch": batch_str,
+                    "maxStudents": 60,
+                })
+                class_ids.append(cls.id)
+                class_info.append({
+                    "id": cls.id,
+                    "name": class_name,
+                    "subject_code": sub_code,
+                    "dept_code": t_dept,
+                    "semester": sem,
+                    "batch": batch_str,
+                    "teacher_id": t_info["id"],
+                    "classroom_id": cr_id,
+                })
+
+        print(f"  ✓ {len(class_ids)} academic classes created")
+
+        # ------------------------------------------------------------------
+        # 11. GEOFENCES (one per class)
+        # ------------------------------------------------------------------
+        print(f"\n[11/16] Seeding Geofences …")
+        geofence_class_ids: set[str] = set()
+        for cl in class_info:
+            lat, lng = jitter_gps(CAMPUS_LAT, CAMPUS_LNG, 0.003)
+            radius = round(random.uniform(15.0, 50.0), 1)
+            await db.geofence.create(data={
+                "academicClassId": cl["id"],
+                "latitude": lat,
+                "longitude": lng,
+                "radiusMeters": radius,
+            })
+            geofence_class_ids.add(cl["id"])
+        print(f"  ✓ {len(geofence_class_ids)} geofences created")
+
+        # ------------------------------------------------------------------
+        # 12. ENROLLMENTS
+        # ------------------------------------------------------------------
+        print(f"\n[12/16] Seeding Enrollments …")
+        enrollment_count = 0
+        # For each student, enroll them in classes matching their dept & semester
+        # Each student gets 4-6 classes
+        for s_info in student_info:
+            dept = s_info["dept_code"]
+            sem = s_info["semester"]
+            matching_classes = [cl for cl in class_info if cl["dept_code"] == dept and cl["semester"] == sem]
+            available = _pick_n(matching_classes, min(len(matching_classes), random.randint(4, 6)))
+            for cl in available:
+                try:
+                    await db.enrollment.create(data={
+                        "studentId": s_info["id"],
+                        "academicClassId": cl["id"],
+                    })
+                    enrollment_count += 1
+                except Exception:
+                    pass  # skip duplicate
+        print(f"  ✓ {enrollment_count} enrollments created")
+
+        # ------------------------------------------------------------------
+        # 13. SESSIONS (1 month of activity)
+        # ------------------------------------------------------------------
+        print(f"\n[13/16] Seeding Sessions (~1 month: April 2026) …")
+
+        session_ids: list[str] = []
+        session_info: list[dict] = []
+
+        for cl in class_info:
+            # Each class meets 3-5 times per week over the month => ~12-20 sessions
+            num_sessions = random.randint(12, 20)
+            used_slots: set[tuple[int, int]] = set()  # (day_of_month, hour)
+
+            for _ in range(num_sessions):
+                for attempt in range(50):
+                    day = random.randint(1, 30)
+                    # Skip weekends (Saturday=5, Sunday=6 if Monday=0)
+                    session_date = date(2026, 4, day)
+                    wd = session_date.weekday()
+                    if wd >= 5:
+                        continue
+                    hour = random.choice([8, 9, 10, 11, 14, 15, 16])
+                    slot = (day, hour)
+                    if slot not in used_slots:
+                        used_slots.add(slot)
+                        break
+                else:
+                    continue
+
+                start_dt = datetime(2026, 4, day, hour, random.choice([0, 15, 30]), tzinfo=timezone.utc)
+                duration = random.choice([45, 50, 55, 60])
+                end_dt = start_dt + timedelta(minutes=duration)
+
+                sess = await db.session.create(data={
+                    "academicClassId": cl["id"],
+                    "startTime": start_dt,
+                    "endTime": end_dt,
+                    "isActive": False,  # past sessions
+                })
+                session_ids.append(sess.id)
+                session_info.append({
+                    "id": sess.id,
+                    "class_id": cl["id"],
+                    "start": start_dt,
+                    "end": end_dt,
+                })
+
+        print(f"  ✓ {len(session_ids)} sessions created")
+
+        # ------------------------------------------------------------------
+        # 14. ATTENDANCE RECORDS
+        # ------------------------------------------------------------------
+        print(f"\n[14/16] Seeding Attendance records …")
+        attendance_count = 0
+
+        # Pre-group enrollments by class_id for fast lookup
+        enrollments_by_class: dict[str, list[str]] = {}
+        for s_info in student_info:
+            sid = s_info["id"]
+            matching_classes = [cl for cl in class_info if cl["dept_code"] == s_info["dept_code"] and cl["semester"] == s_info["semester"]]
+            for cl in matching_classes:
+                enrollments_by_class.setdefault(cl["id"], []).append(sid)
+
+        # Build attendance_pool per student: how likely they are to attend
+        # 70% regular (85-95% attendance), 20% average (65-85%), 7% irregular (40-65%), 3% very irregular (<40%)
+        student_attendance_pattern: dict[str, float] = {}
+        for s_info in student_info:
+            r = random.random()
+            if r < 0.70:
+                student_attendance_pattern[s_info["id"]] = random.uniform(0.85, 0.98)
+            elif r < 0.90:
+                student_attendance_pattern[s_info["id"]] = random.uniform(0.65, 0.84)
+            elif r < 0.97:
+                student_attendance_pattern[s_info["id"]] = random.uniform(0.40, 0.64)
+            else:
+                student_attendance_pattern[s_info["id"]] = random.uniform(0.10, 0.39)
+
+        # Also pre-group students by class for attendance
+        for sess in session_info:
+            cl_id = sess["class_id"]
+            enrolled_students = enrollments_by_class.get(cl_id, [])
+            if not enrolled_students:
+                continue
+
+            for sid in enrolled_students:
+                attend_prob = student_attendance_pattern.get(sid, 0.75)
+                if random.random() > attend_prob:
+                    continue  # student was absent — no record
+
+                # Decide if present, flagged, or absent-marked
+                status_roll = random.random()
+                if status_roll < 0.82:
+                    status = "Present"
+                    scores = generate_present_scores()
+                elif status_roll < 0.95:
+                    status = "Flagged"
+                    scores = generate_flagged_scores()
+                else:
+                    status = "Absent"
+                    scores = {"face_score": 0.0, "liveness_score": 0.0, "background_score": 0.0, "final_ai_score": 0.0}
+
+                gps_lat, gps_lng = jitter_gps(CAMPUS_LAT, CAMPUS_LNG, 0.005)
+
+                remarks = None
+                if status == "Flagged":
+                    remarks = _pick([
+                        "Low face confidence", "Lighting conditions poor",
+                        "Background mismatch detected", "Face partially occluded",
+                        "Liveness check inconclusive",
+                    ])
+
+                try:
+                    await db.attendance.create(data={
+                        "studentId": sid,
+                        "sessionId": sess["id"],
+                        "status": status,
+                        "faceScore": scores["face_score"],
+                        "livenessScore": scores["liveness_score"],
+                        "backgroundScore": scores["background_score"],
+                        "finalAiScore": scores["final_ai_score"],
+                        "gpsLatitude": gps_lat,
+                        "gpsLongitude": gps_lng,
+                        "remarks": remarks,
+                    })
+                    attendance_count += 1
+                except Exception:
+                    pass  # skip duplicate
+
+        print(f"  ✓ {attendance_count} attendance records created")
+
+        # ------------------------------------------------------------------
+        # 15. LEAVE REQUESTS
+        # ------------------------------------------------------------------
+        print(f"\n[15/16] Seeding Leave Requests …")
+        leave_reasons = [
+            "Medical appointment with specialist",
+            "Family wedding function at hometown",
+            "Fever and throat infection",
+            "Attending a technical workshop in Bangalore",
+            "Personal family emergency at home",
+            "Eye check-up and consultation",
+            "Higher studies counselling session",
+            "Participating in college sports tournament",
+            "Dental surgery recovery",
+            "Sibling's marriage ceremony",
+            "Preparation for competitive exam at coaching centre",
+            "Travel for college industrial visit",
+        ]
+        leave_count = 0
+        # Create leaves for ~40 students
+        for s_info in random.sample(student_info, min(40, len(student_info))):
+            start = date(2026, 4, random.randint(5, 25))
+            duration = random.randint(1, 3)
+            end = start + timedelta(days=duration)
+            if end > date(2026, 4, 30):
+                end = date(2026, 4, 30)
+
+            status = _weighted_choice(["PENDING", "APPROVED", "REJECTED"], [0.25, 0.60, 0.15])
+            approved_by = None
+            approver_note = None
+            if status == "APPROVED":
+                approved_by = _pick(teacher_ids) if teacher_ids else None
+                approver_note = _pick(["Approved", "Leave granted", "Ensure you catch up on missed classes"])
+            elif status == "REJECTED":
+                approved_by = _pick(teacher_ids) if teacher_ids else None
+                approver_note = _pick(["Not enough supporting documents", "Attendance already below minimum"])
+
+            await db.leaverequest.create(data={
+                "studentId": s_info["id"],
+                "startDate": _to_datetime(start),
+                "endDate": _to_datetime(end),
+                "reason": _pick(leave_reasons),
+                "status": status,
+                "approvedBy": approved_by,
+                "approverNote": approver_note,
+            })
+            leave_count += 1
+        print(f"  ✓ {leave_count} leave requests created")
+
+        # ------------------------------------------------------------------
+        # 16. DEVICE CHANGE REQUESTS
+        # ------------------------------------------------------------------
+        print(f"\n[16/16] Seeding Device Change Requests …")
+        device_count = 0
+        for s_info in random.sample(student_info, min(15, len(student_info))):
+            new_uuid = str(uuid.uuid4())
+            status = _weighted_choice(["PENDING", "APPROVED", "REJECTED"], [0.30, 0.55, 0.15])
+            approved_by = None
+            if status in ("APPROVED", "REJECTED"):
+                approved_by = _pick(teacher_ids) if teacher_ids else None
+
+            await db.devicechangerequest.create(data={
+                "studentId": s_info["id"],
+                "newDeviceUuid": new_uuid,
+                "reason": _pick([
+                    "Phone damaged, new device", "Lost previous phone",
+                    "Upgraded to new phone", "Battery issue in old device",
+                    "Old device stolen",
+                ]),
+                "status": status,
+                "approvedBy": approved_by,
+            })
+            device_count += 1
+        print(f"  ✓ {device_count} device change requests created")
+
+        # ------------------------------------------------------------------
+        # 17. AUDIT LOGS
+        # ------------------------------------------------------------------
+        print("\n  ✓ Seeding Audit Logs …")
+        admin_id = admin_user.id
+        audit_events = [
+            ("USER_CREATED", "INFO", "System", f"Admin account created: {admin_user.id}", None),
+            ("SYSTEM_CONFIG_UPDATED", "INFO", admin_id, "Initial system configuration set", None),
+        ]
+        for s_info in student_info[:5]:  # log first 5 student creations
+            audit_events.append((
+                "STUDENT_CREATED", "INFO", admin_id,
+                f"Student {s_info['first_name']} {s_info['last_name']} ({s_info['enroll_no']}) registered",
+                {"student_id": s_info["id"]},
+            ))
+        for t_info in teacher_dept_map["CSE"][:3]:
+            audit_events.append((
+                "TEACHER_CREATED", "INFO", admin_id,
+                f"Teacher {t_info['first_name']} {t_info['last_name']} ({t_info['email']}) registered",
+                {"teacher_id": t_info["id"]},
+            ))
+
+        for event_type, severity, actor, description, metadata in audit_events:
+            log_data = {
+                "eventType": event_type,
+                "severity": severity,
+                "actor": actor,
+                "target": actor,
+                "description": description,
+                "ipAddress": "127.0.0.1",
+            }
+            if metadata:
+                log_data["metadata"] = Json(metadata)
+            await db.auditlog.create(data=log_data)
+        print(f"  ✓ Audit logs created")
+
+        # ======================================================================
+        # SUMMARY
+        # ======================================================================
+        print("\n" + "=" * 72)
+        print("  SEED COMPLETE — SUMMARY")
+        print("=" * 72)
+        print(f"  Departments      : {len(DEPARTMENTS)}")
+        print(f"  Designations     : {len(DESIGNATIONS)}")
+        print(f"  Subjects         : {len(subject_map)}")
+        print(f"  Classrooms       : {len(CLASSROOMS)}")
+        print(f"  Admins           : 1")
+        print(f"  Teachers         : {len(teacher_ids)}")
+        print(f"  Students         : {len(student_ids)}")
+        print(f"  Academic Classes : {len(class_ids)}")
+        print(f"  Geofences        : {len(geofence_class_ids)}")
+        print(f"  Enrollments      : {enrollment_count}")
+        print(f"  Sessions         : {len(session_ids)}")
+        print(f"  Attendance       : {attendance_count}")
+        print(f"  Leaves           : {leave_count}")
+        print(f"  Device Changes   : {device_count}")
+        print()
+
+        # ---- CREDENTIALS ----
+        sample_teacher = None
+        for t_list in teacher_dept_map.values():
+            if t_list:
+                sample_teacher = t_list[0]
+                break
+        sample_student = student_info[0] if student_info else None
+
+        print("-" * 72)
+        print("  LOGIN CREDENTIALS")
+        print("-" * 72)
+        print(f"  ADMIN  →  admin@smartattendance.edu.in  /  Admin@123")
+        if sample_teacher:
+            print(f"  TEACHER →  {sample_teacher['email']}  /  Teacher@123")
+        if sample_student:
+            print(f"  STUDENT →  {sample_student['email']}  /  Student@123")
+        print()
+
+        print("  All student accounts: password = Student@123")
+        print("  All teacher accounts: password = Teacher@123")
+        print("=" * 72)
+
+    finally:
+        await db.disconnect()
+        print("\nDatabase connection closed.")
+
+
+# ==============================================================================
+# ENTRY POINT
+# ==============================================================================
 
 if __name__ == "__main__":
     asyncio.run(seed_all())

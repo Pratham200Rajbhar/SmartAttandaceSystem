@@ -1,3 +1,4 @@
+import asyncio
 from typing import Optional
 
 from app.core.logging_config import get_logger
@@ -10,8 +11,9 @@ try:
 
     _cred_path = "firebase-credentials.json"
     try:
-        cred = credentials.Certificate(_cred_path)
-        firebase_admin.initialize_app(cred)
+        if not firebase_admin._apps:
+            cred = credentials.Certificate(_cred_path)
+            firebase_admin.initialize_app(cred)
         _fcm_available = True
         logger.info("Firebase Admin SDK initialized successfully")
     except Exception as e:
@@ -33,19 +35,20 @@ async def send_push_notification(token: str, title: str, body: str, data: Option
             data={k: str(v) for k, v in (data or {}).items()},
             token=token,
         )
-        response = messaging.send(message)
-        logger.debug("FCM sent: %s", response)
+        response = await asyncio.to_thread(messaging.send, message)
+        logger.info("FCM sent: %s", response)
         return True
     except Exception as e:
         logger.warning("FCM send failed: %s", e)
         return False
 
 
-async def notify_student_attendance_flagged(student_fcm_token: str, student_name: str, class_name: str):
+async def notify_student_attendance_flagged(student_fcm_token: str, student_name: str, class_name: str, attendance_id: str):
     await send_push_notification(
         token=student_fcm_token,
         title="Attendance Flagged",
-        body=f"Your attendance for {class_name} has been flagged and requires review.",
+        body=f"Hi {student_name}, your attendance for {class_name} has been flagged and requires review.",
+        data={"route": "/flagged_detail", "attendance_id": attendance_id},
     )
 
 
@@ -54,6 +57,7 @@ async def notify_student_attendance_reviewed(student_fcm_token: str, status: str
         token=student_fcm_token,
         title=f"Attendance {status}",
         body=f"Your attendance for {class_name} has been reviewed and marked as {status}.",
+        data={"route": "/history"},
     )
 
 
@@ -62,4 +66,5 @@ async def notify_student_leave_status(student_fcm_token: str, status: str):
         token=student_fcm_token,
         title=f"Leave {status}",
         body=f"Your leave request has been {status.lower()}.",
+        data={"route": "/leave/history"},
     )
