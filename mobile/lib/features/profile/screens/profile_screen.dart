@@ -19,6 +19,21 @@ import 'package:smart_attendance_app/shared/widgets/status_chip.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  String _getInitials(dynamic profile, dynamic user) {
+    if (profile?.firstName != null && profile?.lastName != null) {
+      final String first = profile.firstName;
+      final String last = profile.lastName;
+      if (first.isNotEmpty && last.isNotEmpty) {
+        return '${first[0]}${last[0]}'.toUpperCase();
+      }
+    }
+    final String? email = user?.email;
+    if (email != null && email.isNotEmpty) {
+      return email[0].toUpperCase();
+    }
+    return 'S';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider).user;
@@ -34,67 +49,142 @@ class ProfileScreen extends ConsumerWidget {
           children: [
             // --- Profile Card ---
             GlassCard(
-              child: Column(
+              child: Row(
                 children: [
+                  // Glowing Avatar Ring
                   Container(
-                    width: 72,
-                    height: 72,
+                    width: 76,
+                    height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: LinearGradient(colors: [
-                        SasColors.accentEmerald.withValues(alpha: 0.2),
-                        SasColors.accentTeal.withValues(alpha: 0.1),
-                      ]),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          SasColors.accentEmerald,
+                          SasColors.accentTeal,
+                        ],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: SasColors.accentEmerald.withValues(alpha: 0.25),
+                          blurRadius: 16,
+                          spreadRadius: 2,
+                        ),
+                      ],
                       border: Border.all(
-                        color:
-                            SasColors.accentEmerald.withValues(alpha: 0.3),
+                        color: SasColors.accentEmerald.withValues(alpha: 0.45),
+                        width: 2,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.person_rounded,
-                      color: SasColors.accentEmerald,
-                      size: 32,
+                    child: Center(
+                      child: Text(
+                        _getInitials(profile, user),
+                        style: const TextStyle(
+                          color: SasColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: SasSpacing.md),
-                  Text(
-                    (profile?.firstName != null &&
-                            profile?.lastName != null)
-                        ? '${profile!.firstName} ${profile.lastName}'
-                        : user?.email ?? 'Student',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 17,
+                  const SizedBox(width: SasSpacing.lg),
+                  // Profile Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          (profile?.firstName != null && profile?.lastName != null)
+                              ? '${profile!.firstName} ${profile.lastName}'
+                              : user?.email ?? 'Student',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: SasColors.textPrimary,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        if (profile != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            'Roll No: ${profile.enrollmentNumber}',
+                            style: const TextStyle(
+                              color: SasColors.textSecondary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: SasColors.accentEmerald.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: SasColors.accentEmerald.withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Text(
+                                user?.role.toUpperCase() ?? 'STUDENT',
+                                style: const TextStyle(
+                                  color: SasColors.accentEmerald,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: (profile?.faceRegistered == true
+                                        ? SasColors.success
+                                        : SasColors.warning)
+                                    .withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: (profile?.faceRegistered == true
+                                          ? SasColors.success
+                                          : SasColors.warning)
+                                      .withValues(alpha: 0.25),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    profile?.faceRegistered == true
+                                        ? Icons.face_unlock_rounded
+                                        : Icons.face_rounded,
+                                    size: 10,
+                                    color: profile?.faceRegistered == true
+                                        ? SasColors.success
+                                        : SasColors.warning,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    profile?.faceRegistered == true ? 'Face ID Verified' : 'Face ID Pending',
+                                    style: TextStyle(
+                                      color: profile?.faceRegistered == true
+                                          ? SasColors.success
+                                          : SasColors.warning,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                  if (profile != null) ...[
-                    const SizedBox(height: SasSpacing.xs),
-                    Text(
-                      profile.enrollmentNumber,
-                      style: const TextStyle(
-                        color: SasColors.textMuted,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: SasSpacing.sm),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      StatusChip(
-                        label: user?.role ?? 'STUDENT',
-                        color: SasColors.accentEmerald,
-                      ),
-                      const SizedBox(width: SasSpacing.sm),
-                      StatusChip(
-                        label: profile?.faceRegistered == true
-                            ? 'Face ID ✓'
-                            : 'Face ID Pending',
-                        color: profile?.faceRegistered == true
-                            ? SasColors.success
-                            : SasColors.warning,
-                      ),
-                    ],
                   ),
                 ],
               ),
@@ -159,51 +249,56 @@ class ProfileScreen extends ConsumerWidget {
             // --- Settings ---
             const SectionHeader(title: 'Settings'),
             const SizedBox(height: SasSpacing.sm),
-            _MenuItem(
-              icon: Icons.track_changes_rounded,
-              title: 'Goals & Targets',
-              subtitle: 'Set attendance target percentage',
-              onTap: () => context.push('/settings/goals'),
-            ),
-            const SizedBox(height: 6),
-            _MenuItem(
-              icon: Icons.notifications_rounded,
-              title: 'Notification Preferences',
-              subtitle: 'Manage alerts and reminders',
-              onTap: () => context.push('/settings/notifications'),
-            ),
-            const SizedBox(height: 6),
-            _MenuItem(
-              icon: Icons.cloud_sync_rounded,
-              title: 'Offline Sync Status',
-              subtitle: pendingCount > 0
-                  ? '$pendingCount pending submission${pendingCount == 1 ? '' : 's'}'
-                  : 'All synced',
-              onTap: () => context.push('/settings/sync'),
-              trailing: pendingCount > 0
-                  ? StatusChip(
-                      label: '$pendingCount',
-                      color: SasColors.info,
-                    )
-                  : Icon(
-                      Icons.check_circle_rounded,
-                      color: SasColors.success.withValues(alpha: 0.7),
-                      size: 18,
-                    ),
-            ),
-            const SizedBox(height: 6),
-            _MenuItem(
-              icon: Icons.help_outline_rounded,
-              title: 'Help & FAQ',
-              subtitle: 'Common questions and answers',
-              onTap: () => context.push('/settings/help'),
-            ),
-            const SizedBox(height: 6),
-            _MenuItem(
-              icon: Icons.info_outline_rounded,
-              title: 'About',
-              subtitle: 'Smart Attendance System v1.0.0',
-              onTap: null,
+            _SettingsGroup(
+              items: [
+                _MenuItem(
+                  icon: Icons.track_changes_rounded,
+                  iconColor: SasColors.success,
+                  title: 'Goals & Targets',
+                  subtitle: 'Set attendance target percentage',
+                  onTap: () => context.push('/settings/goals'),
+                ),
+                _MenuItem(
+                  icon: Icons.notifications_rounded,
+                  iconColor: SasColors.warning,
+                  title: 'Notification Preferences',
+                  subtitle: 'Manage alerts and reminders',
+                  onTap: () => context.push('/settings/notifications'),
+                ),
+                _MenuItem(
+                  icon: Icons.cloud_sync_rounded,
+                  iconColor: SasColors.info,
+                  title: 'Offline Sync Status',
+                  subtitle: pendingCount > 0
+                      ? '$pendingCount pending submission${pendingCount == 1 ? '' : 's'}'
+                      : 'All synced',
+                  onTap: () => context.push('/settings/sync'),
+                  trailing: pendingCount > 0
+                      ? StatusChip(
+                          label: '$pendingCount',
+                          color: SasColors.info,
+                        )
+                      : Icon(
+                          Icons.check_circle_rounded,
+                          color: SasColors.success.withValues(alpha: 0.7),
+                          size: 18,
+                        ),
+                ),
+                _MenuItem(
+                  icon: Icons.help_outline_rounded,
+                  iconColor: Colors.purpleAccent,
+                  title: 'Help & FAQ',
+                  subtitle: 'Common questions and answers',
+                  onTap: () => context.push('/settings/help'),
+                ),
+                _MenuItem(
+                  icon: Icons.info_outline_rounded,
+                  iconColor: SasColors.accentTeal,
+                  title: 'About',
+                  subtitle: 'Smart Attendance System v1.0.0',
+                  onTap: null,
+                ),
+              ],
             ),
 
             const SizedBox(height: SasSpacing.xxl),
@@ -267,6 +362,36 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Private: Grouped Settings wrapper (renders as a single unified card)
+// ---------------------------------------------------------------------------
+
+class _SettingsGroup extends StatelessWidget {
+  final List<Widget> items;
+  const _SettingsGroup({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
+          for (int i = 0; i < items.length; i++) ...[
+            items[i],
+            if (i < items.length - 1)
+              const Divider(
+                height: 1,
+                thickness: 1,
+                color: SasColors.glassBorder,
+                indent: 52,
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Private: Settings menu item (specific to this screen's layout)
 // ---------------------------------------------------------------------------
 
@@ -276,61 +401,76 @@ class _MenuItem extends StatelessWidget {
   final String subtitle;
   final VoidCallback? onTap;
   final Widget? trailing;
+  final Color iconColor;
 
   const _MenuItem({
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.onTap,
+    this.onTap,
     this.trailing,
+    this.iconColor = SasColors.textSecondary,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(14),
-      onTap: onTap,
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: SasColors.glassBg,
-              borderRadius: SasRadius.mdAll,
-            ),
-            child: Icon(icon, size: 18, color: SasColors.textSecondary),
-          ),
-          const SizedBox(width: SasSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap != null
+            ? () {
+                HapticFeedback.selectionClick();
+                onTap!();
+              }
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: SasRadius.mdAll,
                 ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: SasColors.textMuted,
-                    fontSize: 12,
-                  ),
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
+              const SizedBox(width: SasSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: SasColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: SasColors.textMuted,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: SasSpacing.sm),
+              trailing ??
+                  (onTap != null
+                      ? const Icon(
+                          Icons.chevron_right_rounded,
+                          color: SasColors.textMuted,
+                          size: 18,
+                        )
+                      : const SizedBox.shrink()),
+            ],
           ),
-          trailing ??
-              (onTap != null
-                  ? const Icon(
-                      Icons.chevron_right_rounded,
-                      color: SasColors.textMuted,
-                      size: 18,
-                    )
-                  : const SizedBox.shrink()),
-        ],
+        ),
       ),
     );
   }

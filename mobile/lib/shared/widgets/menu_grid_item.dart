@@ -32,59 +32,70 @@ class MenuGridItem extends StatelessWidget {
               onTap!();
             }
           : null,
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            clipBehavior: Clip.none,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(SasSpacing.md),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.15),
+                  color: iconColor.withValues(alpha: 0.12),
                   borderRadius: SasRadius.mdAll,
+                  border: Border.all(
+                    color: iconColor.withValues(alpha: 0.25),
+                  ),
                 ),
-                child: Icon(icon, color: iconColor, size: 24),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
               if (badgeCount > 0)
-                Positioned(
-                  top: -4,
-                  right: -4,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: SasColors.danger,
-                      borderRadius: SasRadius.xlAll,
-                    ),
-                    child: Text(
-                      badgeCount > 99 ? '99+' : '$badgeCount',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: SasColors.danger,
+                    borderRadius: SasRadius.xlAll,
+                    boxShadow: [
+                      BoxShadow(
+                        color: SasColors.danger.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        spreadRadius: 1,
                       ),
+                    ],
+                  ),
+                  child: Text(
+                    badgeCount > 99 ? '99+' : '$badgeCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: SasSpacing.sm),
+          const SizedBox(height: SasSpacing.md),
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+              color: SasColors.textPrimary,
+            ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               subtitle!,
               style: const TextStyle(
                 color: SasColors.textMuted,
                 fontSize: 11,
+                fontWeight: FontWeight.w500,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ],

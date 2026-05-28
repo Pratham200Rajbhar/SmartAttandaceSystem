@@ -31,10 +31,13 @@ def _run_isolation_forest(attendance_records: List[Dict[str, Any]], contaminatio
 
         features = profile.drop(columns=['student_id'])
         model = IsolationForest(n_estimators=100, contamination=contamination, random_state=42)
-        profile['anomaly_score'] = model.fit_predict(features)
+        model.fit(features)
+        
+        profile['pred'] = model.predict(features)
+        profile['anomaly_score'] = -model.decision_function(features)
 
-        flagged = profile[profile['anomaly_score'] == -1].copy()
-        flagged = flagged.sort_values(by='total_absences', ascending=False).drop(columns=['anomaly_score'])
+        flagged = profile[profile['pred'] == -1].copy()
+        flagged = flagged.sort_values(by='total_absences', ascending=False).drop(columns=['pred'])
         return flagged.to_dict(orient='records')
 
     except Exception as e:

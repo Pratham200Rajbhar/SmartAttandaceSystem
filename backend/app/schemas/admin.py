@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -72,17 +73,17 @@ class DepartmentResponse(BaseModel):
 
 
 class AuditLogResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
     id: str
-    timestamp: str
+    timestamp: datetime
     eventType: str
     severity: str
     actor: str
     target: str
     description: str
-    ip: Optional[str] = None
-    meta: Optional[dict] = None
+    ip: Optional[str] = Field(None, alias="ipAddress")
+    meta: Optional[dict] = Field(None, alias="metadata")
 
 
 class AdminStatsResponse(BaseModel):

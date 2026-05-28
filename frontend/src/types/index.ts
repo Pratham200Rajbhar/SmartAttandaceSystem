@@ -386,5 +386,7 @@ export interface AnomalyResult {
   student_id: string;
   anomaly_score: number;
   total_absences: number;
+  student_name?: string;
+  enrollment_number?: string;
   [key: string]: unknown;
 }

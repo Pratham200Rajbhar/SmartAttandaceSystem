@@ -342,9 +342,27 @@ async def scan_absentee_anomalies(
     records = await attendance_repo.get_all_absences()
     if not records or len(records) < 5:
         return []
+    
+    student_map = {}
+    for r in records:
+        if r.student:
+            first_name = r.student.firstName or ""
+            last_name = r.student.lastName or ""
+            full_name = f"{first_name} {last_name}".strip() or "Unknown Student"
+            student_map[r.studentId] = {
+                "student_name": full_name,
+                "enrollment_number": r.student.enrollmentNumber,
+            }
+
     rows = [{"student_id": r.studentId, "status": r.status, "day_of_week": r.createdAt.strftime("%A")} for r in records]
     try:
-        return await run_absentee_scan(attendance_records=rows, contamination=contamination)
+        flagged = await run_absentee_scan(attendance_records=rows, contamination=contamination)
+        for item in flagged:
+            s_id = item.get("student_id")
+            s_info = student_map.get(s_id, {})
+            item["student_name"] = s_info.get("student_name", "Unknown Student")
+            item["enrollment_number"] = s_info.get("enrollment_number", "N/A")
+        return flagged
     except Exception as err:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Outlier pattern extraction failed: {str(err)}")
 
