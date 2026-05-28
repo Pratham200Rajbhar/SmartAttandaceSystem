@@ -118,7 +118,7 @@ class AttendanceService:
                 )
                 if not is_inside:
                     distance = calculate_haversine_distance(student_coord, classroom_coord)
-                    effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
+                    effective_radius = geofence.radiusMeters + submission.accuracy
                     raise ValueError(
                         f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
                         f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
@@ -261,7 +261,7 @@ class AttendanceService:
                 )
                 if not is_inside:
                     distance = calculate_haversine_distance(student_coord, classroom_coord)
-                    effective_radius = min(geofence.radiusMeters + submission.accuracy, 100.0)
+                    effective_radius = geofence.radiusMeters + submission.accuracy
                     raise ValueError(
                         f"Student is outside geofence boundary by {distance - effective_radius:.1f}m. "
                         f"(Distance: {distance:.1f}m, Effective Allowed Radius: {effective_radius:.1f}m)"
@@ -455,5 +455,11 @@ class AttendanceService:
                 await notify_student_attendance_reviewed(student.fcmToken, status, class_name)
         except Exception as e:
             logger.warning("FCM notification failed: %s", e)
+
+        try:
+            from app.services.gamification_service import GamificationService
+            await GamificationService().recalculate_student_streak(record.studentId)
+        except Exception as e:
+            logger.warning("Failed to recalculate streak for student %s: %s", record.studentId, e)
 
         return True

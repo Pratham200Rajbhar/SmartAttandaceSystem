@@ -239,24 +239,26 @@ class LeaderboardScreen extends ConsumerWidget {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.local_fire_department_rounded,
-                      size: 14,
-                      color: SasColors.warning,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${entry.currentStreak} streak',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: SasColors.textMuted,
+                if (entry.currentStreak > 0) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.local_fire_department_rounded,
+                        size: 14,
+                        color: SasColors.warning,
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${entry.currentStreak} streak',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: SasColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

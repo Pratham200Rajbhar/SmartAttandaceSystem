@@ -45,6 +45,7 @@ class ClassResponse(BaseModel):
     batch: Optional[str] = Field(None, description="Batch year range")
     max_students: Optional[int] = Field(None, description="Maximum student capacity")
     enrolled_count: int = Field(0, description="Current number of enrolled students")
+    enrolled_student_ids: list[str] = Field(default_factory=list, description="List of student IDs currently enrolled")
 
 
 class DepartmentCreate(BaseModel):

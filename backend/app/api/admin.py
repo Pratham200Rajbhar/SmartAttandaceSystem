@@ -166,6 +166,7 @@ async def get_class_by_id(class_id: str, admin_service: AdminService = Depends()
         classroom_name=cls.classroom.name if cls.classroom else None,
         semester=cls.semester, batch=cls.batch, max_students=cls.maxStudents,
         enrolled_count=len(cls.enrollments) if cls.enrollments else 0,
+        enrolled_student_ids=[e.studentId for e in cls.enrollments] if cls.enrollments else [],
     )
 
 

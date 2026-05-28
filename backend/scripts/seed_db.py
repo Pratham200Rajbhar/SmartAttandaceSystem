@@ -36,16 +36,16 @@ Pre-requisites
 from __future__ import annotations
 
 import asyncio
-import json
 import random
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, TypeVar
 
-T = TypeVar("T")
-
 import bcrypt
-from prisma import Prisma, Json
+from prisma import Json
+from app.db.client import db
+
+T = TypeVar("T")
 
 # ==============================================================================
 # PASSWORD HASHING (mirrors app/core/security.py to avoid app import)
@@ -409,7 +409,6 @@ def make_dob_for_semester(semester: int) -> date:
 # ==============================================================================
 
 async def seed_all() -> None:
-    db = Prisma(auto_register=True)
     await db.connect()
     print("=" * 72)
     print("  SMART ATTENDANCE SYSTEM — DATABASE SEED")
@@ -436,7 +435,18 @@ async def seed_all() -> None:
         await db.department.delete_many()
         await db.auditlog.delete_many()
         await db.systemconfiguration.delete_many()
-        print("  ✓ All tables cleared")
+        print("  ✓ All database tables cleared")
+
+        # Clear Redis leaderboard cache
+        try:
+            from app.db.redis import connect_redis, disconnect_redis
+            redis = await connect_redis()
+            if redis:
+                await redis.delete("leaderboard:points")
+                print("  ✓ Redis leaderboard cache cleared")
+                await disconnect_redis()
+        except Exception as re:
+            print(f"  [WARNING] Failed to clear Redis cache: {re}")
 
         # ------------------------------------------------------------------
         # 2. SYSTEM CONFIGURATION
@@ -517,7 +527,7 @@ async def seed_all() -> None:
             "hashedPassword": _hash_password("Admin@123"),
             "role": "ADMIN",
         })
-        print(f"  ✓ Admin user created (admin@smartattendance.edu.in / Admin@123)")
+        print("  ✓ Admin user created (admin@smartattendance.edu.in / Admin@123)")
 
         # Generate name pools
         random.seed(42)
@@ -674,7 +684,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 10. ACADEMIC CLASSES
         # ------------------------------------------------------------------
-        print(f"\n[10/16] Seeding Academic Classes …")
+        print("\n[10/16] Seeding Academic Classes …")
         class_ids: list[str] = []
         class_info: list[dict] = []
 
@@ -740,7 +750,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 11. GEOFENCES (one per class)
         # ------------------------------------------------------------------
-        print(f"\n[11/16] Seeding Geofences …")
+        print("\n[11/16] Seeding Geofences …")
         geofence_class_ids: set[str] = set()
         for cl in class_info:
             lat, lng = jitter_gps(CAMPUS_LAT, CAMPUS_LNG, 0.003)
@@ -757,7 +767,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 12. ENROLLMENTS
         # ------------------------------------------------------------------
-        print(f"\n[12/16] Seeding Enrollments …")
+        print("\n[12/16] Seeding Enrollments …")
         enrollment_count = 0
         # For each student, enroll them in classes matching their dept & semester
         # Each student gets 4-6 classes
@@ -780,7 +790,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 13. SESSIONS (1 month of activity)
         # ------------------------------------------------------------------
-        print(f"\n[13/16] Seeding Sessions (~1 month: April 2026) …")
+        print("\n[13/16] Seeding Sessions (~1 month: April 2026) …")
 
         session_ids: list[str] = []
         session_info: list[dict] = []
@@ -829,7 +839,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 14. ATTENDANCE RECORDS
         # ------------------------------------------------------------------
-        print(f"\n[14/16] Seeding Attendance records …")
+        print("\n[14/16] Seeding Attendance records …")
         attendance_count = 0
 
         # Pre-group enrollments by class_id for fast lookup
@@ -910,7 +920,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 15. LEAVE REQUESTS
         # ------------------------------------------------------------------
-        print(f"\n[15/16] Seeding Leave Requests …")
+        print("\n[15/16] Seeding Leave Requests …")
         leave_reasons = [
             "Medical appointment with specialist",
             "Family wedding function at hometown",
@@ -959,7 +969,7 @@ async def seed_all() -> None:
         # ------------------------------------------------------------------
         # 16. DEVICE CHANGE REQUESTS
         # ------------------------------------------------------------------
-        print(f"\n[16/16] Seeding Device Change Requests …")
+        print("\n[16/16] Seeding Device Change Requests …")
         device_count = 0
         for s_info in random.sample(student_info, min(15, len(student_info))):
             new_uuid = str(uuid.uuid4())
@@ -1016,7 +1026,25 @@ async def seed_all() -> None:
             if metadata:
                 log_data["metadata"] = Json(metadata)
             await db.auditlog.create(data=log_data)
-        print(f"  ✓ Audit logs created")
+        print("  ✓ Audit logs created")
+
+        # Recalculate streaks and build Redis leaderboard
+        try:
+            from app.db.redis import connect_redis, disconnect_redis
+            from app.services.gamification_service import GamificationService
+            await connect_redis()
+            print("\nUpdating student streaks and Redis leaderboard...")
+            gamification_service = GamificationService()
+            for idx, s_id in enumerate(student_ids):
+                await gamification_service.recalculate_student_streak(s_id)
+            print("  ✓ Recalculated and synchronized all streaks/leaderboard scores")
+        except Exception as re:
+            print(f"  [WARNING] Failed to recalculate streaks/leaderboard: {re}")
+        finally:
+            try:
+                await disconnect_redis()
+            except Exception:
+                pass
 
         # ======================================================================
         # SUMMARY
@@ -1028,7 +1056,7 @@ async def seed_all() -> None:
         print(f"  Designations     : {len(DESIGNATIONS)}")
         print(f"  Subjects         : {len(subject_map)}")
         print(f"  Classrooms       : {len(CLASSROOMS)}")
-        print(f"  Admins           : 1")
+        print("  Admins           : 1")
         print(f"  Teachers         : {len(teacher_ids)}")
         print(f"  Students         : {len(student_ids)}")
         print(f"  Academic Classes : {len(class_ids)}")
@@ -1051,7 +1079,7 @@ async def seed_all() -> None:
         print("-" * 72)
         print("  LOGIN CREDENTIALS")
         print("-" * 72)
-        print(f"  ADMIN  →  admin@smartattendance.edu.in  /  Admin@123")
+        print("  ADMIN  →  admin@smartattendance.edu.in  /  Admin@123")
         if sample_teacher:
             print(f"  TEACHER →  {sample_teacher['email']}  /  Teacher@123")
         if sample_student:
@@ -1068,8 +1096,368 @@ async def seed_all() -> None:
 
 
 # ==============================================================================
+# SANDBOX SEED FOR PRATHAM RAJBHAR
+# ==============================================================================
+
+async def seed_all_pratham() -> None:
+    """
+    Seeds a sandbox database with exactly one student (Pratham Rajbhar)
+    and 30+ days of historical attendance, leave requests, and device logs.
+    """
+    await db.connect()
+    print("=" * 72)
+    print("  SMART ATTENDANCE SYSTEM — PRATHAM RAJBHAR SEED")
+    print("=" * 72)
+
+    try:
+        # 1. Clear tables
+        print("\n[1/16] Clearing existing data …")
+        await db.attendance.delete_many()
+        await db.devicechangerequest.delete_many()
+        await db.leaverequest.delete_many()
+        await db.enrollment.delete_many()
+        await db.geofence.delete_many()
+        await db.session.delete_many()
+        await db.academicclass.delete_many()
+        await db.teacher.delete_many()
+        await db.student.delete_many()
+        await db.user.delete_many()
+        await db.subject.delete_many()
+        await db.classroom.delete_many()
+        await db.designation.delete_many()
+        await db.department.delete_many()
+        await db.auditlog.delete_many()
+        await db.systemconfiguration.delete_many()
+        print("  ✓ All database tables cleared")
+
+        # Clear Redis leaderboard cache
+        try:
+            from app.db.redis import connect_redis, disconnect_redis
+            redis = await connect_redis()
+            if redis:
+                await redis.delete("leaderboard:points")
+                print("  ✓ Redis leaderboard cache cleared")
+                await disconnect_redis()
+        except Exception as re:
+            print(f"  [WARNING] Failed to clear Redis cache: {re}")
+
+        # 2. System Configuration
+        print("\n[2/16] Seeding System Configuration …")
+        await db.systemconfiguration.create(data={
+            "isFaceRecognitionEnabled": True,
+            "isGpsVerificationEnabled": True,
+            "isAiBackgroundValidationEnabled": True,
+        })
+        print("  ✓ System configuration initialized")
+
+        # 3. Departments (Only CSE)
+        print("\n[3/16] Seeding CSE Department …")
+        dept = await db.department.create(data={
+            "name": "Computer Science & Engineering",
+            "code": "CSE",
+            "head": "Dr. Rajesh Sharma",
+            "description": "Department of Computer Science & Engineering",
+        })
+        print("  ✓ CSE department created")
+
+        # 4. Designations
+        print("\n[4/16] Seeding Designations …")
+        desig_map = {}
+        for name, code, desc in DESIGNATIONS:
+            desig = await db.designation.create(data={
+                "name": name,
+                "code": code,
+                "description": desc,
+            })
+            desig_map[code] = desig.id
+        print(f"  ✓ {len(DESIGNATIONS)} designations created")
+
+        # 5. Subjects (Only CSE 6th Sem subjects)
+        print("\n[5/16] Seeding Subjects …")
+        subject_map = {}
+        cse_subs = [
+            ("Computer Networks", "CSE401"),
+            ("Software Engineering", "CSE402"),
+            ("Web Technologies", "CSE403"),
+            ("Design & Analysis of Algorithms", "CSE404"),
+        ]
+        for name, code in cse_subs:
+            subj = await db.subject.create(data={
+                "name": name,
+                "code": code,
+                "description": f"{name} core course",
+            })
+            subject_map[code] = subj.id
+        print("  ✓ CSE Semester 6 subjects created")
+
+        # 6. Classrooms
+        print("\n[6/16] Seeding Classrooms …")
+        classroom_map = {}
+        for name, building, capacity in CLASSROOMS[:3]:  # pick first 3
+            cr = await db.classroom.create(data={
+                "name": name,
+                "building": building,
+                "capacity": capacity,
+            })
+            classroom_map[name] = cr.id
+        print(f"  ✓ {len(classroom_map)} classrooms created")
+
+        # 7. Admin User
+        print("\n[7/16] Creating admin user …")
+        admin_user = await db.user.create(data={
+            "email": "admin@smartattendance.edu.in",
+            "hashedPassword": _hash_password("Admin@123"),
+            "role": "ADMIN",
+        })
+        print("  ✓ Admin user created")
+
+        # 8. Teachers
+        print("\n[8/16] Seeding Teachers …")
+        teacher_defs = [
+            ("Amit", "Patel", "EMP001", "PROF"),
+            ("Sanjay", "Sharma", "EMP002", "APROF"),
+            ("Neha", "Gupta", "EMP003", "ASPROF"),
+        ]
+        teacher_ids = []
+        for first, last, emp_id, desig_code in teacher_defs:
+            user = await db.user.create(data={
+                "email": f"{emp_id.lower()}@smartattendance.edu.in",
+                "hashedPassword": _hash_password("Teacher@123"),
+                "role": "TEACHER",
+            })
+            teacher = await db.teacher.create(data={
+                "userId": user.id,
+                "employeeId": emp_id,
+                "firstName": first,
+                "lastName": last,
+                "phone": make_phone(),
+                "qualification": "Ph.D.",
+                "specialization": "Computer Science",
+                "experienceYears": 10,
+                "joiningDate": _to_datetime(date(2018, 7, 1)),
+                "departmentId": dept.id,
+                "designationId": desig_map[desig_code],
+            })
+            teacher_ids.append(teacher.id)
+        print(f"  ✓ {len(teacher_ids)} teachers created")
+
+        # 9. Student (Pratham Rajbhar)
+        print("\n[9/16] Seeding Student Pratham Rajbhar …")
+        student_user = await db.user.create(data={
+            "email": "pratham.rajbhar@smartattendance.edu.in",
+            "hashedPassword": _hash_password("Student@123"),
+            "role": "STUDENT",
+        })
+        student = await db.student.create(data={
+            "userId": student_user.id,
+            "enrollmentNumber": "CSE2023068",
+            "firstName": "Pratham",
+            "lastName": "Rajbhar",
+            "phone": "+919988776655",
+            "gender": "Male",
+            "dateOfBirth": _to_datetime(date(2004, 8, 15)),
+            "semester": 6,
+            "batch": "2023-2027",
+            "departmentId": dept.id,
+            "deviceUuid": "d8f8a1a8-c2cb-4449-b71e-3bcadfc00b68",
+            "currentStreak": 5,
+            "highestStreak": 12,
+        })
+        print("  ✓ Student profile created")
+
+        # 10. Academic Classes
+        print("\n[10/16] Seeding Academic Classes …")
+        cr_id = list(classroom_map.values())[0]
+        class_defs = [
+            ("Web Technologies (2023-2027)", "CSE403", teacher_ids[0]),
+            ("Design & Analysis of Algorithms (2023-2027)", "CSE404", teacher_ids[1]),
+            ("Computer Networks (2023-2027)", "CSE401", teacher_ids[2]),
+            ("Software Engineering (2023-2027)", "CSE402", teacher_ids[0]),
+        ]
+        classes = []
+        for name, code, t_id in class_defs:
+            cls = await db.academicclass.create(data={
+                "name": name,
+                "subjectId": subject_map[code],
+                "classroomId": cr_id,
+                "teacherId": t_id,
+                "semester": 6,
+                "batch": "2023-2027",
+                "maxStudents": 60,
+            })
+            classes.append({"id": cls.id, "code": code})
+        print(f"  ✓ {len(classes)} academic classes created")
+
+        # 11. Geofences
+        print("\n[11/16] Seeding Geofences …")
+        for idx, cl in enumerate(classes):
+            cl_lat = CAMPUS_LAT + (idx * 0.0005)
+            cl_lng = CAMPUS_LNG - (idx * 0.0005)
+            await db.geofence.create(data={
+                "academicClassId": cl["id"],
+                "latitude": cl_lat,
+                "longitude": cl_lng,
+                "radiusMeters": 50.0,
+            })
+        print("  ✓ Geofences configured around campus")
+
+        # 12. Enrollments
+        print("\n[12/16] Seeding Enrollments …")
+        for cl in classes:
+            await db.enrollment.create(data={
+                "studentId": student.id,
+                "academicClassId": cl["id"],
+            })
+        print("  ✓ Enrolled student in all classes")
+
+        # 13. Sessions & Attendance (35 Days)
+        print("\n[13/16] Seeding 30+ Days of Sessions & Attendance …")
+        session_count = 0
+        attendance_count = 0
+        
+        # We loop back 35 days and seed weekday sessions
+        today = datetime.now(timezone.utc).date()
+        for offset in range(35, 0, -1):
+            day_date = today - timedelta(days=offset)
+            weekday = day_date.weekday()
+            if weekday >= 5:  # skip weekends
+                continue
+
+            # Class schedules: Mon/Wed/Fri (CSE403, CSE404), Tue/Thu (CSE401, CSE402)
+            scheduled_codes = ["CSE403", "CSE404"] if weekday in (0, 2, 4) else ["CSE401", "CSE402"]
+            for code in scheduled_codes:
+                cl_id = next(c["id"] for c in classes if c["code"] == code)
+                hour = 10 if code in ("CSE403", "CSE401") else 14
+                start_dt = datetime(day_date.year, day_date.month, day_date.day, hour, 0, tzinfo=timezone.utc)
+                end_dt = start_dt + timedelta(hours=1)
+
+                sess = await db.session.create(data={
+                    "academicClassId": cl_id,
+                    "startTime": start_dt,
+                    "endTime": end_dt,
+                    "isActive": False,
+                })
+                session_count += 1
+
+                # Generate status distribution: Present (85%), Flagged (8%), Absent (7%)
+                roll = random.random()
+                if roll < 0.85:
+                    status = "Present"
+                    scores = generate_present_scores()
+                elif roll < 0.93:
+                    status = "Flagged"
+                    scores = generate_flagged_scores()
+                else:
+                    status = "Absent"
+                    scores = {"face_score": 0.0, "liveness_score": 0.0, "background_score": 0.0, "final_ai_score": 0.0}
+
+                gps_lat, gps_lng = jitter_gps(CAMPUS_LAT, CAMPUS_LNG, 0.0001)
+
+                await db.attendance.create(data={
+                    "studentId": student.id,
+                    "sessionId": sess.id,
+                    "status": status,
+                    "faceScore": scores["face_score"],
+                    "livenessScore": scores["liveness_score"],
+                    "backgroundScore": scores["background_score"],
+                    "finalAiScore": scores["final_ai_score"],
+                    "gpsLatitude": gps_lat,
+                    "gpsLongitude": gps_lng,
+                    "remarks": "Low face confidence" if status == "Flagged" else None,
+                })
+                attendance_count += 1
+
+        print(f"  ✓ {session_count} sessions created")
+        print(f"  ✓ {attendance_count} attendance records created")
+
+        # 14. Leave Request
+        print("\n[14/16] Seeding Leave Request …")
+        await db.leaverequest.create(data={
+            "studentId": student.id,
+            "startDate": _to_datetime(today - timedelta(days=12)),
+            "endDate": _to_datetime(today - timedelta(days=10)),
+            "reason": "Recovering from viral fever and throat infection",
+            "status": "APPROVED",
+            "approvedBy": teacher_ids[0],
+            "approverNote": "Get well soon. Make sure to complete pending assignments.",
+        })
+        print("  ✓ Approved leave request seeded")
+
+        # 15. Device Change Request
+        print("\n[15/16] Seeding Device Change Request …")
+        await db.devicechangerequest.create(data={
+            "studentId": student.id,
+            "reason": "Phone screen damaged, upgraded to a new device",
+            "newDeviceUuid": str(uuid.uuid4()),
+            "status": "APPROVED",
+            "approvedBy": teacher_ids[0],
+        })
+        print("  ✓ Approved device change request seeded")
+
+        # 16. Audit Logs
+        print("\n[16/16] Seeding Audit Logs …")
+        await db.auditlog.create(data={
+            "eventType": "STUDENT_CREATED",
+            "severity": "INFO",
+            "actor": admin_user.id,
+            "target": student.id,
+            "description": f"Student Pratham Rajbhar ({student.enrollmentNumber}) registered by admin",
+            "ipAddress": "127.0.0.1",
+        })
+        print("  ✓ Administrative audit logs created")
+
+        # Recalculate streaks and build Redis leaderboard
+        try:
+            from app.db.redis import connect_redis, disconnect_redis
+            from app.services.gamification_service import GamificationService
+            await connect_redis()
+            print("\nUpdating student streaks and Redis leaderboard...")
+            gamification_service = GamificationService()
+            await gamification_service.recalculate_student_streak(student.id)
+            print("  ✓ Recalculated and synchronized all streaks/leaderboard scores")
+        except Exception as re:
+            print(f"  [WARNING] Failed to recalculate streaks/leaderboard: {re}")
+        finally:
+            try:
+                await disconnect_redis()
+            except Exception:
+                pass
+
+        # Summary Printout
+        print("\n" + "=" * 72)
+        print("  SEED COMPLETE — SUMMARY")
+        print("=" * 72)
+        print("  Departments      : 1")
+        print(f"  Designations     : {len(DESIGNATIONS)}")
+        print("  Subjects         : 4")
+        print(f"  Classrooms       : {len(classroom_map)}")
+        print("  Admins           : 1")
+        print(f"  Teachers         : {len(teacher_ids)}")
+        print("  Students         : 1 (Pratham Rajbhar)")
+        print(f"  Academic Classes : {len(classes)}")
+        print(f"  Geofences        : {len(classes)}")
+        print(f"  Enrollments      : {len(classes)}")
+        print(f"  Sessions         : {session_count}")
+        print(f"  Attendance       : {attendance_count}")
+        print("  Leaves           : 1")
+        print("  Device Changes   : 1")
+        print("-" * 72)
+        print("  LOGIN CREDENTIALS")
+        print("-" * 72)
+        print("  ADMIN  →  admin@smartattendance.edu.in  /  Admin@123")
+        print("  TEACHER →  emp001@smartattendance.edu.in  /  Teacher@123")
+        print("  STUDENT →  pratham.rajbhar@smartattendance.edu.in  /  Student@123")
+        print("=" * 72)
+
+    finally:
+        await db.disconnect()
+        print("\nDatabase connection closed.")
+
+
+# ==============================================================================
 # ENTRY POINT
 # ==============================================================================
 
 if __name__ == "__main__":
     asyncio.run(seed_all())
+

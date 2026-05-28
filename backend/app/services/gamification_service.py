@@ -14,25 +14,97 @@ class GamificationService:
         self.attendance_repo = AttendanceRepository()
 
     async def update_streak(self, student_id: str, attendance_status: str) -> dict:
+        """Helper to compatibility-wrap recalculate_student_streak."""
+        return await self.recalculate_student_streak(student_id)
+
+    async def recalculate_student_streak(self, student_id: str) -> dict:
+        """Recalculate student streak based on historical attendance logs and active sessions."""
         student = await self.student_repo.get_by_id(student_id)
         if not student:
             return {"error": "Student not found"}
 
-        current = student.currentStreak or 0
-        highest = student.highestStreak or 0
+        from app.db.client import db
+        enrollments = await db.enrollment.find_many(where={"studentId": student_id})
+        class_ids = [e.academicClassId for e in enrollments]
+        
+        if not class_ids:
+            await self.student_repo.update_streak(student_id, 0, student.highestStreak or 0)
+            await self._update_redis_score(student_id, 0, student.highestStreak or 0)
+            return {"current_streak": 0, "highest_streak": student.highestStreak or 0}
 
-        if attendance_status in ("Present", "Approved"):
-            new_streak = current + 1
-            new_highest = max(new_streak, highest)
-            await self.student_repo.update_streak(student_id, new_streak, new_highest)
-            await self._update_redis_score(student_id, new_streak, new_highest)
-            return {"current_streak": new_streak, "highest_streak": new_highest, "streak_increased": True}
-        elif attendance_status == "Absent":
-            await self.student_repo.update_streak(student_id, 0, highest)
-            await self._update_redis_score(student_id, 0, highest)
-            return {"current_streak": 0, "highest_streak": highest, "streak_increased": False, "streak_broken": True}
-        else:
-            return {"current_streak": current, "highest_streak": highest, "streak_increased": False}
+        now = datetime.now(timezone.utc)
+        
+        # Get all sessions that have already started
+        sessions = await db.session.find_many(
+            where={
+                "academicClassId": {"in": class_ids},
+                "startTime": {"lte": now}
+            },
+            order={"startTime": "desc"}
+        )
+
+        attendance = await db.attendance.find_many(where={"studentId": student_id})
+        attendance_map = {a.sessionId: a for a in attendance}
+        
+        leaves = await db.leaverequest.find_many(where={"studentId": student_id, "status": "APPROVED"})
+
+        def is_on_leave(session_start: datetime) -> bool:
+            s_start = session_start.replace(tzinfo=timezone.utc) if session_start.tzinfo is None else session_start
+            for leave in leaves:
+                l_start = leave.startDate.replace(tzinfo=timezone.utc) if leave.startDate.tzinfo is None else leave.startDate
+                l_end = leave.endDate.replace(tzinfo=timezone.utc) if leave.endDate.tzinfo is None else leave.endDate
+                if l_start <= s_start <= l_end:
+                    return True
+            return False
+
+        # Filter out active sessions where student hasn't checked in yet
+        valid_sessions = []
+        for s in sessions:
+            s_end = s.endTime.replace(tzinfo=timezone.utc) if s.endTime.tzinfo is None else s.endTime
+            is_active = s.isActive and s_end > now
+            has_checked_in = s.id in attendance_map and attendance_map[s.id].status in ("Present", "Approved")
+            
+            if is_active and not has_checked_in:
+                continue
+            valid_sessions.append(s)
+
+        # 1. Current streak calculation (descending order)
+        current_streak = 0
+        for s in valid_sessions:
+            att = attendance_map.get(s.id)
+            status = att.status if att else None
+
+            if status in ("Present", "Approved"):
+                current_streak += 1
+            elif is_on_leave(s.startTime):
+                continue
+            elif status == "Flagged":
+                continue
+            else:
+                break
+
+        # 2. Highest streak calculation (ascending order)
+        highest_streak = student.highestStreak or 0
+        running_streak = 0
+        for s in reversed(valid_sessions):
+            att = attendance_map.get(s.id)
+            status = att.status if att else None
+
+            if status in ("Present", "Approved"):
+                running_streak += 1
+                highest_streak = max(highest_streak, running_streak)
+            elif is_on_leave(s.startTime):
+                continue
+            elif status == "Flagged":
+                continue
+            else:
+                running_streak = 0
+
+        highest_streak = max(highest_streak, current_streak)
+
+        await self.student_repo.update_streak(student_id, current_streak, highest_streak)
+        await self._update_redis_score(student_id, current_streak, highest_streak)
+        return {"current_streak": current_streak, "highest_streak": highest_streak}
 
     async def calculate_consecutive_absences(self, student_id: str, days: int = 3) -> int:
         end = datetime.now(timezone.utc)

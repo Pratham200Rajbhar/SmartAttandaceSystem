@@ -71,6 +71,15 @@ export default function EnrollStudentsPage(): React.ReactElement {
     });
   }, [students, searchQuery, selectedDepartment, selectedSemester, selectedBatch]);
 
+  const nonEnrolledFilteredStudents = useMemo(() => {
+    return filteredStudents.filter(
+      (s) => !(cls?.enrolled_student_ids?.includes(s.id) ?? false)
+    );
+  }, [filteredStudents, cls]);
+
+  const allVisibleSelected = nonEnrolledFilteredStudents.length > 0 && 
+    nonEnrolledFilteredStudents.every((s) => selectedIds.has(s.id));
+
   const filterOptions = useMemo(() => {
     const departments = new Set<string>();
     const semesters = new Set<string>();
@@ -88,6 +97,9 @@ export default function EnrollStudentsPage(): React.ReactElement {
   }, [students]);
 
   const toggleSelect = (studentId: string) => {
+    const isAlreadyEnrolled = cls?.enrolled_student_ids?.includes(studentId) || false;
+    if (isAlreadyEnrolled) return;
+    
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(studentId)) next.delete(studentId);
@@ -97,14 +109,18 @@ export default function EnrollStudentsPage(): React.ReactElement {
   };
 
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredStudents.length && filteredStudents.length > 0) {
-      
-      setSelectedIds(new Set());
+    if (allVisibleSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        nonEnrolledFilteredStudents.forEach((s) => next.delete(s.id));
+        return next;
+      });
     } else {
-      
-      const newSet = new Set(selectedIds);
-      filteredStudents.forEach(s => newSet.add(s.id));
-      setSelectedIds(newSet);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        nonEnrolledFilteredStudents.forEach((s) => next.add(s.id));
+        return next;
+      });
     }
   };
 
@@ -129,8 +145,6 @@ export default function EnrollStudentsPage(): React.ReactElement {
 
   if (loading) return <GlassLoader text="Loading students directory..." />;
   if (!cls) return <div className="text-center py-20 text-slate-500">Class not found</div>;
-
-  const allVisibleSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.has(s.id));
 
   return (
     <div className="animate-fade-in-up space-y-6">
@@ -185,6 +199,7 @@ export default function EnrollStudentsPage(): React.ReactElement {
                 variant="secondary" 
                 onClick={toggleSelectAll}
                 className="w-full sm:w-auto"
+                disabled={nonEnrolledFilteredStudents.length === 0}
               >
                 {allVisibleSelected ? "Deselect All Visible" : "Select All Visible"}
               </GlassButton>
@@ -247,20 +262,29 @@ export default function EnrollStudentsPage(): React.ReactElement {
           ) : (
             filteredStudents.map((student) => {
               const isSelected = selectedIds.has(student.id);
+              const isAlreadyEnrolled = cls?.enrolled_student_ids?.includes(student.id) || false;
               const fullName = student.first_name || student.last_name ? `${student.first_name || ""} ${student.last_name || ""}`.trim() : "Unknown Name";
               
               return (
                 <div 
                   key={student.id}
                   onClick={() => toggleSelect(student.id)}
-                  className={`group flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 cursor-pointer ${
-                    isSelected 
-                      ? "bg-white/5 border-white/10" 
-                      : "bg-slate-800/30 border-transparent hover:border-white/10 hover:bg-white/[0.02]"
+                  className={`group flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 ${
+                    isAlreadyEnrolled
+                      ? "bg-slate-900/10 border-transparent opacity-40 cursor-not-allowed"
+                      : isSelected 
+                      ? "bg-white/5 border-white/10 cursor-pointer" 
+                      : "bg-slate-800/30 border-transparent hover:border-white/10 hover:bg-white/[0.02] cursor-pointer"
                   }`}
                 >
-                  <div className={`flex-shrink-0 transition-colors ${isSelected ? "text-slate-300" : "text-slate-600 group-hover:text-slate-400"}`}>
-                    {isSelected ? <CheckCircle2 size={24} /> : <Circle size={24} />}
+                  <div className={`flex-shrink-0 transition-colors ${
+                    isAlreadyEnrolled
+                      ? "text-emerald-500"
+                      : isSelected 
+                      ? "text-slate-300" 
+                      : "text-slate-600 group-hover:text-slate-400"
+                  }`}>
+                    {isAlreadyEnrolled ? <CheckCircle2 size={24} /> : isSelected ? <CheckCircle2 size={24} /> : <Circle size={24} />}
                   </div>
                   
                   <div className="flex-1 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
@@ -278,11 +302,14 @@ export default function EnrollStudentsPage(): React.ReactElement {
                       <p className="text-xs text-slate-500">Enrollment No.</p>
                     </div>
                     
-                    <div className="sm:col-span-3">
+                    <div className="sm:col-span-3 flex items-center gap-2">
                       {student.department_name ? (
                         <GlassBadge variant="neutral" className="text-xs">{student.department_name}</GlassBadge>
                       ) : (
                         <span className="text-xs text-slate-500">—</span>
+                      )}
+                      {isAlreadyEnrolled && (
+                        <GlassBadge variant="success" className="text-[10px] uppercase font-bold tracking-wider">Enrolled</GlassBadge>
                       )}
                     </div>
                     

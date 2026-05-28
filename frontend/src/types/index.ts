@@ -124,6 +124,7 @@ export interface ClassResponse {
   batch?: string | null;
   max_students?: number | null;
   enrolled_count: number;
+  enrolled_student_ids?: string[];
 }
 
 export interface AssignTeacherRequest {

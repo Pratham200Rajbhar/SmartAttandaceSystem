@@ -34,12 +34,10 @@ def is_within_geofence(
 ) -> bool:
     """Validates if student is within the classroom geofence, accounting for GPS drift.
 
-    The effective radius is the base classroom radius plus student accuracy,
-    capped at a maximum of 100.0 meters.
+    The effective radius is the base classroom radius plus student accuracy.
     """
     distance = calculate_haversine_distance(student_coord, classroom_coord)
     effective_radius = base_radius + student_accuracy
-    if effective_radius > 100.0:
-        effective_radius = 100.0
     return distance <= effective_radius
+
 

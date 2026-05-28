@@ -108,6 +108,8 @@ class TeacherService:
         await self._get_session_with_auth(session_id, teacher.id)
 
         count = 0
+        from app.services.gamification_service import GamificationService
+        gamification_service = GamificationService()
         for record in request.records:
             await db.attendance.upsert(
                 where={"studentId_sessionId": {"studentId": record.student_id, "sessionId": session_id}},
@@ -121,6 +123,11 @@ class TeacherService:
                 },
             )
             count += 1
+            try:
+                await gamification_service.recalculate_student_streak(record.student_id)
+            except Exception as e:
+                from app.core.logging_config import get_logger
+                get_logger("app.teacher").warning("Failed to recalculate streak for student %s in bulk mark: %s", record.student_id, e)
         return count
 
     async def export_class_attendance(self, class_id: str, user_id: str, from_date: Optional[datetime], to_date: Optional[datetime]) -> List[dict]:
@@ -219,6 +226,14 @@ class TeacherService:
                 "faceScore": score, "livenessScore": score, "backgroundScore": score, "finalAiScore": score,
                 "gpsLatitude": 0.0, "gpsLongitude": 0.0, "remarks": f"Manual override by Teacher to {status_val}",
             })
+
+        try:
+            from app.services.gamification_service import GamificationService
+            await GamificationService().recalculate_student_streak(student_id)
+        except Exception as e:
+            from app.core.logging_config import get_logger
+            get_logger("app.teacher").warning("Failed to recalculate streak for student %s in manual override: %s", student_id, e)
+
         return True
 
     async def get_teacher_sessions(self, user_id: str) -> List[SessionWithClassResponse]:
@@ -235,10 +250,14 @@ class TeacherService:
         # Proactively deactivate expired sessions in DB
         expired_ids = [s.id for s in sessions if s.isActive and (s.endTime.replace(tzinfo=timezone.utc) if s.endTime.tzinfo is None else s.endTime) <= now]
         if expired_ids:
-            await db.session.update_many(
-                where={"id": {"in": expired_ids}},
-                data={"isActive": False}
-            )
+            from app.services.session_service import SessionService
+            session_service = SessionService()
+            for s_id in expired_ids:
+                try:
+                    await session_service.close_session(s_id)
+                except Exception as e:
+                    from app.core.logging_config import get_logger
+                    get_logger("app.teacher").warning("Failed to close expired session %s: %s", s_id, e)
 
         return [
             SessionWithClassResponse(

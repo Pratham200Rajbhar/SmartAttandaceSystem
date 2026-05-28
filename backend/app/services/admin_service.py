@@ -187,6 +187,7 @@ class AdminService:
             teacherId=cls.teacherId, classroom_name=cls.classroom.name if cls.classroom else None,
             semester=cls.semester, batch=cls.batch, max_students=cls.maxStudents,
             enrolled_count=len(cls.enrollments) if cls.enrollments else 0,
+            enrolled_student_ids=[e.studentId for e in cls.enrollments] if cls.enrollments else [],
         )
 
     async def get_all_classes(self) -> List[ClassResponse]:
@@ -198,6 +199,7 @@ class AdminService:
                 classroom_name=c.classroom.name if c.classroom else None,
                 semester=c.semester, batch=c.batch, max_students=c.maxStudents,
                 enrolled_count=len(c.enrollments) if c.enrollments else 0,
+                enrolled_student_ids=[e.studentId for e in c.enrollments] if c.enrollments else [],
             )
             for c in classes
         ]
@@ -215,6 +217,7 @@ class AdminService:
             classroom_name=cls.classroom.name if cls.classroom else None,
             semester=cls.semester, batch=cls.batch, max_students=cls.maxStudents,
             enrolled_count=len(cls.enrollments) if cls.enrollments else 0,
+            enrolled_student_ids=[e.studentId for e in cls.enrollments] if cls.enrollments else [],
         )
 
     async def assign_teacher(self, class_id: str, teacher_id: str, actor: str = "system", ip: Optional[str] = None) -> ClassResponse:
@@ -230,6 +233,7 @@ class AdminService:
             classroom_name=cls.classroom.name if cls.classroom else None,
             semester=cls.semester, batch=cls.batch, max_students=cls.maxStudents,
             enrolled_count=len(cls.enrollments) if cls.enrollments else 0,
+            enrolled_student_ids=[e.studentId for e in cls.enrollments] if cls.enrollments else [],
         )
 
     async def enroll_students(self, class_id: str, student_ids: List[str], actor: str = "system", ip: Optional[str] = None) -> int:
@@ -238,8 +242,12 @@ class AdminService:
         count = 0
         for sid in student_ids:
             if await self.student_repo.get_by_id(sid):
-                await self.enrollment_repo.enroll_student(sid, class_id)
-                count += 1
+                existing = await db.enrollment.find_first(
+                    where={"studentId": sid, "academicClassId": class_id}
+                )
+                if not existing:
+                    await self.enrollment_repo.enroll_student(sid, class_id)
+                    count += 1
         await self._log_action("ENROLL_STUDENTS", "INFO", actor, class_id, f"Enrolled {count} student(s) in class", ip)
         return count
 
